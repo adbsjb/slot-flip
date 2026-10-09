@@ -21,3 +21,8 @@
 
 # Parallel implementation worktrees, never content.
 /.worktrees
+
+# flip port
+/target-flip/
+/SlotDiag-my355.zip
+flip/Tools/my355/SlotSmoke.pak/flip_smoke
