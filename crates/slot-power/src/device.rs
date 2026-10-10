@@ -67,6 +67,8 @@ enum Backlight {
 }
 
 enum Led {
+    // Unused on the Flip, which only has mono LEDs, but kept for the H700.
+    #[cfg_attr(feature = "flip", allow(dead_code))]
     Multi(PathBuf),
     Mono { dir: PathBuf, max: u32 },
 }
@@ -107,6 +109,21 @@ impl DevicePlatform {
         let battery = first_dir(&sysfs.join("class/power_supply"), is_battery);
         let rtc = first_dir(&sysfs.join("class/rtc"), |_| true);
         let motor = Motor::open(sysfs);
+        // On the Flip the first leds entry is "charger", which the kernel drives
+        // red from the battery trigger and fights us for. The green power light
+        // is "work". Prefer it, and detach its trigger so slot owns it.
+        #[cfg(feature = "flip")]
+        let led = {
+            let work = sysfs.join("class/leds/work");
+            if work.join("brightness").is_file() {
+                let _ = fs::write(work.join("trigger"), "none\n");
+                let max = read_number(&work.join("max_brightness")).unwrap_or(255);
+                Some(Led::Mono { dir: work, max })
+            } else {
+                None
+            }
+        };
+        #[cfg(not(feature = "flip"))]
         let led = first_dir(&sysfs.join("class/leds"), |d| {
             d.join("multi_intensity").is_file() || d.join("brightness").is_file()
         })

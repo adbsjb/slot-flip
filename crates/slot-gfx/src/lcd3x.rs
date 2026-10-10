@@ -21,12 +21,22 @@ pub fn lcd3x_mask() -> [[[f32; 3]; 3]; 3] {
 }
 
 pub fn mask_texture_rgba8() -> [u8; 3 * 3 * 4] {
-    let mask = lcd3x_mask();
-    let mut tex = [255u8; 3 * 3 * 4];
-    for (texel, cell) in tex.chunks_exact_mut(4).zip(mask.iter().flatten()) {
-        for (out, v) in texel.iter_mut().zip(cell) {
-            *out = (v * 255.0).round() as u8;
-        }
+    // On the Flip we skip the LCD3x subpixel grid: an all-white mask makes the
+    // mask multiply in the game shader a no-op, giving a clean, shaderless
+    // image on its 640x480 panel.
+    #[cfg(feature = "flip")]
+    {
+        return [255u8; 3 * 3 * 4];
     }
-    tex
+    #[cfg(not(feature = "flip"))]
+    {
+        let mask = lcd3x_mask();
+        let mut tex = [255u8; 3 * 3 * 4];
+        for (texel, cell) in tex.chunks_exact_mut(4).zip(mask.iter().flatten()) {
+            for (out, v) in texel.iter_mut().zip(cell) {
+                *out = (v * 255.0).round() as u8;
+            }
+        }
+        tex
+    }
 }

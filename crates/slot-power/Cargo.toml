@@ -5,6 +5,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# Miyoo Flip (my355) tweaks: target the green "work" LED instead of the
+# charger light. Enabled by the slot crate's own `flip` feature.
+flip = []
+
 [dependencies]
 
 [dev-dependencies]

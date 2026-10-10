@@ -27,5 +27,11 @@ pub fn open_sink() -> Box<dyn AudioSink> {
 
 #[cfg(not(feature = "host"))]
 pub fn open_sink() -> Box<dyn AudioSink> {
+    // SLOT_SILENT swaps in a stub that drains the ring at a steady simulated
+    // rate. Handy on the Flip to tell an ALSA pacing problem from everything
+    // else: if games run smoothly silent, the audio device is the culprit.
+    if std::env::var_os("SLOT_SILENT").is_some() {
+        return Box::new(StubSink::draining());
+    }
     Box::new(AlsaSink::new())
 }
