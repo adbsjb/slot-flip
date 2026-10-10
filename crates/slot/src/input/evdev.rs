@@ -148,10 +148,12 @@ pub fn code_to_btn(code: u16) -> Option<Btn> {
         108 => Btn::Down,
         105 => Btn::Left,
         106 => Btn::Right,
-        29 => Btn::A,          // KEY_LEFTCTRL   (right face)
-        57 => Btn::B,          // KEY_SPACE      (bottom face)
-        56 => Btn::X,          // KEY_LEFTALT    (top face)
-        42 => Btn::Y,          // KEY_LEFTSHIFT  (left face)
+        // The pad's kernel A/B/X/Y labels are rotated versus the printed
+        // letters on this unit, so they are mapped to match what is printed.
+        57 => Btn::A,          // KEY_SPACE      (bottom-printed A behaves as confirm)
+        29 => Btn::B,          // KEY_LEFTCTRL
+        42 => Btn::X,          // KEY_LEFTSHIFT
+        56 => Btn::Y,          // KEY_LEFTALT
         15 => Btn::L1,         // KEY_TAB
         104 => Btn::L2,        // KEY_PAGEUP  (rewind)
         // R1 is physically dead on this unit; the working R2 shoulder takes its
@@ -201,7 +203,17 @@ fn wanted_node(device: &Path) -> bool {
     let cap = |file: &str| std::fs::read_to_string(device.join("capabilities").join(file));
     let keys = cap("key").unwrap_or_default();
     let lid = cap("sw").is_ok_and(|sw| has_bit(&sw, SW_LID));
-    lid || WANTED.iter().any(|bit| has_bit(&keys, *bit))
+    if lid || WANTED.iter().any(|bit| has_bit(&keys, *bit)) {
+        return true;
+    }
+    // On the Flip the buttons arrive on the gpio keyboard node, but the right
+    // stick (used for fast-forward) lives on the gamepad node, which advertises
+    // analogue axes. Accept any node that reports ABS so the stick is read too.
+    #[cfg(feature = "flip")]
+    if cap("abs").is_ok_and(|abs| abs.trim().chars().any(|c| c != '0' && c != ' ')) {
+        return true;
+    }
+    false
 }
 
 pub fn device_name(sys: &Path, node: &Path) -> String {
