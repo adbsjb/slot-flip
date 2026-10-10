@@ -13,6 +13,15 @@ pub const EV_ABS: u16 = 0x03;
 pub const ABS_HAT0X: u16 = 0x10;
 pub const ABS_HAT0Y: u16 = 0x11;
 
+// Right analogue stick, used on the Flip to drive fast-forward since the
+// physical R2 shoulder is repurposed to stand in for a dead R1.
+#[cfg(feature = "flip")]
+pub const ABS_RX: u16 = 0x03;
+#[cfg(feature = "flip")]
+const STICK_ON: i32 = 20_000;
+#[cfg(feature = "flip")]
+const STICK_OFF: i32 = 12_000;
+
 #[derive(Default)]
 pub struct Hat {
     x: i32,
@@ -40,6 +49,33 @@ impl Hat {
             out.push(RawEvent::Down(btn(now)));
         }
         out
+    }
+}
+
+// Turns the right stick's horizontal axis into R2 presses (fast-forward) with a
+// little hysteresis so a resting stick doesn't chatter. Pushing right past
+// STICK_ON presses R2; releasing below STICK_OFF lets it go. Left is ignored.
+#[cfg(feature = "flip")]
+#[derive(Default)]
+pub struct Stick {
+    held: bool,
+}
+
+#[cfg(feature = "flip")]
+impl Stick {
+    pub fn feed(&mut self, ev: Ev) -> Vec<RawEvent> {
+        if ev.code != ABS_RX {
+            return Vec::new();
+        }
+        if !self.held && ev.value >= STICK_ON {
+            self.held = true;
+            return vec![RawEvent::Down(Btn::R2)];
+        }
+        if self.held && ev.value < STICK_OFF {
+            self.held = false;
+            return vec![RawEvent::Up(Btn::R2)];
+        }
+        Vec::new()
     }
 }
 
@@ -72,6 +108,8 @@ pub fn to_raw(ev: Ev) -> Option<RawEvent> {
     }
 }
 
+// The Anbernic RG SP (H700) pad speaks BTN_* gamepad codes.
+#[cfg(not(feature = "flip"))]
 pub fn code_to_btn(code: u16) -> Option<Btn> {
     Some(match code {
         0x130 => Btn::A,
@@ -92,9 +130,47 @@ pub fn code_to_btn(code: u16) -> Option<Btn> {
     })
 }
 
+#[cfg(not(feature = "flip"))]
 const WANTED: [u16; 15] = [
     0x130, 0x131, 0x132, 0x133, 0x134, 0x135, 0x136, 0x137, 0x138, 0x13a, 0x13b, 0x162, 115, 114,
     116,
+];
+
+// The Miyoo Flip (my355) routes every working button through the gpio
+// "keyboard" node (event0) as standard Linux key codes. The gamepad node
+// (event5) is missing R1 entirely and reports L2/R2 only as analogue axes, so
+// event0 is the reliable source. R1 is physically dead on this unit, so it is
+// deliberately left unmapped; its actions are recovered from R2 higher up.
+#[cfg(feature = "flip")]
+pub fn code_to_btn(code: u16) -> Option<Btn> {
+    Some(match code {
+        103 => Btn::Up,
+        108 => Btn::Down,
+        105 => Btn::Left,
+        106 => Btn::Right,
+        29 => Btn::A,          // KEY_LEFTCTRL   (right face)
+        57 => Btn::B,          // KEY_SPACE      (bottom face)
+        56 => Btn::X,          // KEY_LEFTALT    (top face)
+        42 => Btn::Y,          // KEY_LEFTSHIFT  (left face)
+        15 => Btn::L1,         // KEY_TAB
+        104 => Btn::L2,        // KEY_PAGEUP  (rewind)
+        // R1 is physically dead on this unit; the working R2 shoulder takes its
+        // place so platform-switch, aspect-reset and Select+R save state all
+        // keep working. Fast-forward (normally R2) moves to the right stick.
+        109 => Btn::R1,        // KEY_PAGEDOWN (acts as R1)
+        97 => Btn::Select,     // KEY_RIGHTCTRL
+        28 => Btn::Start,      // KEY_ENTER
+        1 => Btn::Menu,        // KEY_ESC
+        115 => Btn::VolUp,
+        114 => Btn::VolDown,
+        116 => Btn::Power,
+        _ => return None,
+    })
+}
+
+#[cfg(feature = "flip")]
+const WANTED: [u16; 16] = [
+    103, 108, 105, 106, 29, 57, 56, 42, 15, 104, 109, 97, 28, 1, 115, 114,
 ];
 
 pub use slot_power::has_bit;

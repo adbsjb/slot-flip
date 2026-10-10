@@ -9,6 +9,8 @@ use slot_input::{Btn, InputSource, Millis, RawEvent};
 use super::evdev::{
     decode, device_name, pick_devices, to_raw, Ev, Hat, EVENT_BYTES, EV_ABS, EV_KEY, EV_SYN,
 };
+#[cfg(feature = "flip")]
+use super::evdev::Stick;
 use super::trace;
 
 const DEV: &str = "/dev/input";
@@ -92,6 +94,8 @@ fn read_node(node: &Path, queue: &Mutex<Vec<RawEvent>>, trace: Option<&Trace>) {
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| node.display().to_string());
     let mut hat = Hat::default();
+    #[cfg(feature = "flip")]
+    let mut stick = Stick::default();
     let mut file = match File::open(node) {
         Ok(f) => f,
         Err(e) => {
@@ -119,7 +123,11 @@ fn read_node(node: &Path, queue: &Mutex<Vec<RawEvent>>, trace: Option<&Trace>) {
                 crate::latency::read();
             }
             match ev.kind {
-                EV_ABS => events.extend(hat.feed(ev)),
+                EV_ABS => {
+                    events.extend(hat.feed(ev));
+                    #[cfg(feature = "flip")]
+                    events.extend(stick.feed(ev));
+                }
                 _ => events.extend(to_raw(ev)),
             }
         }
