@@ -48,9 +48,13 @@ impl DeviceInput {
             let queue = pending.clone();
             let name = node.display().to_string();
             let trace = trace.clone();
+            #[cfg(feature = "flip")]
+            let stick_only = super::evdev::is_gamepad_node(&sys.join(node.file_name().unwrap()).join("device"));
+            #[cfg(not(feature = "flip"))]
+            let stick_only = false;
             let spawned = std::thread::Builder::new()
                 .name(format!("slot-input-{name}"))
-                .spawn(move || read_node(&node, &queue, trace.as_deref()));
+                .spawn(move || read_node(&node, &queue, trace.as_deref(), stick_only));
             if let Err(e) = spawned {
                 eprintln!("slot: input {name}: {e}");
             }
@@ -88,7 +92,8 @@ fn quicken_poll(sys: &Path, node: &Path) {
     }
 }
 
-fn read_node(node: &Path, queue: &Mutex<Vec<RawEvent>>, trace: Option<&Trace>) {
+fn read_node(node: &Path, queue: &Mutex<Vec<RawEvent>>, trace: Option<&Trace>, stick_only: bool) {
+    let _ = stick_only;
     let label = node
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -122,11 +127,18 @@ fn read_node(node: &Path, queue: &Mutex<Vec<RawEvent>>, trace: Option<&Trace>) {
             if (ev.kind == EV_KEY && ev.value == 1) || (ev.kind == EV_ABS && ev.value != 0) {
                 crate::latency::read();
             }
+            #[cfg(feature = "flip")]
+            if stick_only {
+                // Gamepad node: contribute only the right stick (fast-forward).
+                // Its buttons and hat duplicate the gpio keyboard node.
+                if ev.kind == EV_ABS {
+                    events.extend(stick.feed(ev));
+                }
+                continue;
+            }
             match ev.kind {
                 EV_ABS => {
                     events.extend(hat.feed(ev));
-                    #[cfg(feature = "flip")]
-                    events.extend(stick.feed(ev));
                 }
                 _ => events.extend(to_raw(ev)),
             }

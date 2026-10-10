@@ -74,38 +74,65 @@ impl Alsa {
         }
     }
 
-    fn open_pcm(&self, rate: u32) -> Result<*mut c_void, AudioError> {
+    // Opens the first working device at a rate it accepts and returns the pcm
+    // plus the rate actually opened. The core's native rate (eg. 32768 for the
+    // GBA) is tried first, but some codecs — the Flip's rk817 among them —
+    // only lock cleanly at a standard rate, so well-supported fallbacks are
+    // tried next. The emulator resamples to whatever rate we end up with.
+    fn open_pcm(&self, rate: u32) -> Result<(*mut c_void, u32), AudioError> {
         let mut last = AudioError::NoDevice;
+        let rates = preferred_rates(rate);
         for name in DEVICES {
             let Ok(cname) = CString::new(name) else {
                 continue;
             };
-            let mut pcm: *mut c_void = std::ptr::null_mut();
-            let err = unsafe { (self.open)(&mut pcm, cname.as_ptr(), SND_PCM_STREAM_PLAYBACK, 0) };
-            if err < 0 || pcm.is_null() {
-                last = AudioError::Device(format!("{name}: {}", self.message(err)));
-                continue;
+            for &try_rate in &rates {
+                let mut pcm: *mut c_void = std::ptr::null_mut();
+                let err =
+                    unsafe { (self.open)(&mut pcm, cname.as_ptr(), SND_PCM_STREAM_PLAYBACK, 0) };
+                if err < 0 || pcm.is_null() {
+                    last = AudioError::Device(format!("{name}: {}", self.message(err)));
+                    break; // device itself failed to open; try the next device
+                }
+                let err = unsafe {
+                    (self.set_params)(
+                        pcm,
+                        SND_PCM_FORMAT_S16_LE,
+                        SND_PCM_ACCESS_RW_INTERLEAVED,
+                        CHANNELS,
+                        try_rate,
+                        1,
+                        LATENCY_US,
+                    )
+                };
+                if err < 0 {
+                    unsafe { (self.close)(pcm) };
+                    last = AudioError::Config(format!("{name} @ {try_rate}: {}", self.message(err)));
+                    continue; // this rate refused; try the next rate
+                }
+                eprintln!("slot: audio {name} at {try_rate} Hz");
+                return Ok((pcm, try_rate));
             }
-            let err = unsafe {
-                (self.set_params)(
-                    pcm,
-                    SND_PCM_FORMAT_S16_LE,
-                    SND_PCM_ACCESS_RW_INTERLEAVED,
-                    CHANNELS,
-                    rate,
-                    1,
-                    LATENCY_US,
-                )
-            };
-            if err < 0 {
-                unsafe { (self.close)(pcm) };
-                last = AudioError::Config(format!("{name}: {}", self.message(err)));
-                continue;
-            }
-            eprintln!("slot: audio {name} at {rate} Hz");
-            return Ok(pcm);
         }
         Err(last)
+    }
+}
+
+// The device rates to try, in order. On the Flip we skip straight to standard
+// rates the rk817 codec locks onto; elsewhere the core's own rate is honoured
+// first so nothing changes for the H700.
+fn preferred_rates(core_rate: u32) -> Vec<u32> {
+    #[cfg(feature = "flip")]
+    {
+        let mut v = vec![48_000, 44_100];
+        if !v.contains(&core_rate) {
+            v.push(core_rate);
+        }
+        v
+    }
+    #[cfg(not(feature = "flip"))]
+    {
+        vec![core_rate]
     }
 }
 
@@ -194,8 +221,10 @@ struct Playback {
 
 fn play(ring: &Arc<Ring>, sample_rate: u32) -> Result<Playback, AudioError> {
     let alsa = Alsa::load()?;
-    let pcm = alsa.open_pcm(sample_rate)?;
-    ring.reopen(sample_rate);
+    let (pcm, actual_rate) = alsa.open_pcm(sample_rate)?;
+    // The ring runs at the rate the hardware actually took, so the emulator's
+    // resampler converts the core's output to match.
+    ring.reopen(actual_rate);
     Ok(Playback { alsa, pcm })
 }
 

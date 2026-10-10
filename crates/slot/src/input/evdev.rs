@@ -216,6 +216,17 @@ fn wanted_node(device: &Path) -> bool {
     false
 }
 
+// On the Flip, both the gpio keyboard node (event0) and the gamepad node
+// (event5) report every button, so reading both double-counts every press.
+// We take buttons + D-pad from event0 and use event5 only for its right
+// analogue stick. This flags the gamepad node: it is the one that advertises
+// BTN_SOUTH (0x130), which the keyboard node never does.
+#[cfg(feature = "flip")]
+pub fn is_gamepad_node(device: &Path) -> bool {
+    let keys = std::fs::read_to_string(device.join("capabilities/key")).unwrap_or_default();
+    has_bit(&keys, 0x130)
+}
+
 pub fn device_name(sys: &Path, node: &Path) -> String {
     node.file_name()
         .and_then(|n| std::fs::read_to_string(sys.join(n).join("device/name")).ok())
