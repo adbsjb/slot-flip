@@ -370,6 +370,14 @@ impl Frontend {
         self.session.core_settling()
     }
 
+    pub fn frames_published(&self) -> u64 {
+        self.session.frames_published()
+    }
+
+    pub fn frames_taken(&self) -> u64 {
+        self.session.frames_taken()
+    }
+
     pub fn advance_at(&mut self, input: &mut dyn InputSource, now: Millis, dt: f32) {
         let events = input.poll(now);
         self.session.feed(events, now);

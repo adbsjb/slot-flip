@@ -103,6 +103,8 @@ pub fn run() {
     frontend.drive_emulator();
     let mut pacer = Pacer::new();
     let (mut frames, mut missed, mut early) = (0u32, 0u32, 0u32);
+    #[cfg(feature = "flip")]
+    let mut heartbeat = (Instant::now(), 0u64, frontend.frames_published());
     loop {
         pacer.wait();
         let began = Instant::now();
@@ -136,6 +138,25 @@ pub fn run() {
                     pacer.period.as_secs_f64() * 1e3
                 );
                 (frames, missed, early) = (0, 0, 0);
+            }
+        }
+        // Flip heartbeat: every ~2s report how many main-loop iterations ran
+        // versus how many emulator frames the core published. If loops climb
+        // but published frames stall, the emulator thread is wedged, not the UI.
+        #[cfg(feature = "flip")]
+        {
+            heartbeat.1 += 1;
+            if heartbeat.0.elapsed() >= Duration::from_secs(2) {
+                let published = frontend.frames_published();
+                eprintln!(
+                    "slot: heartbeat: {} loops, {} emu frames in {:?} (settling {}, period {:.2} ms)",
+                    heartbeat.1,
+                    published.saturating_sub(heartbeat.2),
+                    heartbeat.0.elapsed(),
+                    frontend.core_settling(),
+                    pacer.period.as_secs_f64() * 1e3,
+                );
+                heartbeat = (Instant::now(), 0, published);
             }
         }
         if !drawn {
