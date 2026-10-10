@@ -1,20 +1,20 @@
-//! Raw evdev probe for the Flip.
+//! Raw evdev probe for the Flip (thorough edition).
 //!
-//! The first smoke test read /dev/input/event5 directly and saw nothing, most
-//! likely because MinUI's miyoo_inputd/keymon holds an exclusive grab on the
-//! pad. This probe is more thorough:
-//!   * enumerates every /dev/input/event* node and prints its name + key caps,
-//!   * reads ALL of them at once (threads), so a grabbed node simply stays
-//!     quiet while the live one reports,
-//!   * decodes EV_KEY/EV_ABS/EV_SW with the exact code so we can build the map,
-//!   * optionally tries to EVIOCGRAB each node itself if SLOT_GRAB=1 (reports
-//!     whether the grab succeeded, which tells us if something else holds it).
+//! Reads EVERY /dev/input/event* node at once and records every EV_KEY / EV_SW
+//! press and the full range of every EV_ABS axis. Nothing is thresholded or
+//! filtered, so even a light analogue trigger press is captured.
 //!
-//! No SDL, no window; pure evdev. Runs for $SLOT_EVDEV_SECS (default 30s).
+//! Instead of a fixed timer it runs until you press Volume-Up and Volume-Down
+//! together, then writes a clean SUMMARY: every distinct key code seen on each
+//! node, and the min/max of every axis. That summary is all we need to build
+//! the button map with certainty, no matter what order things were pressed.
+//!
+//! Output: $SLOT_LOG (default /mnt/sdcard/slot-evdev.log). A full event trace
+//! goes to $SLOT_LOG.trace for reference.
 
+use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
-use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -25,14 +25,8 @@ const EV_KEY: u16 = 0x01;
 const EV_ABS: u16 = 0x03;
 const EV_SW: u16 = 0x05;
 
-// ioctl request for EVIOCGRAB (write int). _IOW('E', 0x90, int) on arm64.
-const EVIOCGRAB: libc_ulong = 0x4004_4590;
-#[allow(non_camel_case_types)]
-type libc_ulong = std::os::raw::c_ulong;
-
-extern "C" {
-    fn ioctl(fd: std::os::raw::c_int, request: libc_ulong, ...) -> std::os::raw::c_int;
-}
+const KEY_VOLUMEUP: u16 = 115;
+const KEY_VOLUMEDOWN: u16 = 114;
 
 fn decode(b: &[u8]) -> Option<(u16, u16, i32)> {
     let p: &[u8; EVENT_BYTES] = b.get(..EVENT_BYTES)?.try_into().ok()?;
@@ -43,56 +37,73 @@ fn decode(b: &[u8]) -> Option<(u16, u16, i32)> {
     ))
 }
 
-fn kind_name(k: u16) -> &'static str {
-    match k {
-        EV_KEY => "KEY",
-        EV_ABS => "ABS",
-        EV_SW => "SW ",
-        _ => "?? ",
-    }
-}
-
-// Common BTN_ names so the log is readable without a lookup table handy.
-fn btn_name(code: u16) -> &'static str {
+fn key_name(code: u16) -> &'static str {
     match code {
+        // event5 gamepad BTN_*
         0x130 => "BTN_A/SOUTH",
         0x131 => "BTN_B/EAST",
-        0x132 => "BTN_C",
         0x133 => "BTN_X/NORTH",
         0x134 => "BTN_Y/WEST",
-        0x135 => "BTN_Z",
         0x136 => "BTN_TL (L1)",
         0x137 => "BTN_TR (R1)",
         0x138 => "BTN_TL2 (L2)",
         0x139 => "BTN_TR2 (R2)",
         0x13a => "BTN_SELECT",
         0x13b => "BTN_START",
-        0x13c => "BTN_MODE (menu)",
-        0x13d => "BTN_THUMBL",
-        0x13e => "BTN_THUMBR",
-        114 => "KEY_VOLUMEDOWN",
+        0x13c => "BTN_MODE",
+        // event0 gpio keyboard codes
+        103 => "KEY_UP",
+        108 => "KEY_DOWN",
+        105 => "KEY_LEFT",
+        106 => "KEY_RIGHT",
+        57 => "KEY_SPACE",
+        29 => "KEY_LEFTCTRL",
+        42 => "KEY_LEFTSHIFT",
+        56 => "KEY_LEFTALT",
+        15 => "KEY_TAB",
+        104 => "KEY_PAGEUP",
+        109 => "KEY_PAGEDOWN",
+        28 => "KEY_ENTER",
+        97 => "KEY_RIGHTCTRL",
+        1 => "KEY_ESC",
         115 => "KEY_VOLUMEUP",
+        114 => "KEY_VOLUMEDOWN",
         116 => "KEY_POWER",
         _ => "",
     }
 }
 
-struct Log(Option<File>);
+struct Log {
+    out: Option<File>,
+    trace: Option<File>,
+}
 impl Log {
     fn open() -> Self {
         let path = std::env::var("SLOT_LOG").unwrap_or_else(|_| "/mnt/sdcard/slot-evdev.log".into());
-        Log(OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(path)
-            .ok())
+        let trace_path = format!("{path}.trace");
+        let mk = |p: &str| {
+            OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(p)
+                .ok()
+        };
+        Log {
+            out: mk(&path),
+            trace: mk(&trace_path),
+        }
     }
     fn line(&mut self, s: &str) {
         eprintln!("{s}");
-        if let Some(f) = self.0.as_mut() {
+        if let Some(f) = self.out.as_mut() {
             let _ = writeln!(f, "{s}");
             let _ = f.flush();
+        }
+    }
+    fn trace(&mut self, s: &str) {
+        if let Some(f) = self.trace.as_mut() {
+            let _ = writeln!(f, "{s}");
         }
     }
 }
@@ -119,87 +130,149 @@ fn nodes() -> Vec<PathBuf> {
     v
 }
 
+// One record sent from a reader thread.
+struct Rec {
+    node: String,
+    kind: u16,
+    code: u16,
+    value: i32,
+}
+
 fn main() {
     let mut log = Log::open();
-    log.line("== flip evdev probe ==");
-
-    let try_grab = std::env::var("SLOT_GRAB").ok().as_deref() == Some("1");
-    let secs: u64 = std::env::var("SLOT_EVDEV_SECS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(30);
+    log.line("== flip evdev probe (thorough) ==");
 
     let found = nodes();
     log.line(&format!("found {} event nodes", found.len()));
     for node in &found {
         let name = node.file_name().unwrap().to_string_lossy().into_owned();
         let sys = Path::new("/sys/class/input").join(&name).join("device");
-        let dev_name = read_sysfs(&sys.join("name"));
-        let keys = read_sysfs(&sys.join("capabilities/key"));
-        log.line(&format!("{} : \"{}\" key={}", node.display(), dev_name, keys));
+        log.line(&format!(
+            "{} : \"{}\"",
+            node.display(),
+            read_sysfs(&sys.join("name"))
+        ));
     }
-    log.line("--- press EVERY button now, one at a time, incl R1, L2, R2, volume ---");
+    log.line("");
+    log.line("Press buttons in any order, as many times as you like.");
+    log.line("When finished, hold VOLUME-UP and VOLUME-DOWN together to exit.");
+    log.line("");
 
-    let (tx, rx) = mpsc::channel::<String>();
+    let (tx, rx) = mpsc::channel::<Rec>();
     for node in found {
         let tx = tx.clone();
         std::thread::spawn(move || {
             let label = node.file_name().unwrap().to_string_lossy().into_owned();
-            let file = match File::open(&node) {
+            let mut file = match File::open(&node) {
                 Ok(f) => f,
-                Err(e) => {
-                    let _ = tx.send(format!("{label}: open failed: {e}"));
-                    return;
-                }
+                Err(_) => return,
             };
-            if try_grab {
-                let rc = unsafe { ioctl(file.as_raw_fd(), EVIOCGRAB, 1) };
-                let _ = tx.send(format!(
-                    "{label}: EVIOCGRAB -> {}",
-                    if rc == 0 { "ok (nothing else held it)" } else { "FAILED (held elsewhere)" }
-                ));
-            }
-            let mut file = file;
             let mut buf = [0u8; EVENT_BYTES * 32];
             loop {
                 let n = match file.read(&mut buf) {
                     Ok(0) => return,
                     Ok(n) => n,
                     Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                    Err(e) => {
-                        let _ = tx.send(format!("{label}: read failed: {e}"));
-                        return;
-                    }
+                    Err(_) => return,
                 };
-                for ev in buf[..n].chunks_exact(EVENT_BYTES).filter_map(decode) {
-                    let (kind, code, value) = ev;
+                for (kind, code, value) in buf[..n].chunks_exact(EVENT_BYTES).filter_map(decode) {
                     if kind == EV_SYN {
                         continue;
                     }
-                    if (kind == EV_KEY || kind == EV_SW) || (kind == EV_ABS && value.abs() > 8000) {
-                        let name = btn_name(code);
-                        let _ = tx.send(format!(
-                            "{label} {} code={} (0x{:x}) value={} {}",
-                            kind_name(kind),
-                            code,
-                            code,
-                            value,
-                            name
-                        ));
-                    }
+                    let _ = tx.send(Rec {
+                        node: label.clone(),
+                        kind,
+                        code,
+                        value,
+                    });
                 }
             }
         });
     }
     drop(tx);
 
-    let deadline = Instant::now() + Duration::from_secs(secs);
-    while Instant::now() < deadline {
-        match rx.recv_timeout(Duration::from_millis(200)) {
-            Ok(msg) => log.line(&msg),
+    // Distinct key codes per node: node -> set of codes.
+    let mut keys: BTreeMap<String, BTreeMap<u16, u32>> = BTreeMap::new();
+    // Axis ranges per node: (node,code) -> (min,max,count).
+    let mut axes: BTreeMap<(String, u16), (i32, i32, u32)> = BTreeMap::new();
+
+    let mut vol_up_down = false;
+    let mut vol_dn_down = false;
+    let mut last_summary = Instant::now();
+
+    loop {
+        match rx.recv_timeout(Duration::from_millis(250)) {
+            Ok(r) => {
+                log.trace(&format!(
+                    "{} kind={} code={} (0x{:x}) value={} {}",
+                    r.node,
+                    r.kind,
+                    r.code,
+                    r.code,
+                    r.value,
+                    key_name(r.code)
+                ));
+                match r.kind {
+                    EV_KEY | EV_SW => {
+                        if r.value == 1 {
+                            *keys.entry(r.node.clone()).or_default().entry(r.code).or_insert(0) += 1;
+                        }
+                        // Track the quit combo on whichever node carries volume.
+                        if r.code == KEY_VOLUMEUP {
+                            vol_up_down = r.value != 0;
+                        }
+                        if r.code == KEY_VOLUMEDOWN {
+                            vol_dn_down = r.value != 0;
+                        }
+                    }
+                    EV_ABS => {
+                        let e = axes
+                            .entry((r.node.clone(), r.code))
+                            .or_insert((r.value, r.value, 0));
+                        e.0 = e.0.min(r.value);
+                        e.1 = e.1.max(r.value);
+                        e.2 += 1;
+                    }
+                    _ => {}
+                }
+                if vol_up_down && vol_dn_down {
+                    break;
+                }
+            }
             Err(mpsc::RecvTimeoutError::Timeout) => {}
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }
+
+        // Periodic progress so the user can see presses are landing.
+        if last_summary.elapsed() >= Duration::from_secs(2) {
+            last_summary = Instant::now();
+            let total: usize = keys.values().map(|m| m.len()).sum();
+            eprintln!("...{total} distinct keys seen so far, {} axes", axes.len());
+        }
     }
-    log.line("== done, exiting ==");
+
+    log.line("================ SUMMARY ================");
+    for (node, codes) in &keys {
+        log.line(&format!("[{node}] keys:"));
+        for (code, count) in codes {
+            log.line(&format!(
+                "    code {:>4} (0x{:03x})  x{:<3}  {}",
+                code,
+                code,
+                count,
+                key_name(*code)
+            ));
+        }
+    }
+    if !axes.is_empty() {
+        log.line("axes (min .. max):");
+        for ((node, code), (lo, hi, cnt)) in &axes {
+            log.line(&format!(
+                "    [{node}] axis {:>2}  {:>7} .. {:<7}  (n={})",
+                code, lo, hi, cnt
+            ));
+        }
+    }
+    log.line("========================================");
+    log.line("done, exiting");
 }
