@@ -89,15 +89,15 @@ impl GamePass {
         }
         #[cfg(feature = "flip")]
         unsafe {
-            // Swizzle the core's XRGB8888 (bytes B,G,R,X) into RGBA, then update
-            // the already-allocated RGBA texture in place. The texture is
-            // created once in new(); we only ever TexSubImage2D here.
+            // This Mali GLES driver does not reliably show TexSubImage2D updates
+            // (the game image froze / went white). Re-specifying the whole
+            // texture with TexImage2D each frame is honoured. The scratch buffer
+            // is allocated once and reused; the hot path never reallocates.
             let px = (SRC_W * SRC_H) as usize;
             let need = px * 4;
             if self.rgba.len() != need {
                 self.rgba = vec![0xffu8; need];
             }
-            // Only touch as many pixels as the source actually provides.
             let avail = (xrgb8888.len() / 4).min(px);
             for i in 0..avail {
                 let s = i * 4;
@@ -108,13 +108,13 @@ impl GamePass {
             }
             gl::BindTexture(gl::TEXTURE_2D, self.game);
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
-            gl::TexSubImage2D(
+            gl::TexImage2D(
                 gl::TEXTURE_2D,
                 0,
-                0,
-                0,
+                crate::gl::internal_format(gl::RGBA),
                 SRC_W as i32,
                 SRC_H as i32,
+                0,
                 gl::RGBA,
                 gl::UNSIGNED_BYTE,
                 self.rgba.as_ptr() as *const std::ffi::c_void,
