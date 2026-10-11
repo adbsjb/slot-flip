@@ -19,11 +19,20 @@ pub struct GamePass {
     u_uv: gl::types::GLint,
     power: f32,
     src: [f32; 4],
+    #[cfg(feature = "flip")]
+    rgba: Vec<u8>,
 }
 
 impl GamePass {
     pub fn new() -> Result<Self, GfxError> {
         let prog = crate::shaders::program(RECT_VERT, GAME_FRAG)?;
+        // The H700's Mali driver takes a BGRA texture and updates it in place
+        // every frame. The Flip's GLES stack accepts the BGRA upload but does
+        // not reflect later TexSubImage2D updates, so the picture looks frozen.
+        // There we use a plain RGBA texture and swizzle on upload instead.
+        #[cfg(feature = "flip")]
+        let game = crate::gl::texture(SRC_W, SRC_H, gl::NEAREST, gl::CLAMP_TO_EDGE, gl::RGBA, None);
+        #[cfg(not(feature = "flip"))]
         let game = crate::gl::texture(SRC_W, SRC_H, gl::NEAREST, gl::CLAMP_TO_EDGE, gl::BGRA, None);
         let mask = crate::gl::texture(
             3,
@@ -61,6 +70,8 @@ impl GamePass {
             u_uv,
             power: 1.0,
             src: WHOLE_TEXTURE,
+            #[cfg(feature = "flip")]
+            rgba: Vec::new(),
         })
     }
 
@@ -76,6 +87,37 @@ impl GamePass {
         if xrgb8888.len() < (SRC_W * SRC_H * 4) as usize {
             return;
         }
+        #[cfg(feature = "flip")]
+        unsafe {
+            // Swizzle the core's XRGB8888 (bytes B,G,R,X) into RGBA and replace
+            // the whole texture. A full TexImage2D each frame sidesteps the
+            // Mali GLES quirk where TexSubImage2D updates were not displayed.
+            let px = (SRC_W * SRC_H) as usize;
+            if self.rgba.len() != px * 4 {
+                self.rgba = vec![0u8; px * 4];
+            }
+            for i in 0..px {
+                let s = i * 4;
+                self.rgba[s] = xrgb8888[s + 2]; // R <- R
+                self.rgba[s + 1] = xrgb8888[s + 1]; // G
+                self.rgba[s + 2] = xrgb8888[s]; // B <- B
+                self.rgba[s + 3] = 0xff; // A
+            }
+            gl::BindTexture(gl::TEXTURE_2D, self.game);
+            gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                crate::gl::internal_format(gl::RGBA),
+                SRC_W as i32,
+                SRC_H as i32,
+                0,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                self.rgba.as_ptr() as *const std::ffi::c_void,
+            );
+        }
+        #[cfg(not(feature = "flip"))]
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.game);
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
