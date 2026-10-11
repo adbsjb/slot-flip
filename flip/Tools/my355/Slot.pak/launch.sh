@@ -28,6 +28,13 @@ if [ -f "$DIR/SILENT" ]; then
 	export SLOT_SILENT=1
 fi
 
+# Diagnostic: a file named TEXTEST replaces the game image with a moving colour
+# pattern. If that animates on screen while a real game stays white, the
+# display path works and the game-data path is at fault.
+if [ -f "$DIR/TEXTEST" ]; then
+	export SLOT_TEXTEST=1
+fi
+
 mkdir -p "$SLOT_ROOT/System"
 for c in mgba_libretro.so gpsp_libretro.so; do
 	if [ ! -f "$SLOT_ROOT/System/$c" ] && [ -f "$DIR/System/$c" ]; then

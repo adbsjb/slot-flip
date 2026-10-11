@@ -21,6 +21,8 @@ pub struct GamePass {
     src: [f32; 4],
     #[cfg(feature = "flip")]
     rgba: Vec<u8>,
+    #[cfg(feature = "flip")]
+    tex_phase: u8,
 }
 
 impl GamePass {
@@ -72,6 +74,8 @@ impl GamePass {
             src: WHOLE_TEXTURE,
             #[cfg(feature = "flip")]
             rgba: Vec::new(),
+            #[cfg(feature = "flip")]
+            tex_phase: 0,
         })
     }
 
@@ -105,6 +109,23 @@ impl GamePass {
                 self.rgba[s + 1] = xrgb8888[s + 1]; // G
                 self.rgba[s + 2] = xrgb8888[s]; // B
                 self.rgba[s + 3] = 0xff; // A
+            }
+            // Diagnostic: SLOT_TEXTEST overwrites the game image with a moving
+            // colour pattern. If this shows on screen while a real game stays
+            // white, the upload+draw works and the game-data path is the issue;
+            // if even this is white, the game layer's draw/shader is at fault.
+            if crate::tex_test() {
+                self.tex_phase = self.tex_phase.wrapping_add(2);
+                let w = SRC_W as usize;
+                for y in 0..SRC_H as usize {
+                    for x in 0..w {
+                        let s = (y * w + x) * 4;
+                        self.rgba[s] = (x.wrapping_mul(3).wrapping_add(self.tex_phase as usize)) as u8;
+                        self.rgba[s + 1] = (y.wrapping_mul(3)) as u8;
+                        self.rgba[s + 2] = self.tex_phase;
+                        self.rgba[s + 3] = 0xff;
+                    }
+                }
             }
             gl::BindTexture(gl::TEXTURE_2D, self.game);
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
