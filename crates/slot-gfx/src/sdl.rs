@@ -46,7 +46,7 @@ type GlSwapWindow = unsafe extern "C" fn(Ptr);
 type GlGetProcAddress = unsafe extern "C" fn(*const c_char) -> *mut c_void;
 type GlGetDrawableSize = unsafe extern "C" fn(Ptr, *mut c_int, *mut c_int);
 type ShowCursor = unsafe extern "C" fn(c_int) -> c_int;
-type PumpEvents = unsafe extern "C" fn();
+type GetCurrentVideoDriver = unsafe extern "C" fn() -> *const c_char;
 type GlDeleteContext = unsafe extern "C" fn(Ptr);
 type DestroyWindow = unsafe extern "C" fn(Ptr);
 
@@ -62,7 +62,7 @@ struct Sdl {
     gl_get_proc_address: GlGetProcAddress,
     gl_get_drawable_size: GlGetDrawableSize,
     show_cursor: ShowCursor,
-    pump_events: PumpEvents,
+    get_video_driver: GetCurrentVideoDriver,
     gl_delete_context: GlDeleteContext,
     destroy_window: DestroyWindow,
     _lib: Library,
@@ -96,7 +96,7 @@ impl Sdl {
                 gl_get_proc_address: sym(&lib, "SDL_GL_GetProcAddress")?,
                 gl_get_drawable_size: sym(&lib, "SDL_GL_GetDrawableSize")?,
                 show_cursor: sym(&lib, "SDL_ShowCursor")?,
-                pump_events: sym(&lib, "SDL_PumpEvents")?,
+                get_video_driver: sym(&lib, "SDL_GetCurrentVideoDriver")?,
                 gl_delete_context: sym(&lib, "SDL_GL_DeleteContext")?,
                 destroy_window: sym(&lib, "SDL_DestroyWindow")?,
                 _lib: lib,
@@ -171,9 +171,19 @@ impl SdlSurface {
             }
 
             // Prefer vsync; fall back to immediate if the driver refuses it.
-            if (sdl.gl_set_swap_interval)(1) != 0 {
+            let vsync = (sdl.gl_set_swap_interval)(1);
+            if vsync != 0 {
                 let _ = (sdl.gl_set_swap_interval)(0);
             }
+            let driver = {
+                let p = (sdl.get_video_driver)();
+                if p.is_null() {
+                    String::from("(null)")
+                } else {
+                    CStr::from_ptr(p).to_string_lossy().into_owned()
+                }
+            };
+            eprintln!("slot: sdl video driver {driver}, swap_interval(1) rc={vsync} (0=ok)");
 
             let (mut w, mut h) = (0, 0);
             (sdl.gl_get_drawable_size)(window, &mut w, &mut h);
@@ -206,16 +216,7 @@ impl Surface for SdlSurface {
     }
 
     fn swap(&mut self) -> Result<(), GfxError> {
-        // KMSDRM services its page-flip queue from the SDL event loop. slot
-        // reads input straight from evdev and never otherwise touches SDL
-        // events, so without pumping here the display controller stops flipping
-        // to freshly rendered buffers after a few frames: the GPU keeps drawing
-        // and audio keeps playing, but the panel freezes. Pumping each frame
-        // keeps the flips flowing.
-        unsafe {
-            (self.sdl.pump_events)();
-            (self.sdl.gl_swap_window)(self.window);
-        }
+        unsafe { (self.sdl.gl_swap_window)(self.window) };
         Ok(())
     }
 
