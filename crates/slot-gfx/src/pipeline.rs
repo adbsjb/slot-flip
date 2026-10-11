@@ -89,29 +89,32 @@ impl GamePass {
         }
         #[cfg(feature = "flip")]
         unsafe {
-            // Swizzle the core's XRGB8888 (bytes B,G,R,X) into RGBA and replace
-            // the whole texture. A full TexImage2D each frame sidesteps the
-            // Mali GLES quirk where TexSubImage2D updates were not displayed.
+            // Swizzle the core's XRGB8888 (bytes B,G,R,X) into RGBA, then update
+            // the already-allocated RGBA texture in place. The texture is
+            // created once in new(); we only ever TexSubImage2D here.
             let px = (SRC_W * SRC_H) as usize;
-            if self.rgba.len() != px * 4 {
-                self.rgba = vec![0u8; px * 4];
+            let need = px * 4;
+            if self.rgba.len() != need {
+                self.rgba = vec![0xffu8; need];
             }
-            for i in 0..px {
+            // Only touch as many pixels as the source actually provides.
+            let avail = (xrgb8888.len() / 4).min(px);
+            for i in 0..avail {
                 let s = i * 4;
-                self.rgba[s] = xrgb8888[s + 2]; // R <- R
+                self.rgba[s] = xrgb8888[s + 2]; // R
                 self.rgba[s + 1] = xrgb8888[s + 1]; // G
-                self.rgba[s + 2] = xrgb8888[s]; // B <- B
+                self.rgba[s + 2] = xrgb8888[s]; // B
                 self.rgba[s + 3] = 0xff; // A
             }
             gl::BindTexture(gl::TEXTURE_2D, self.game);
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
-            gl::TexImage2D(
+            gl::TexSubImage2D(
                 gl::TEXTURE_2D,
                 0,
-                crate::gl::internal_format(gl::RGBA),
+                0,
+                0,
                 SRC_W as i32,
                 SRC_H as i32,
-                0,
                 gl::RGBA,
                 gl::UNSIGNED_BYTE,
                 self.rgba.as_ptr() as *const std::ffi::c_void,
