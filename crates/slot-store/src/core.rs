@@ -49,6 +49,13 @@ impl Core {
     }
 
     pub fn default_for(platform: Platform) -> Core {
+        // On the Flip, mGBA has no ARM64 dynarec and runs as an interpreter,
+        // far too slowly for GBA games. gpSP has a dynarec and runs ~20x
+        // faster, so GBA defaults to it there. GB/GBC still use mGBA.
+        #[cfg(feature = "flip")]
+        if platform == Platform::Gba {
+            return Core::Gpsp;
+        }
         match platform {
             Platform::Gba | Platform::Gb | Platform::Gbc => Core::Mgba,
         }

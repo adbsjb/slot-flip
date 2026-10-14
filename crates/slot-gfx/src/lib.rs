@@ -32,9 +32,4 @@ pub use power::{screen_brightness, screen_scale, screen_width};
 pub use sdl::SdlSurface;
 pub use surface::{blit_rect, blit_rect_fit, fit_rect, fit_scale, GfxError, Surface, OUT_H, OUT_W};
 
-#[cfg(feature = "flip")]
-pub fn tex_test() -> bool {
-    use std::sync::OnceLock;
-    static ON: OnceLock<bool> = OnceLock::new();
-    *ON.get_or_init(|| std::env::var_os("SLOT_TEXTEST").is_some())
-}
+

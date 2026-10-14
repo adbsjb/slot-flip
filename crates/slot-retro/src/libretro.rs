@@ -86,11 +86,20 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
             if data.is_null() {
                 return false;
             }
-            let want = match *(data as *const c_uint) {
+            let raw = *(data as *const c_uint);
+            let want = match raw {
                 PIXEL_FORMAT_XRGB8888 => PixelFormat::Xrgb8888,
                 PIXEL_FORMAT_RGB565 => PixelFormat::Rgb565,
-                _ => return false,
+                _ => {
+                    eprintln!("slot: env SET_PIXEL_FORMAT unsupported {raw}");
+                    return false;
+                }
             };
+            let name = match want {
+                PixelFormat::Xrgb8888 => "xrgb8888",
+                PixelFormat::Rgb565 => "rgb565",
+            };
+            eprintln!("slot: env SET_PIXEL_FORMAT {raw} -> {name}");
             with_host(|h| h.format = want).is_some()
         }
         GET_SYSTEM_DIRECTORY | GET_SAVE_DIRECTORY => {
@@ -210,7 +219,10 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
             })
             .is_some()
         }
-        _ => false,
+        other => {
+            eprintln!("slot: env unhandled cmd {other}");
+            false
+        }
     }
 }
 
