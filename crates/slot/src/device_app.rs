@@ -94,6 +94,8 @@ pub fn run() {
     platform.trace_boot();
     let mut frontend = Frontend::boot(Box::new(platform));
     frontend.upload_faces(&mut compositor);
+    // Load any user button remap before input threads start reading events.
+    slot::input::keymap::load(&root);
     let mut input = DeviceInput::open(&root);
     let card = root.clone();
     let _ = std::thread::Builder::new()
@@ -141,10 +143,9 @@ pub fn run() {
             }
         }
         // Flip heartbeat: every ~2s report how many main-loop iterations ran
-        // versus how many emulator frames the core published. If loops climb
-        // but published frames stall, the emulator thread is wedged, not the UI.
+        // versus how many emulator frames the core published. Only under trace.
         #[cfg(feature = "flip")]
-        {
+        if slot::latency::tracing() {
             heartbeat.1 += 1;
             if heartbeat.0.elapsed() >= Duration::from_secs(2) {
                 let published = frontend.frames_published();

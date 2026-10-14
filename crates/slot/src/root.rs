@@ -30,7 +30,50 @@ pub fn ensure(root: &Path) {
     if let Err(e) = slot_store::move_config(root) {
         eprintln!("slot: config: {e}");
     }
+    write_starter(root, "Config/slot.ini", STARTER_SLOT_INI);
+    write_starter(root, "Config/buttons.ini", STARTER_BUTTONS_INI);
 }
+
+/// Write a documented starter config the first time only. Never clobbers a
+/// file the user has edited.
+fn write_starter(root: &Path, rel: &str, body: &str) {
+    let path = root.join(rel);
+    if path.exists() {
+        return;
+    }
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let _ = std::fs::write(&path, body);
+}
+
+const STARTER_SLOT_INI: &str = "\
+# Slot settings. Lines beginning with # are ignored.
+
+# Background image. Put PNG files in the Wallpapers folder next to this one,
+# then name the file you want here. Use `random` (or leave it) to shuffle
+# through every wallpaper on each boot.
+background = random
+";
+
+const STARTER_BUTTONS_INI: &str = "\
+# Button remap for Slot.
+#
+# Each line is: <kernel-key-code> = <button>
+# Codes may be decimal (109) or hex (0x135). Any code you do NOT list keeps the
+# built-in mapping for your device, so you only need to list what you change.
+#
+# Button names:
+#   up down left right  a b x y  l1 r1 l2 r2  start select menu  volup voldown
+#
+# To find your device's codes, run the input trace build and read the log, or
+# check your platform's evdev key codes.
+#
+# Example (Miyoo Flip: the right shoulder sends KEY_PAGEDOWN = 109, bound to R1
+# because that unit's R1 is dead):
+#   109 = r1
+#   104 = l2
+";
 
 pub fn bios_dir(root: &Path) -> PathBuf {
     root.join("BIOS")

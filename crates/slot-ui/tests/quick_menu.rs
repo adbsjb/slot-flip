@@ -85,12 +85,13 @@ fn the_rows_run_in_the_order_the_user_chose() {
             "Fast Forward Sound",
             "Colour Correction",
             "Rumble",
+            "Buttons",
             "Date & Time",
             "About"
         ]
     );
     let opens: Vec<QuickRow> = QuickRow::ALL.into_iter().filter(|r| r.opens()).collect();
-    assert_eq!(opens, [QuickRow::DateTime, QuickRow::About]);
+    assert_eq!(opens, [QuickRow::Buttons, QuickRow::DateTime, QuickRow::About]);
 }
 
 #[test]

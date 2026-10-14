@@ -8,7 +8,8 @@ use slot_ui::{
     arrows_hint_face, badge_face, cart_face, cart_shadow, chip_face, chip_shadow_face,
     date_time_text, gb_cart_shadow, hhmm, hint_face, icon_face, menu_face, photo_face,
     quick_caret_face, quick_label_face, quick_legend_faces, quick_value_face, set_clock_hint_face,
-    socket_face, sticker_face, title_face, toast_face, wallpaper_face, word_face, GbShell, Icon,
+    buttons_face, socket_face, sticker_face, title_face, toast_face, wallpaper_face, word_face,
+    GbShell, Icon,
     LinkBadge, PowerChoice, QuickMenuFaces, QuickRow, QuickValue, StickerFields, Toast, UndoFace,
     ALERT_PX, BOLT_PX, HUD_ICON_PX, HUD_INK, LEGEND,
 };
@@ -44,6 +45,7 @@ pub struct Frontend {
     switcher: Switcher,
     clocks: Clocks,
     about: AboutFace,
+    buttons: ButtonsFace,
     quick_clock: QuickClock,
 }
 
@@ -58,6 +60,12 @@ struct QuickClock {
 struct AboutFace {
     tex: Option<TexId>,
     battery: Option<u8>,
+}
+
+#[derive(Default)]
+struct ButtonsFace {
+    tex: Option<TexId>,
+    built: bool,
 }
 
 #[derive(Default)]
@@ -104,6 +112,7 @@ impl Frontend {
             switcher: Switcher::default(),
             clocks: Clocks::default(),
             about: AboutFace::default(),
+            buttons: ButtonsFace::default(),
             quick_clock: QuickClock::default(),
         }
     }
@@ -290,6 +299,7 @@ impl Frontend {
         }
         sync_clock(self.session.app_mut(), compositor, &mut self.clocks);
         sync_about(self.session.app_mut(), compositor, &mut self.about);
+        sync_buttons(self.session.app_mut(), compositor, &mut self.buttons);
         sync_quick_clock(self.session.app_mut(), compositor, &mut self.quick_clock);
         sync_core_picker(
             self.session.app_mut(),
@@ -552,6 +562,20 @@ fn sync_about(app: &mut App, compositor: &mut Compositor, state: &mut AboutFace)
     });
     let id = upload(compositor, &mut state.tex, face);
     app.set_sticker_face(id);
+}
+
+fn sync_buttons(app: &mut App, compositor: &mut Compositor, state: &mut ButtonsFace) {
+    if !matches!(app.phase(), Phase::Buttons) || state.built {
+        return;
+    }
+    state.built = true;
+    let bindings: Vec<(u16, &'static str)> = crate::input::keymap::bindings()
+        .into_iter()
+        .map(|(code, btn)| (code, btn.as_name()))
+        .collect();
+    let face = buttons_face(&bindings);
+    let id = upload(compositor, &mut state.tex, face);
+    app.set_buttons_face(id);
 }
 
 fn sync_core_picker(

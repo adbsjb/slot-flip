@@ -10,16 +10,18 @@ pub enum QuickRow {
     FastForwardSound,
     ColourCorrection,
     Rumble,
+    Buttons,
     DateTime,
     About,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 6] = [
+    pub const ALL: [QuickRow; 7] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::ColourCorrection,
         QuickRow::Rumble,
+        QuickRow::Buttons,
         QuickRow::DateTime,
         QuickRow::About,
     ];
@@ -34,13 +36,14 @@ impl QuickRow {
             QuickRow::FastForwardSound => "Fast Forward Sound",
             QuickRow::ColourCorrection => "Colour Correction",
             QuickRow::Rumble => "Rumble",
+            QuickRow::Buttons => "Buttons",
             QuickRow::DateTime => "Date & Time",
             QuickRow::About => "About",
         }
     }
 
     pub fn opens(self) -> bool {
-        matches!(self, QuickRow::DateTime | QuickRow::About)
+        matches!(self, QuickRow::Buttons | QuickRow::DateTime | QuickRow::About)
     }
 
     pub fn up(self) -> QuickRow {

@@ -3,6 +3,7 @@ mod backdrop;
 mod barcode;
 mod battery;
 mod board;
+mod buttons;
 mod cart;
 mod clock;
 mod draw;
@@ -24,6 +25,7 @@ pub mod text;
 mod toast;
 
 pub use backdrop::{draw_backdrop, wallpaper_face};
+pub use buttons::{buttons_face, draw_buttons, PANEL_H as BUTTONS_PANEL_H, PANEL_W as BUTTONS_PANEL_W};
 pub use barcode::{code39, CODE39_NARROW, CODE39_WIDE};
 pub use battery::{draw_gauge, BOLT_PX, GAUGE_H, GAUGE_W, WALL};
 pub use board::{

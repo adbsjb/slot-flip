@@ -2,6 +2,7 @@ mod device;
 pub mod evdev;
 #[cfg(feature = "host")]
 mod host;
+pub mod keymap;
 #[cfg(feature = "host")]
 mod keys;
 mod mask;

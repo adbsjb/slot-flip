@@ -97,7 +97,9 @@ pub fn decode(bytes: &[u8]) -> Option<Ev> {
 
 pub fn to_raw(ev: Ev) -> Option<RawEvent> {
     let btn = match ev.kind {
-        EV_KEY => code_to_btn(ev.code)?,
+        // A user override in Config/buttons.ini wins over the built-in map, so
+        // any device can rebind its keys without a rebuild.
+        EV_KEY => super::keymap::override_for(ev.code).or_else(|| code_to_btn(ev.code))?,
         EV_SW if ev.code == SW_LID => Btn::Lid,
         _ => return None,
     };
