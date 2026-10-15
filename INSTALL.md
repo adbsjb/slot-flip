@@ -59,6 +59,16 @@ Slot/
    Use `background = random` (the default) to shuffle through every wallpaper
    on each boot. If the named file is missing, Slot falls back to a random one.
 
+## Sleep & auto power-off
+
+Closing the lid puts the device to sleep **immediately**. While asleep, it
+powers itself off after a timeout you choose in the quick menu:
+
+- Open the quick menu and set **Sleep Timeout** to `1`, `3`, `5`, `10`, or
+  `30` minutes, or `Off` to stay asleep indefinitely (no auto power-off).
+
+The choice is saved and survives reboots.
+
 ## Remapping buttons (menu with mappable buttons)
 
 Slot ships with a sensible map for each device it knows about, but any MinUI
