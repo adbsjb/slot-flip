@@ -14,6 +14,12 @@ pub const FF_SPEEDS: [u8; 4] = [2, 3, 4, 6];
 
 pub const FF_SPEED_DEFAULT: u8 = 6;
 
+/// Minutes after the lid is closed (or the screen dozes) before the device
+/// powers itself off. 0 means never auto-power-off. The menu offers this set.
+pub const SLEEP_TIMEOUTS_MIN: [u16; 6] = [1, 3, 5, 10, 30, 0];
+
+pub const SLEEP_TIMEOUT_DEFAULT_MIN: u16 = 3;
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SlotState {
     pub cart: Option<String>,
@@ -30,6 +36,7 @@ pub struct SlotState {
     pub ff_speed: u8,
     pub ff_sound: bool,
     pub colour_correction: bool,
+    pub sleep_timeout_min: u16,
 }
 
 impl Default for SlotState {
@@ -49,6 +56,7 @@ impl Default for SlotState {
             ff_speed: FF_SPEED_DEFAULT,
             ff_sound: false,
             colour_correction: false,
+            sleep_timeout_min: SLEEP_TIMEOUT_DEFAULT_MIN,
         }
     }
 }
@@ -67,7 +75,7 @@ pub fn read_slot_state(root: &Path) -> SlotState {
 
 pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
     let text = format!(
-        "cart={}\ncart_platform={}\nbrightness={}\nblue_light={}\nvolume={}\nvolume_hp={}\nmuted={}\nmuted_hp={}\nclock_set={}\nutc_offset_min={}\nrumble={}\nff_speed={}\nff_sound={}\ncolour_correction={}\n",
+        "cart={}\ncart_platform={}\nbrightness={}\nblue_light={}\nvolume={}\nvolume_hp={}\nmuted={}\nmuted_hp={}\nclock_set={}\nutc_offset_min={}\nrumble={}\nff_speed={}\nff_sound={}\ncolour_correction={}\nsleep_timeout_min={}\n",
         s.cart.as_deref().unwrap_or(""),
         s.cart_platform.map_or(String::new(), platform_key),
         s.brightness,
@@ -81,7 +89,8 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
         s.rumble as u8,
         s.ff_speed,
         s.ff_sound as u8,
-        s.colour_correction as u8
+        s.colour_correction as u8,
+        s.sleep_timeout_min
     );
     atomic_write(&state_path(root), text.as_bytes())
 }
@@ -101,6 +110,7 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut ff_speed = None;
     let mut ff_sound = None;
     let mut colour_correction = None;
+    let mut sleep_timeout_min = None;
     for line in text.lines().filter(|l| !l.is_empty()) {
         let Some((key, value)) = line.split_once('=') else {
             continue;
@@ -120,6 +130,7 @@ fn parse(text: &str) -> Option<SlotState> {
             "ff_speed" => ff_speed = ff_speed_value(value),
             "ff_sound" => ff_sound = flag(value),
             "colour_correction" => colour_correction = flag(value),
+            "sleep_timeout_min" => sleep_timeout_min = sleep_timeout_value(value),
             _ => {}
         }
     }
@@ -140,6 +151,7 @@ fn parse(text: &str) -> Option<SlotState> {
         ff_speed: ff_speed.unwrap_or(fallback.ff_speed),
         ff_sound: ff_sound.unwrap_or(fallback.ff_sound),
         colour_correction: colour_correction.unwrap_or(fallback.colour_correction),
+        sleep_timeout_min: sleep_timeout_min.unwrap_or(fallback.sleep_timeout_min),
     })
 }
 
@@ -162,6 +174,10 @@ fn offset(value: &str) -> Option<i16> {
 
 fn ff_speed_value(value: &str) -> Option<u8> {
     value.parse().ok().filter(|n| FF_SPEEDS.contains(n))
+}
+
+fn sleep_timeout_value(value: &str) -> Option<u16> {
+    value.parse().ok().filter(|n| SLEEP_TIMEOUTS_MIN.contains(n))
 }
 
 fn level(value: &str, max: u8) -> Option<u8> {

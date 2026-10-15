@@ -100,15 +100,28 @@ fn a_doze_that_outlasts_the_timeout_powers_off_by_itself() {
     let d = tmp_root_with_carts(&["Emerald"]);
     let mut a = app_playing_in(d.path(), "Emerald");
     a.set_power(panel(d.path(), Duration::from_secs(2)).0);
+    a.set_sleep_timeout_min(1);
     a.apply(Action::LidClose);
-    for _ in 0..100 {
-        a.update(1.0 / 60.0);
-    }
-    assert!(!a.powering_off(), "1.6 s is short of the 2 s timeout");
-    for _ in 0..40 {
-        a.update(1.0 / 60.0);
-    }
+    // 50 s asleep is short of the one-minute timeout.
+    a.update(50.0);
+    assert!(!a.powering_off(), "50 s is short of the 1 min timeout");
+    a.update(11.0);
     assert!(a.powering_off());
+}
+
+#[test]
+fn a_zero_timeout_never_powers_off_on_its_own() {
+    let d = tmp_root_with_carts(&["Emerald"]);
+    let mut a = app_playing_in(d.path(), "Emerald");
+    a.set_power(panel(d.path(), Duration::from_secs(2)).0);
+    a.set_sleep_timeout_min(0); // "Off" in the menu
+    a.apply(Action::LidClose);
+    a.update(3600.0); // an hour asleep
+    assert!(
+        !a.powering_off(),
+        "a zero timeout means stay asleep, never auto power off"
+    );
+    assert!(matches!(a.phase(), Phase::Doze { .. }), "still dozing");
 }
 
 #[test]
@@ -291,14 +304,15 @@ fn a_dozing_device_powers_off_by_itself_rather_than_waiting_for_the_lid() {
     let d = tmp_root_with_carts(&["Emerald"]);
     let mut a = app_playing_in(d.path(), "Emerald");
     a.set_power(panel(d.path(), Duration::from_secs(2)).0);
+    a.set_sleep_timeout_min(1);
     a.apply(Action::LidClose);
-    for _ in 0..180 {
-        a.update(1.0 / 60.0);
-    }
+    a.update(61.0);
     assert!(
         a.powering_off(),
-        "three seconds is past the two second timeout"
+        "61 s asleep is past the one minute timeout"
     );
+    // Let the shutdown screen have its moment, then it may stop.
+    a.update(1.0);
     assert!(
         a.ready_to_power_off(),
         "the shutdown screen has had its 250 ms and the machine is still not allowed to stop"

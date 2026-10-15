@@ -19,6 +19,10 @@ impl Power {
         }
     }
 
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        self.timeout = timeout;
+    }
+
     pub fn set_backlight(&mut self, step: u8) {
         self.level = step;
         if !self.closed {

@@ -221,7 +221,15 @@ impl InputSource for DeviceInput {
     }
 }
 
+// The Miyoo Flip exposes its lid magnet here (0 = closed, 1 = open), not as a
+// power-supply hallkey. Checked first so the Flip gets lid events.
+const FLIP_HALL: &str = "/sys/devices/platform/hall-mh248/hallvalue";
+
 fn find_hall(psy: &Path) -> Option<PathBuf> {
+    let flip = PathBuf::from(FLIP_HALL);
+    if flip.is_file() {
+        return Some(flip);
+    }
     let mut supplies: Vec<PathBuf> = std::fs::read_dir(psy)
         .ok()?
         .filter_map(|e| e.ok())

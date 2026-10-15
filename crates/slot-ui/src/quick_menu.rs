@@ -10,17 +10,19 @@ pub enum QuickRow {
     FastForwardSound,
     ColourCorrection,
     Rumble,
+    SleepTimeout,
     Buttons,
     DateTime,
     About,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 7] = [
+    pub const ALL: [QuickRow; 8] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::ColourCorrection,
         QuickRow::Rumble,
+        QuickRow::SleepTimeout,
         QuickRow::Buttons,
         QuickRow::DateTime,
         QuickRow::About,
@@ -36,6 +38,7 @@ impl QuickRow {
             QuickRow::FastForwardSound => "Fast Forward Sound",
             QuickRow::ColourCorrection => "Colour Correction",
             QuickRow::Rumble => "Rumble",
+            QuickRow::SleepTimeout => "Sleep Timeout",
             QuickRow::Buttons => "Buttons",
             QuickRow::DateTime => "Date & Time",
             QuickRow::About => "About",
@@ -64,16 +67,26 @@ pub enum QuickValue {
     Speed6,
     On,
     Off,
+    Min1,
+    Min3,
+    Min5,
+    Min10,
+    Min30,
 }
 
 impl QuickValue {
-    pub const ALL: [QuickValue; 6] = [
+    pub const ALL: [QuickValue; 11] = [
         QuickValue::Speed2,
         QuickValue::Speed3,
         QuickValue::Speed4,
         QuickValue::Speed6,
         QuickValue::On,
         QuickValue::Off,
+        QuickValue::Min1,
+        QuickValue::Min3,
+        QuickValue::Min5,
+        QuickValue::Min10,
+        QuickValue::Min30,
     ];
 
     pub fn index(self) -> usize {
@@ -88,6 +101,11 @@ impl QuickValue {
             QuickValue::Speed6 => "6×",
             QuickValue::On => "On",
             QuickValue::Off => "Off",
+            QuickValue::Min1 => "1 min",
+            QuickValue::Min3 => "3 min",
+            QuickValue::Min5 => "5 min",
+            QuickValue::Min10 => "10 min",
+            QuickValue::Min30 => "30 min",
         }
     }
 
@@ -98,6 +116,18 @@ impl QuickValue {
             4 => Some(QuickValue::Speed4),
             6 => Some(QuickValue::Speed6),
             _ => None,
+        }
+    }
+
+    /// Map a sleep timeout in minutes (0 = never) to its menu value.
+    pub fn sleep(mins: u16) -> QuickValue {
+        match mins {
+            1 => QuickValue::Min1,
+            3 => QuickValue::Min3,
+            5 => QuickValue::Min5,
+            10 => QuickValue::Min10,
+            30 => QuickValue::Min30,
+            _ => QuickValue::Off,
         }
     }
 

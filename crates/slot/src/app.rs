@@ -7,7 +7,8 @@ use slot_power::{Battery, Charge, LedState, LidPolicy, Power};
 use slot_retro::LinkChannel;
 use slot_store::{
     format_stamp, read_slot_state, scan, write_slot_state, Cart, Core, Platform, SlotState,
-    StateEntry, StateRing, Theme, BLUE_LIGHT_MAX, BRIGHTNESS_MAX, FF_SPEEDS, RING_MAX, VOLUME_MAX,
+    StateEntry, StateRing, Theme, BLUE_LIGHT_MAX, BRIGHTNESS_MAX, FF_SPEEDS, RING_MAX,
+    SLEEP_TIMEOUTS_MIN, VOLUME_MAX,
 };
 use slot_ui::{
     board_from, board_zoom, draw_backdrop, draw_buttons, draw_empty_slot, draw_footer,
@@ -625,6 +626,7 @@ impl App {
             QuickRow::FastForwardSound => Some(QuickValue::flag(self.state.ff_sound)),
             QuickRow::ColourCorrection => Some(QuickValue::flag(self.state.colour_correction)),
             QuickRow::Rumble => Some(QuickValue::flag(self.state.rumble)),
+            QuickRow::SleepTimeout => Some(QuickValue::sleep(self.state.sleep_timeout_min)),
             QuickRow::Buttons | QuickRow::DateTime | QuickRow::About => None,
         }
     }
@@ -898,6 +900,7 @@ impl App {
 
     pub fn set_power(&mut self, mut power: Power) {
         power.set_backlight(self.state.brightness);
+        power.set_timeout(sleep_timeout_duration(self.state.sleep_timeout_min));
         self.headphones = power.headphones();
         self.hud.set_headphones(self.headphones);
         let secs = power.now();
@@ -908,6 +911,15 @@ impl App {
         self.battery_at = self.now();
         self.charge_at = self.now();
         self.last_led = None;
+    }
+
+    /// Set how long the device dozes before it powers itself off, in minutes
+    /// (0 = never). Mirrors what the Sleep Timeout menu row does.
+    pub fn set_sleep_timeout_min(&mut self, mins: u16) {
+        self.state.sleep_timeout_min = mins;
+        if let Some(power) = &mut self.power {
+            power.set_timeout(sleep_timeout_duration(mins));
+        }
     }
 
     pub fn set_rumble(&mut self, strength: u16) {
@@ -1209,7 +1221,8 @@ impl App {
             QuickRow::FastForward
             | QuickRow::FastForwardSound
             | QuickRow::ColourCorrection
-            | QuickRow::Rumble => {}
+            | QuickRow::Rumble
+            | QuickRow::SleepTimeout => {}
         }
     }
 
@@ -1229,6 +1242,16 @@ impl App {
                 self.colour_pending = Some(s.colour_correction);
             }
             QuickRow::Rumble => s.rumble = !s.rumble,
+            QuickRow::SleepTimeout => {
+                let to = sleep_next(s.sleep_timeout_min, right);
+                if to == s.sleep_timeout_min {
+                    return;
+                }
+                s.sleep_timeout_min = to;
+                if let Some(power) = &mut self.power {
+                    power.set_timeout(sleep_timeout_duration(to));
+                }
+            }
             QuickRow::Buttons | QuickRow::DateTime | QuickRow::About => return,
         }
         self.persist();
@@ -2746,7 +2769,12 @@ impl App {
         let (Phase::Doze { .. }, Some(power)) = (&self.phase, &self.power) else {
             return false;
         };
-        self.now().saturating_sub(self.dozed_at) >= power.timeout().as_millis() as Millis
+        // A zero timeout means "stay asleep forever, never auto power off".
+        let timeout = power.timeout().as_millis() as Millis;
+        if timeout == 0 {
+            return false;
+        }
+        self.now().saturating_sub(self.dozed_at) >= timeout
     }
 
     pub fn settle_saves(&mut self) {
@@ -3110,6 +3138,21 @@ fn ff_next(from: u8, right: bool) -> u8 {
     let at = FF_SPEEDS.iter().position(|&v| v == from).unwrap_or(0);
     let to = if right { at + 1 } else { at.saturating_sub(1) };
     FF_SPEEDS[to.min(FF_SPEEDS.len() - 1)]
+}
+
+fn sleep_next(from: u16, right: bool) -> u16 {
+    let at = SLEEP_TIMEOUTS_MIN
+        .iter()
+        .position(|&v| v == from)
+        .unwrap_or(0);
+    let to = if right { at + 1 } else { at.saturating_sub(1) };
+    SLEEP_TIMEOUTS_MIN[to.min(SLEEP_TIMEOUTS_MIN.len() - 1)]
+}
+
+// Minutes -> the Duration the power layer counts down. 0 minutes maps to a zero
+// Duration, which doze_expired reads as "never auto power off".
+fn sleep_timeout_duration(mins: u16) -> std::time::Duration {
+    std::time::Duration::from_secs(mins as u64 * 60)
 }
 
 fn clock_screen(utc: i64, offset_min: i16, from_menu: bool) -> Phase {

@@ -85,6 +85,7 @@ fn the_rows_run_in_the_order_the_user_chose() {
             "Fast Forward Sound",
             "Colour Correction",
             "Rumble",
+            "Sleep Timeout",
             "Buttons",
             "Date & Time",
             "About"
@@ -98,7 +99,9 @@ fn the_rows_run_in_the_order_the_user_chose() {
 fn the_values_read_as_the_menu_prints_them() {
     assert_eq!(
         QuickValue::ALL.map(QuickValue::text),
-        ["2×", "3×", "4×", "6×", "On", "Off"]
+        [
+            "2×", "3×", "4×", "6×", "On", "Off", "1 min", "3 min", "5 min", "10 min", "30 min"
+        ]
     );
     assert_eq!(QuickValue::flag(true), QuickValue::On);
     assert_eq!(QuickValue::flag(false), QuickValue::Off);
