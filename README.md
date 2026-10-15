@@ -141,10 +141,11 @@ launch once, and read `Slot/slot.log` — each press is logged with its code.
 - **Buttons:** the face buttons are mapped to the printed letters
   (A = right, B = bottom, X = top, Y = left). The right shoulder stands in for a
   dead R1 on some units; fast-forward is on the right analog stick.
-- **Power LED:** the green "work" light is on while running and **turns off at
-  low battery** (≤20%). The Flip's power light is green-only, so low battery
-  can't show red on it (the red charger light is left to the kernel). A true red
-  low-battery warning can be wired up if you want it.
+- **Power LED:** Slot drives both of the Flip's lights — the green "work" light
+  and the red "charger" light:
+  - **Running / fully charged:** green
+  - **Low battery (≤20%):** red
+  - **Charging:** both green and red lit
 - **GBA core:** gpSP by default (it has an ARM64 dynarec; mGBA does not). Per-game
   overrides live in `Slot/Config/selected_core.ini`.
 

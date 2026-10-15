@@ -71,6 +71,16 @@ enum Led {
     #[cfg_attr(feature = "flip", allow(dead_code))]
     Multi(PathBuf),
     Mono { dir: PathBuf, max: u32 },
+    // The Flip has two single-colour lights: a green "work" light and a red
+    // "charger" light. Driven together so low battery shows red (like a GBA SP)
+    // while charging lights both.
+    #[cfg(feature = "flip")]
+    FlipPair {
+        green: PathBuf,
+        green_max: u32,
+        red: PathBuf,
+        red_max: u32,
+    },
 }
 
 pub struct DevicePlatform {
@@ -109,16 +119,32 @@ impl DevicePlatform {
         let battery = first_dir(&sysfs.join("class/power_supply"), is_battery);
         let rtc = first_dir(&sysfs.join("class/rtc"), |_| true);
         let motor = Motor::open(sysfs);
-        // On the Flip the first leds entry is "charger", which the kernel drives
-        // red from the battery trigger and fights us for. The green power light
-        // is "work". Prefer it, and detach its trigger so slot owns it.
+        // The Flip has two single-colour lights: a green "work" light and a red
+        // "charger" light that the kernel drives from the battery trigger. We
+        // detach both triggers so slot owns them, then drive them per state
+        // (green running, red low battery, both while charging).
         #[cfg(feature = "flip")]
         let led = {
             let work = sysfs.join("class/leds/work");
+            let charger = sysfs.join("class/leds/charger");
             if work.join("brightness").is_file() {
                 let _ = fs::write(work.join("trigger"), "none\n");
-                let max = read_number(&work.join("max_brightness")).unwrap_or(255);
-                Some(Led::Mono { dir: work, max })
+                let green_max = read_number(&work.join("max_brightness")).unwrap_or(255);
+                if charger.join("brightness").is_file() {
+                    let _ = fs::write(charger.join("trigger"), "none\n");
+                    let red_max = read_number(&charger.join("max_brightness")).unwrap_or(255);
+                    Some(Led::FlipPair {
+                        green: work,
+                        green_max,
+                        red: charger,
+                        red_max,
+                    })
+                } else {
+                    Some(Led::Mono {
+                        dir: work,
+                        max: green_max,
+                    })
+                }
             } else {
                 None
             }
@@ -444,6 +470,25 @@ impl Platform for DevicePlatform {
                 let on = !matches!(state, LedState::Off | LedState::Low);
                 let value = if on { *max } else { 0 };
                 let _ = fs::write(dir.join("brightness"), format!("{value}\n"));
+            }
+            #[cfg(feature = "flip")]
+            Led::FlipPair {
+                green,
+                green_max,
+                red,
+                red_max,
+            } => {
+                // green on when running/charging/charged; red on when low or
+                // charging (so charging lights both).
+                let green_on = matches!(
+                    state,
+                    LedState::Running | LedState::Charging | LedState::Charged
+                );
+                let red_on = matches!(state, LedState::Low | LedState::Charging);
+                let g = if green_on { *green_max } else { 0 };
+                let r = if red_on { *red_max } else { 0 };
+                let _ = fs::write(green.join("brightness"), format!("{g}\n"));
+                let _ = fs::write(red.join("brightness"), format!("{r}\n"));
             }
         }
     }

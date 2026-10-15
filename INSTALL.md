@@ -69,6 +69,12 @@ powers itself off after a timeout you choose in the quick menu:
 
 The choice is saved and survives reboots.
 
+## Power LED
+
+The green power light is on while running and fully charged. At **low battery
+(≤20%)** the red light comes on; while **charging**, both the green and red
+lights are lit.
+
 ## Remapping buttons (menu with mappable buttons)
 
 Slot ships with a sensible map for each device it knows about, but any MinUI

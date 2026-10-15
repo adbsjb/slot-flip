@@ -240,6 +240,7 @@ fn read(d: &TempDir, path: &str) -> String {
         .to_string()
 }
 
+#[cfg(not(feature = "flip"))]
 #[test]
 fn a_multicolour_led_gets_a_colour_per_state() {
     let d = sysfs("255", "87");
@@ -260,6 +261,7 @@ fn a_multicolour_led_gets_a_colour_per_state() {
     assert_ne!(amber, green);
 }
 
+#[cfg(not(feature = "flip"))]
 #[test]
 fn a_mono_led_is_on_except_when_the_battery_is_low() {
     let d = sysfs("255", "87");
@@ -275,6 +277,46 @@ fn a_mono_led_is_on_except_when_the_battery_is_low() {
     assert_eq!(read(&d, "power/brightness"), "255");
     p.set_led(LedState::Low);
     assert_eq!(read(&d, "power/brightness"), "0");
+}
+
+#[cfg(feature = "flip")]
+#[test]
+fn the_flip_pair_shows_red_when_low_and_both_when_charging() {
+    let d = sysfs("255", "87");
+    leds(&d, "work", &[("brightness", "0"), ("max_brightness", "255")]);
+    leds(
+        &d,
+        "charger",
+        &[
+            ("brightness", "0"),
+            ("max_brightness", "255"),
+            ("trigger", "[battery] none"),
+        ],
+    );
+    let mut p = platform(&d);
+
+    // Running: green on, red off.
+    p.set_led(LedState::Running);
+    assert_eq!(read(&d, "work/brightness"), "255");
+    assert_eq!(read(&d, "charger/brightness"), "0");
+
+    // Low battery: green off, red on (a real low-battery warning).
+    p.set_led(LedState::Low);
+    assert_eq!(read(&d, "work/brightness"), "0");
+    assert_eq!(read(&d, "charger/brightness"), "255");
+
+    // Charging: both lit, so the charging state is still visible.
+    p.set_led(LedState::Charging);
+    assert_eq!(read(&d, "work/brightness"), "255");
+    assert_eq!(read(&d, "charger/brightness"), "255");
+
+    // Full: back to green only.
+    p.set_led(LedState::Charged);
+    assert_eq!(read(&d, "work/brightness"), "255");
+    assert_eq!(read(&d, "charger/brightness"), "0");
+
+    // slot took the charger's kernel trigger so it stops fighting us.
+    assert_eq!(read(&d, "charger/trigger"), "none");
 }
 
 #[test]
