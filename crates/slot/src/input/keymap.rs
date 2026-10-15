@@ -101,4 +101,32 @@ mod tests {
         assert_eq!(m.get(&2), Some(&Btn::B));
         assert_eq!(m.len(), 1);
     }
+
+    // OVERRIDES is a process-global OnceLock, so the whole load -> lookup ->
+    // to_raw chain is exercised in one test to keep it deterministic.
+    #[test]
+    fn load_flows_into_override_and_wins_in_to_raw() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join("Config")).unwrap();
+        // Rebind KEY_SPACE (57), which the Flip default maps to A, over to B.
+        std::fs::write(dir.path().join(BUTTONS_FILE), "57 = b\n").unwrap();
+        load(dir.path());
+
+        assert_eq!(override_for(57), Some(Btn::B));
+        assert_eq!(override_for(999), None, "unlisted code has no override");
+        assert_eq!(bindings(), vec![(57u16, Btn::B)]);
+
+        // On the device path, the override must beat the built-in default.
+        #[cfg(feature = "flip")]
+        {
+            use super::super::evdev::{to_raw, Ev, EV_KEY};
+            use slot_input::RawEvent;
+            let press = Ev {
+                kind: EV_KEY,
+                code: 57,
+                value: 1,
+            };
+            assert_eq!(to_raw(press), Some(RawEvent::Down(Btn::B)));
+        }
+    }
 }
