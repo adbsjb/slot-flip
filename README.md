@@ -1,16 +1,46 @@
 # slot. — Miyoo Flip fork
 
-A cartridge-style Game Boy / Game Boy Color / Game Boy Advance frontend, ported
-to run on the **Miyoo Flip (my355)** as a **MinUI Tool**.
+A cartridge-style Game Boy / Game Boy Color / Game Boy Advance frontend for the
+**Miyoo Flip (my355)**, installed as a **MinUI Tool**. Browse your games as
+cartridges on a shelf, slot one in, and play — with sound, saves, and save
+states.
 
-This is a fork of [slot](https://slot-cfw.fyi) (originally for the Anbernic RG SP),
-adapted for the Flip's hardware (SDL2 + GLES display, the Flip's button map and
-lid sensor, green power LED) and with a few extras: configurable backgrounds, an
-in-app button-remap menu, lid-close sleep with a configurable auto power-off, and
-a data-driven config so it can be adapted to other MinUI devices.
+> **This is a fork of [slot](https://slot-cfw.fyi) by Brandon T. Kowalski**,
+> which was originally built for the Anbernic RG SP. This fork ports it to the
+> Miyoo Flip's hardware and adds a handful of features (below). All credit for
+> the original design and frontend goes upstream — see
+> [Credits](#credits--licence). It is licensed **GPL-3.0-or-later**, the same as
+> upstream.
 
-It keeps everything it owns in a single `Slot` folder and never touches your
-MinUI Roms or Saves.
+It keeps everything it owns in a single `Slot` folder and **never touches your
+MinUI Roms or Saves**.
+
+---
+
+## Features
+
+- **Game Boy, Game Boy Color, and Game Boy Advance** in one cartridge-style
+  carousel, one shelf per system.
+- **Plays with sound, battery saves, and save states**, all stored under `Slot`.
+- **Configurable backgrounds** — drop PNGs in a folder and name one, or shuffle.
+- **Remappable buttons** — an in-app Buttons screen plus a plain-text config, so
+  any device's keys can be rebound without a rebuild.
+- **Lid-close sleep** — shut the lid and it sleeps instantly; it then powers off
+  after a timeout you choose in the menu (1–30 min, or never).
+- **Cartridge artwork** — per-game label images.
+- **Per-game core override** — pick mGBA or gpSP for a specific GBA title.
+- **Right power LED** — green while running, red at low battery, both while
+  charging.
+- **Portable config** — the button map and settings are data-driven, so the port
+  can be adapted to other MinUI devices (see [INSTALL.md](INSTALL.md) /
+  [PORTING.md](PORTING.md)).
+
+## Compatibility
+
+- **Device:** Miyoo Flip (`my355`), running **MinUI**.
+- **Systems:** GBA (`.gba`), GB (`.gb`), GBC (`.gbc`).
+- Other MinUI devices can be supported with small changes — see
+  [INSTALL.md](INSTALL.md).
 
 ---
 
@@ -156,12 +186,77 @@ the device seams (button codes, LED/backlight paths, display/audio wiring).
 
 ---
 
-## Credits & AI disclosure
+## Support & troubleshooting
 
-Upstream slot. is by **Brandon T. Kowalski** — a bespoke frontend for the
-Anbernic RG SP that evokes using a GBA SP as a kid. Original guide:
-[slot-cfw.fyi](https://slot-cfw.fyi). Release notes: [changelog](CHANGELOG.md).
+First step for almost anything: drop an empty file named **`DEBUG`** next to
+`launch.sh` in `Slot.pak`, launch once, reproduce the problem, then read
+**`Slot/slot.log`**. It records the display/audio/input setup and every button
+press, and most issues are obvious from it.
 
-The upstream Rust frontend was put together with Claude Opus and reviewed by the
-author; this Miyoo Flip port was likewise done with an AI coding assistant.
-Use your own legally-dumped ROMs.
+**Slot doesn't appear in MinUI's Tools menu.**
+Check the folder is exactly `<SD CARD>/Tools/my355/Slot.pak` and contains
+`launch.sh`, `slot`, and `System/`. The card must be readable (FAT32/exFAT as
+MinUI expects).
+
+**A game shows a black or white screen (but others work).**
+That's almost always a **bad ROM dump**, not Slot — the same file will also fail
+in other emulators. Re-dump the cartridge or replace it with a known-good copy
+(verify against the No-Intro set). Some ROM *hacks* are also just broken.
+
+**A GBA game runs slow, or crashes on load.**
+gpSP is the default (it's fast on this chip). If a specific title misbehaves,
+force mGBA for just that game by adding a line to
+`Slot/Config/selected_core.ini`:
+
+```ini
+Pokemon Emerald = mgba
+```
+
+(use the ROM's name without the extension). mGBA is more accurate but slower.
+
+**Saves aren't being kept / "Read-only file system" in the log.**
+The SD card's filesystem has gone read-only, usually after a hard power-off or a
+yank mid-write, which can corrupt FAT. Put the card in a computer and run a
+filesystem check/repair (`fsck`/"Repair" on Windows/macOS). Always power the
+device down cleanly.
+
+**The buttons are wrong.**
+Open the quick menu → **Buttons** to see the current map, and edit
+`Slot/Config/buttons.ini` to rebind. Use the `DEBUG` log to find each button's
+key code. See [Button remapping](#button-remapping).
+
+**Closing the lid doesn't sleep.**
+Confirm you're on the latest build. If a future device reports its lid
+differently, that's a porting detail — see [PORTING.md](PORTING.md).
+
+**It won't boot / I want to undo a change.**
+Everything Slot owns is under the `Slot` folder and the `Slot.pak` — deleting
+either is harmless to MinUI. If you auto-boot Slot, delete
+`<SD CARD>/.userdata/my355/auto.sh` to return to the normal MinUI menu.
+
+**Getting help.** This is a personal fork; for issues specific to it, open an
+issue on this fork's repository and include your `slot.log` (captured with the
+`DEBUG` file). For questions about the original frontend's look and behaviour,
+upstream's guide at [slot-cfw.fyi](https://slot-cfw.fyi) is the reference.
+
+---
+
+## Credits & licence
+
+**slot. is by [Brandon T. Kowalski](https://slot-cfw.fyi)** — a bespoke,
+Game-Boy-centric frontend for the Anbernic RG SP that evokes using a GBA SP as a
+kid. All of the frontend's design, look, and feel are his. This repository is a
+**fork** that ports it to the Miyoo Flip and adds the features listed above; it
+is **not** affiliated with or endorsed by the original author.
+
+- Upstream project & guide: [slot-cfw.fyi](https://slot-cfw.fyi)
+- Upstream release notes: [CHANGELOG.md](CHANGELOG.md)
+- Licence: **GPL-3.0-or-later** (see [LICENSE](LICENSE)), same as upstream. As a
+  GPL fork, source stays open.
+
+Emulation is by the **mGBA** and **gpSP** libretro cores. Game Boy is a
+trademark of Nintendo; this project is not affiliated with Nintendo. Use your
+own legally-dumped ROMs.
+
+The upstream frontend was written with an AI assistant and reviewed by its
+author; this Flip port was likewise done with an AI coding assistant.
