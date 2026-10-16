@@ -15,6 +15,15 @@ states.
 It keeps everything it owns in a single `Slot` folder and **never touches your
 MinUI Roms or Saves**.
 
+## Watch the launch video
+
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=-XE-_v9wOAk">
+    <img src="https://i.ytimg.com/vi/-XE-_v9wOAk/maxresdefault.jpg"
+         alt="Introducing: Slot Flip — launch video" width="720">
+  </a>
+</div>
+
 ---
 
 ## Features
