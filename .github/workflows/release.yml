@@ -1,62 +1,60 @@
 name: release
 
+# Builds the Miyoo Flip (my355) frontend for the tag and publishes a ready-to-use
+# Slot.pak-my355.zip. The emulator cores in Slot.pak/System/ are committed, so CI
+# only has to build the `slot` binary and package everything up.
+
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
-    name: card tree
+    name: flip pak
     runs-on: ubuntu-24.04-arm
     container: rust:1-bullseye
-    outputs:
-      zip: ${{ steps.package.outputs.zip }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install zip, cmake and Task
+      - name: Install zip
         run: |
           set -eu
-          sed -i '/bullseye-security/d' /etc/apt/sources.list
+          sed -i '/bullseye-security/d' /etc/apt/sources.list || true
           apt-get -o Acquire::Check-Valid-Until=false update
-          apt-get install -y --no-install-recommends zip cmake
-          curl -fsSL https://taskfile.dev/install.sh | sh -s -- -b /usr/local/bin
+          apt-get install -y --no-install-recommends zip
 
-      - name: Build the tree
-        run: task dist:device OUT="slot-${GITHUB_REF_NAME}"
-
-      - name: Check what is about to ship
+      - name: Build the Flip frontend (aarch64)
         run: |
           set -eu
-          out="slot-${GITHUB_REF_NAME}"
-          file "$out/System/slot" | grep -q aarch64
-          file "$out/System/mgba_libretro.so" | grep -q aarch64
-          file "$out/System/gpsp_libretro.so" | grep -q aarch64
-          test -x "$out/System/slot"
-          gpsp_src_sha="$(cat vendor/gpsp-src.sha)"
-          test -f "$out/System/licenses/gpsp-${gpsp_src_sha}.tar.gz"
-          test -f "$out/System/licenses/gpsp-${gpsp_src_sha}.meta"
-          for p in cores/gpsp/*.patch; do
-            test -f "$out/System/licenses/gpsp-$(basename "$p")"
-          done
-          mgba_src_commit="$(grep '^commit=' vendor/mgba_libretro.so.meta | cut -d= -f2)"
-          test -f "$out/System/licenses/mgba-${mgba_src_commit}.meta"
-          for p in cores/mgba/*.patch; do
-            test -f "$out/System/licenses/mgba-$(basename "$p")"
-          done
+          cargo build --release -p slot --no-default-features --features flip --target-dir target-flip
+
+      - name: Assemble Slot.pak
+        run: |
+          set -eu
+          pak="flip/Tools/my355/Slot.pak"
+          cp target-flip/release/slot "$pak/slot"
+          chmod +x "$pak/slot" "$pak/launch.sh"
+          # Sanity-check the same things a user would trip over.
+          file "$pak/slot" | grep -q aarch64
+          file "$pak/System/mgba_libretro.so" | grep -q aarch64
+          file "$pak/System/gpsp_libretro.so" | grep -q aarch64
+          test -x "$pak/launch.sh"
+          test -f "$pak/System/licenses/gpsp-GPL-2.0.txt"
+          test -f "$pak/System/licenses/mgba-MPL-2.0.txt"
+          test -f "$pak/System/licenses/gpsp-src.tar.gz"
 
       - name: Package
         id: package
         run: |
           set -eu
-          out="slot-${GITHUB_REF_NAME}"
-          zip="$out-h700.zip"
-          zip -qry "$zip" "$out"
-          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+          stage="$(mktemp -d)"
+          cp -R flip/Tools/my355/Slot.pak "$stage/Slot.pak"
+          ( cd "$stage" && zip -qry "$GITHUB_WORKSPACE/Slot.pak-my355.zip" Slot.pak )
+          echo "zip=Slot.pak-my355.zip" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -74,18 +72,28 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: ${{ needs.build.outputs.zip }}
+          name: Slot.pak-my355.zip
 
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
-          ZIP: ${{ needs.build.outputs.zip }}
         run: |
           set -eu
-          cat > notes.md <<NOTES
-          Unzip and copy the contents of \`slot-${GITHUB_REF_NAME}/\` onto SD2.
+          cat > notes.md <<'NOTES'
+          Miyoo Flip (my355) build of slot. for MinUI.
 
-          Emulation by mGBA (MPL-2.0) and gpSP (GPL-2.0). Their licences, patches and gpSP's source are in \`System/licenses/\`.
+          **Install:** unzip and copy the `Slot.pak` folder to
+          `<SD CARD>/Tools/my355/Slot.pak`, then boot MinUI and open
+          **Tools -> Slot**. Full guide in the README.
+
+          Emulation by mGBA (MPL-2.0) and gpSP (GPL-2.0). Their licences,
+          patches and gpSP's source are in `System/licenses/`.
+
+          A fork of slot by Brandon T. Kowalski (https://slot-cfw.fyi). Not
+          affiliated with the upstream author or Nintendo. Use your own
+          legally-dumped ROMs.
           NOTES
-          gh release create "$GITHUB_REF_NAME" "$ZIP" --repo "$GITHUB_REPOSITORY" \
-            --title "$GITHUB_REF_NAME" --notes-file notes.md
+          gh release create "$GITHUB_REF_NAME" Slot.pak-my355.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "slot-flip $GITHUB_REF_NAME (Miyoo Flip)" \
+            --notes-file notes.md

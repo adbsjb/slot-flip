@@ -1,0 +1,3 @@
+# AI Disclosure
+
+This was made with Opencode as the harness, and a combination of Opus and Deepseek as the models.  I'm a professional software developer, and I use AI heavily in both my professional and personal projects.  Lots of devs have shared how LLM's have ruined the profession for them, but they have had the oposite effect on me.  The ability to quickly manifest my ideas into a working piece of software has given me an incredible amount of motivation to come up with new ideas and try them!  So that's what I did with this project.  I saw a video on Slot, and really wanted it to work with hardware I already had.  So I made it happen.  I hope many of you can look past the fact that AI was used in the making of this and find enjoyment in the final product.
