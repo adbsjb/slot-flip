@@ -19,18 +19,35 @@ MinUI Roms or Saves**.
 
 ## Features
 
+### From slot (upstream)
+
+These come from the original [slot](https://slot-cfw.fyi) and are the heart of
+the experience — all credit to the upstream author:
+
 - **Game Boy, Game Boy Color, and Game Boy Advance** in one cartridge-style
   carousel, one shelf per system.
 - **Plays with sound, battery saves, and save states**, all stored under `Slot`.
-- **Configurable backgrounds** — drop PNGs in a folder and name one, or shuffle.
-- **Remappable buttons** — an in-app Buttons screen plus a plain-text config, so
-  any device's keys can be rebound without a rebuild.
-- **Lid-close sleep** — shut the lid and it sleeps instantly; it then powers off
-  after a timeout you choose in the menu (1–30 min, or never).
-- **Cartridge artwork** — per-game label images.
+- **Cartridge artwork** — a per-game label image on each cart.
+- **Wallpapers** — drop PNGs in `Wallpapers/` and it shuffles one in on boot.
 - **Per-game core override** — pick mGBA or gpSP for a specific GBA title.
-- **Right power LED** — green while running, red at low battery, both while
-  charging.
+- **Quick menu** — fast-forward, colour correction, rumble, date & time, and the
+  whole look and feel.
+
+### New in this fork
+
+Added on top of upstream for the Miyoo Flip (and portable to other MinUI
+devices):
+
+- **Miyoo Flip port** — SDL2 + GLES display, the Flip's button map, lid sensor,
+  and power LED, packaged as a MinUI Tool.
+- **Pin a specific background** — a `background =` key in `slot.ini` to choose
+  one wallpaper instead of the random shuffle (or set `random`).
+- **Remappable buttons** — an in-app **Buttons** screen plus a plain-text
+  `buttons.ini`, so any device's keys can be rebound without a rebuild.
+- **Lid-close sleep + auto power-off** — shut the lid and it sleeps instantly,
+  then powers off after a timeout you choose in the menu (1–30 min, or never).
+- **Right power LED behaviour** — green while running, red at low battery, both
+  while charging.
 - **Portable config** — the button map and settings are data-driven, so the port
   can be adapted to other MinUI devices (see [INSTALL.md](INSTALL.md) /
   [PORTING.md](PORTING.md)).
