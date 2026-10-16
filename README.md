@@ -65,9 +65,17 @@ devices):
 
 You need a MinUI SD card and about two minutes.
 
-1. **Power off** the device and move the SD card to your computer.
-2. Copy the **`Slot.pak`** folder from the release into the Tools folder for your
-   device:
+> **Don't have MinUI yet?** It's a minimal, clean launcher for handhelds like the
+> Miyoo Flip. Grab it and follow its setup first:
+> [MinUI by Shaun Inman](https://github.com/shauninman/MinUI) (see its
+> [latest release](https://github.com/shauninman/MinUI/releases/latest) and
+> README for flashing your SD card). Come back here once MinUI boots on your
+> device.
+
+1. **Download** the latest `Slot.pak` from this repo's
+   [Releases](https://github.com/boomchu-123/slot-flip/releases/latest).
+2. **Power off** the device and move the SD card to your computer.
+3. Copy the **`Slot.pak`** folder into the Tools folder for your device:
 
    ```
    <SD CARD>/Tools/my355/Slot.pak
@@ -75,10 +83,10 @@ You need a MinUI SD card and about two minutes.
 
    Copy the whole folder — it contains `launch.sh`, the `slot` program, and a
    `System/` folder with the emulator cores.
-3. Put the card back and boot into MinUI.
-4. Open **Tools → Slot**. On first launch it creates a `Slot` folder at the root
+4. Put the card back and boot into MinUI.
+5. Open **Tools → Slot**. On first launch it creates a `Slot` folder at the root
    of the card and writes starter settings.
-5. Power off, put the card back in your computer, and drop your **legally-dumped**
+6. Power off, put the card back in your computer, and drop your **legally-dumped**
    ROMs into the matching folder:
 
    ```
@@ -87,7 +95,7 @@ You need a MinUI SD card and about two minutes.
    <SD CARD>/Slot/Games/GBC    (.gbc)
    ```
 
-6. Boot back into MinUI and open Slot — your carts appear in the carousel.
+7. Boot back into MinUI and open Slot — your carts appear in the carousel.
 
 That's it. Nothing else on the card changes, and your MinUI setup is untouched.
 
