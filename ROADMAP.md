@@ -18,7 +18,8 @@ The Flip build is the supported release. Work here is mostly maintenance.
 - ✅ SDL2 + GLES2 display, Flip button map, lid sleep, power LED
 - ✅ Remappable buttons (`buttons.ini` + in-app screen)
 - ✅ Pinned/random wallpapers, sleep timeout, auto power-off
-- 📋 Keep up with upstream slot releases
+- ✅ Synced to upstream slot **v1.6.0** (plus the v1.7 gpSP JIT fix)
+- 📋 Upstream **v1.7.0** (skeuomorphic redesign, favorites/recents, in-game menu) — a deliberate decision, not a quick merge. See [#11](https://github.com/boomchu-123/slot-flip/issues/11)
 - 💡 Cartridge-label artwork: fetch real label images automatically (blocked
   on a ScreenScraper developer ID; currently you supply your own labels)
 

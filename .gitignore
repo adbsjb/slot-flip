@@ -36,3 +36,6 @@ flip/Tools/my355/Slot.pak/slot
 !flip/Tools/my355/Slot.pak/System/*.so
 /vendor/
 .superpowers/
+
+# Scratch build dirs from local/docker checks (never commit build output).
+/target-*/
