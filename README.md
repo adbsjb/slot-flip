@@ -15,6 +15,27 @@ states.
 It keeps everything it owns in a single `Slot` folder and **never touches your
 MinUI Roms or Saves**.
 
+## Device support
+
+| Device | MinUI platform | Pak folder | Status | Download |
+| --- | --- | --- | --- | --- |
+| **Miyoo Flip** | `my355` | `Tools/my355/Slot.pak` | ✅ **Supported** (stable) | [Latest release](https://github.com/boomchu-123/slot-flip/releases/latest) |
+| **Miyoo Mini Plus** | `miyoomini` | `Tools/miyoomini/Slot.pak` | 🧪 **Experimental — not working yet** | [Pre-releases](https://github.com/boomchu-123/slot-flip/releases) |
+| Any other MinUI device | — | — | ❌ Not supported | — |
+
+**Why not other devices?** Each MinUI device loads tools only from its own
+`Tools/<platform>/` folder and has different hardware (CPU architecture,
+display, inputs). The Flip pak will simply **not appear** on a device whose
+platform folder doesn't match, and even if copied across it won't run.
+
+**Miyoo Mini Plus is experimental and does not play games yet.** The Mini Plus
+has no GPU, so slot's graphics path is still a work in progress — the current
+build only probes the hardware and writes a log. If you have a Mini Plus and
+want to help make it work, see the
+[`experimental` branch](https://github.com/boomchu-123/slot-flip/tree/experimental)
+and its `TESTERS.md`, and grab a `Slot.pak-miyoomini.zip`
+[pre-release](https://github.com/boomchu-123/slot-flip/releases).
+
 ## Watch the launch video
 
 <div align="center">
