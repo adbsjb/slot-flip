@@ -1,0 +1,79 @@
+name: Bug report
+description: Something isn't working (stable Flip build or an experimental build)
+title: "[bug] "
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **A bug without a log is very hard to fix**, especially
+        on hardware I don't own. Please attach `Slot/slot.log` — see step 4 below.
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      description: Which device are you running slot on?
+      options:
+        - Miyoo Flip (my355) — stable release
+        - Miyoo A30 (my282) — experimental
+        - Miyoo Mini Plus (miyoomini) — experimental
+        - Other (say which below)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Build / version
+      description: The release tag (e.g. v0.1.0), or the `exp-v…` pre-release tag.
+      placeholder: v0.1.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What went wrong, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Boot into MinUI
+        2. Open Tools -> Slot
+        3. ...
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ### Getting the log (please do this)
+
+        1. Create an empty file named **`DEBUG`** next to `launch.sh` inside
+           `Tools/<platform>/Slot.pak/`.
+        2. Launch slot, reproduce the problem, then quit.
+        3. Attach **`Slot/slot.log`** below (and `Slot/input-trace.log` if the
+           issue involves buttons).
+
+  - type: textarea
+    id: log
+    attributes:
+      label: slot.log
+      description: Paste the contents, or drag the file onto this box to attach it.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Photos, videos, or other context.
+    validations:
+      required: false

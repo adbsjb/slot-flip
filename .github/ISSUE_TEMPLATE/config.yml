@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the roadmap
+    url: https://github.com/boomchu-123/slot-flip/blob/flip/ROADMAP.md
+    about: Check what's planned (and what's out of scope) before requesting a feature.
+  - name: Test an experimental device build
+    url: https://github.com/boomchu-123/slot-flip/blob/experimental/TESTERS.md
+    about: How to test the A30 / Mini Plus builds and what logs to send.
+  - name: Install / setup help
+    url: https://github.com/boomchu-123/slot-flip/blob/flip/INSTALL.md
+    about: Step-by-step install guide.
+  - name: Upstream slot (the original project)
+    url: https://slot-cfw.fyi
+    about: Questions about the original frontend's design or behaviour.

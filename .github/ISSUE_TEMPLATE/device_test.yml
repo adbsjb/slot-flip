@@ -1,0 +1,86 @@
+name: Experimental device test
+description: Test an experimental build (Miyoo A30 or Mini Plus) and share the log
+title: "[device test] "
+labels: ["experimental", "help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! These builds aren't verified yet, so **any** result is
+        useful — including "it crashed immediately". See
+        **[TESTERS.md](https://github.com/boomchu-123/slot-flip/blob/experimental/TESTERS.md)**
+        for the full runbook.
+
+        **Please attach `Slot/slot.log` and `Slot/input-trace.log`** (create an
+        empty file named `DEBUG` inside `Slot.pak` before launching so both are
+        produced).
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      options:
+        - Miyoo A30 (my282)
+        - Miyoo Mini Plus (miyoomini)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Pre-release tag
+      description: The `exp-v…` tag you installed.
+      placeholder: exp-v0.2.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: screen
+    attributes:
+      label: What happened on launch?
+      options:
+        - The shelf / UI appeared
+        - Black screen (stayed on)
+        - Crashed / returned to MinUI immediately
+        - It booted but is glitchy
+        - Something else (describe below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: buttons
+    attributes:
+      label: Were the buttons mapped correctly?
+      options:
+        - All correct
+        - Some wrong (describe below)
+        - No input at all
+        - Didn't get far enough to tell
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Details
+      description: Anything odd — which buttons are wrong, glitches, missing carts, etc.
+    validations:
+      required: false
+
+  - type: textarea
+    id: log
+    attributes:
+      label: slot.log
+      description: Paste, or drag the file here to attach it.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: trace
+    attributes:
+      label: input-trace.log (optional but very useful)
+      description: Paste, or drag the file here to attach it.
+      render: text
+    validations:
+      required: false

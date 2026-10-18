@@ -20,7 +20,8 @@ MinUI Roms or Saves**.
 | Device | MinUI platform | Pak folder | Status | Download |
 | --- | --- | --- | --- | --- |
 | **Miyoo Flip** | `my355` | `Tools/my355/Slot.pak` | ✅ **Supported** (stable) | [Latest release](https://github.com/boomchu-123/slot-flip/releases/latest) |
-| **Miyoo Mini Plus** | `miyoomini` | `Tools/miyoomini/Slot.pak` | 🧪 **Experimental — not working yet** | [Pre-releases](https://github.com/boomchu-123/slot-flip/releases) |
+| **Miyoo A30** | `my282` | `Tools/my282/Slot.pak` | 🧪 **Experimental** — has a GPU, may work; unverified | [Pre-releases](https://github.com/boomchu-123/slot-flip/releases) |
+| **Miyoo Mini Plus** | `miyoomini` | `Tools/miyoomini/Slot.pak` | 🧪 **Experimental — not working yet** (no GPU) | [Pre-releases](https://github.com/boomchu-123/slot-flip/releases) |
 | Any other MinUI device | — | — | ❌ Not supported | — |
 
 **Why not other devices?** Each MinUI device loads tools only from its own
@@ -28,13 +29,18 @@ MinUI Roms or Saves**.
 display, inputs). The Flip pak will simply **not appear** on a device whose
 platform folder doesn't match, and even if copied across it won't run.
 
-**Miyoo Mini Plus is experimental and does not play games yet.** The Mini Plus
-has no GPU, so slot's graphics path is still a work in progress — the current
-build only probes the hardware and writes a log. If you have a Mini Plus and
-want to help make it work, see the
+**The two experimental builds need testers** (I only own a Flip):
+
+- **Miyoo A30 (`my282`)** has a Mali-400 GPU, so it uses slot's real graphics
+  renderer and has a genuine chance of working — but it's **unverified** and the
+  button map is a best guess.
+- **Miyoo Mini Plus (`miyoomini`)** has **no GPU**, so its graphics path is still
+  being written; that build only probes the hardware and **does not draw yet**.
+
+If you have either device and want to help, grab a pre-release from the
+[Releases](https://github.com/boomchu-123/slot-flip/releases) page and see the
 [`experimental` branch](https://github.com/boomchu-123/slot-flip/tree/experimental)
-and its `TESTERS.md`, and grab a `Slot.pak-miyoomini.zip`
-[pre-release](https://github.com/boomchu-123/slot-flip/releases).
+and its `TESTERS.md` for exactly what to do.
 
 ## Watch the launch video
 
@@ -236,8 +242,14 @@ launch once, and read `Slot/slot.log` — each press is logged with its code.
 
 ## Installing on other MinUI devices
 
-See [INSTALL.md](INSTALL.md) for the full guide and [PORTING.md](PORTING.md) for
-the device seams (button codes, LED/backlight paths, display/audio wiring).
+The only **supported** device is the Miyoo Flip. The Miyoo A30 and Mini Plus have
+**experimental** builds — see [Device support](#device-support) above, and
+[TESTERS.md](https://github.com/boomchu-123/slot-flip/blob/experimental/TESTERS.md)
+for how to test them.
+
+If you want to **port** slot to new hardware, see [INSTALL.md](INSTALL.md) for
+the install model and [PORTING.md](PORTING.md) for the device seams (button
+codes, LED/backlight paths, display/audio wiring, CPU architecture).
 
 ---
 
@@ -289,10 +301,24 @@ Everything Slot owns is under the `Slot` folder and the `Slot.pak` — deleting
 either is harmless to MinUI. If you auto-boot Slot, delete
 `<SD CARD>/.userdata/my355/auto.sh` to return to the normal MinUI menu.
 
-**Getting help.** This is a personal fork; for issues specific to it, open an
-issue on this fork's repository and include your `slot.log` (captured with the
-`DEBUG` file). For questions about the original frontend's look and behaviour,
-upstream's guide at [slot-cfw.fyi](https://slot-cfw.fyi) is the reference.
+**Getting help.** This is a personal fork; for issues specific to it,
+[open a bug report](https://github.com/boomchu-123/slot-flip/issues/new/choose)
+and include your `slot.log` (captured with the `DEBUG` file). For questions
+about the original frontend's look and behaviour, upstream's guide at
+[slot-cfw.fyi](https://slot-cfw.fyi) is the reference.
+
+---
+
+## Contributing & roadmap
+
+Contributions are welcome — bug reports, feature requests, docs, code, and
+especially **testing the experimental device builds**.
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to build, test, and submit
+  changes, plus the branch model.
+- **[ROADMAP.md](ROADMAP.md)** — what's planned, and how to request a feature.
+- **[Issues](https://github.com/boomchu-123/slot-flip/issues/new/choose)** —
+  bug reports, feature requests, and experimental device test reports.
 
 ---
 

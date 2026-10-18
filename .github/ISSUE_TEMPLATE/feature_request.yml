@@ -1,0 +1,67 @@
+name: Feature request
+description: Suggest an idea or improvement
+title: "[feature] "
+labels: ["enhancement", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening this, please check
+        **[ROADMAP.md](https://github.com/boomchu-123/slot-flip/blob/flip/ROADMAP.md)** and
+        the existing issues — it may already be listed. If you'd like to build
+        it yourself, say so below; that moves it up the list.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What would you like?
+      description: A clear, one-or-two sentence description of the feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is it useful?
+      description: What problem does it solve, or what does it make better?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Which device(s) does this apply to?
+      multiple: true
+      options:
+        - Miyoo Flip (my355)
+        - Miyoo A30 (my282)
+        - Miyoo Mini Plus (miyoomini)
+        - All devices
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed approach (optional)
+      description: If you have an idea how it could work, describe it here.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered (optional)
+    validations:
+      required: false
+
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you be willing to work on this?
+      options:
+        - "Yes — I can open a PR"
+        - "Maybe — with some guidance"
+        - "No — just suggesting it"
+    validations:
+      required: true
