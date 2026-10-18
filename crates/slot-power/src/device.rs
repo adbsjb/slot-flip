@@ -584,7 +584,12 @@ impl Platform for DevicePlatform {
 }
 
 pub fn read_only(path: &Path) -> bool {
-    fs::read_to_string("/proc/mounts").is_ok_and(|m| read_only_in(&m, path))
+    // Resolve symlinks first: MinUI passes the card as /mnt/SDCARD (a symlink
+    // to /mnt/sdcard), and /proc/mounts lists the real path. Without this the
+    // comparison falls through to / — a read-only squashfs — and alarms on
+    // every boot.
+    let real = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    fs::read_to_string("/proc/mounts").is_ok_and(|m| read_only_in(&m, &real))
 }
 
 pub fn read_only_in(mounts: &str, path: &Path) -> bool {
