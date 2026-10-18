@@ -284,10 +284,15 @@ the device.
 Thank you — this is exactly how the Flip build got finished: run it, read the
 log, fix, repeat.
 
-## Installing on other (unsupported) MinUI devices
+## Installing on other MinUI devices
 
-There is no supported build for other devices. If you want to **port** Slot to
-new hardware yourself, see [INSTALL.md](INSTALL.md) for the install model and
+The only **supported** device is the Miyoo Flip. The Miyoo A30 and Mini Plus have
+**experimental** builds on this (`experimental`) branch — see
+[Device support](#device-support) and
+[Testing the experimental builds](#testing-the-experimental-builds).
+
+Any other device has **no build**. If you want to **port** Slot to new hardware
+yourself, see [INSTALL.md](INSTALL.md) for the install model and
 [PORTING.md](PORTING.md) for the device seams (button codes, LED/backlight
 paths, display/audio wiring, CPU architecture).
 
@@ -345,6 +350,20 @@ either is harmless to MinUI. If you auto-boot Slot, delete
 issue on this fork's repository and include your `slot.log` (captured with the
 `DEBUG` file). For questions about the original frontend's look and behaviour,
 upstream's guide at [slot-cfw.fyi](https://slot-cfw.fyi) is the reference.
+
+---
+
+## Contributing & roadmap
+
+Contributions are welcome — bug reports, feature requests, docs, code, and
+especially **testing the experimental device builds**.
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to build, test, and submit
+  changes, plus the branch model.
+- **[ROADMAP.md](ROADMAP.md)** — what's planned, and how to request a feature.
+- **[TESTERS.md](TESTERS.md)** — how to test the A30 and Mini Plus builds.
+- **[Issues](https://github.com/boomchu-123/slot-flip/issues/new/choose)** —
+  bug reports, feature requests, and experimental device test reports.
 
 ---
 
