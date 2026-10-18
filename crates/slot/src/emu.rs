@@ -520,6 +520,10 @@ impl Worker {
             }
         }
         let av = core.av_info();
+        eprintln!(
+            "slot: emu: av_info fps {:.3} rate {:.1}",
+            av.fps, av.sample_rate
+        );
         let device_hz = match ring.sample_rate() {
             0 => av.sample_rate,
             hz => hz as f64,
@@ -614,7 +618,12 @@ impl Worker {
                 ring.set_idle(gate.1);
                 gated = gate;
             }
-            let lock = self.shared.driven.load(Ordering::Relaxed)
+            // On the Flip the panel refreshes below 60 Hz (~49 fps measured), so
+            // tying the emulator to the display cadence starves audio and stalls
+            // heavy games. There we free-run the emulator at its natural rate
+            // (60 fps) and just present the latest frame.
+            let lock = !cfg!(feature = "flip")
+                && self.shared.driven.load(Ordering::Relaxed)
                 && speed == Speed::Normal
                 && !rewinding
                 && transport.is_none();
