@@ -243,7 +243,7 @@ launch once, and read `Slot/slot.log` — each press is logged with its code.
   - **Low battery (≤20%):** red
   - **Charging:** both green and red lit
 - **GBA core:** gpSP by default (it has an ARM64 dynarec; mGBA does not). Per-game
-  overrides live in `Slot/Config/selected_core.ini`.
+  overrides live in `Slot/Config/selected_core.txt`.
 
 ## Installing on other MinUI devices
 
@@ -278,7 +278,7 @@ in other emulators. Re-dump the cartridge or replace it with a known-good copy
 **A GBA game runs slow, or crashes on load.**
 gpSP is the default (it's fast on this chip). If a specific title misbehaves,
 force mGBA for just that game by adding a line to
-`Slot/Config/selected_core.ini`:
+`Slot/Config/selected_core.txt`:
 
 ```ini
 Pokemon Emerald = mgba
