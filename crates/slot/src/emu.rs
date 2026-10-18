@@ -446,10 +446,12 @@ enum Wait {
 
 impl Drop for EmuHandle {
     fn drop(&mut self) {
+        eprintln!("slot: emu: stopping at {:.1} ms", crate::boot_time::ms());
         self.shared.stop.store(true, Ordering::Relaxed);
         if let Some(join) = self.join.take() {
             let _ = join.join();
         }
+        eprintln!("slot: emu: stopped at {:.1} ms", crate::boot_time::ms());
     }
 }
 
@@ -483,7 +485,11 @@ impl Worker {
         resume: Option<Vec<u8>>,
         link: Link,
     ) {
-        eprintln!("slot: emu: loading rom {}", rom.display());
+        eprintln!(
+            "slot: emu: loading {} at {:.1} ms",
+            rom.display(),
+            crate::boot_time::ms()
+        );
         if let Err(e) = core.load(&rom) {
             eprintln!("slot: {e}");
             self.shared
@@ -491,24 +497,29 @@ impl Worker {
                 .store(CoreState::Failed as u8, Ordering::Release);
             return;
         }
-        eprintln!("slot: emu: rom loaded");
         if let Some(sav) = sav {
+            eprintln!(
+                "slot: emu: save ram, {} bytes, at {:.1} ms",
+                sav.len(),
+                crate::boot_time::ms()
+            );
             if let Err(e) = core.load_save_ram(&sav) {
                 eprintln!("slot: save ram: {e}");
                 self.shared.sav_refused.store(true, Ordering::Release);
             }
         }
         if let Some(resume) = resume {
+            eprintln!(
+                "slot: emu: resume state, {} bytes, at {:.1} ms",
+                resume.len(),
+                crate::boot_time::ms()
+            );
             if let Err(e) = core.unserialize(&self.for_core(resume)) {
                 eprintln!("slot: resume: {e}");
                 self.shared.resume_refused.store(true, Ordering::Release);
             }
         }
         let av = core.av_info();
-        eprintln!(
-            "slot: emu: av_info fps {:.3} rate {:.1}",
-            av.fps, av.sample_rate
-        );
         let device_hz = match ring.sample_rate() {
             0 => av.sample_rate,
             hz => hz as f64,
@@ -522,6 +533,7 @@ impl Worker {
         self.shared
             .state
             .store(CoreState::Ready as u8, Ordering::Release);
+        eprintln!("slot: emu: ready at {:.1} ms", crate::boot_time::ms());
 
         let mut out = Vec::new();
         let mut gated = (false, false);
@@ -602,12 +614,7 @@ impl Worker {
                 ring.set_idle(gate.1);
                 gated = gate;
             }
-            // On the Flip the panel refreshes below 60 Hz (~49 fps measured), so
-            // tying the emulator to the display cadence starves audio and stalls
-            // heavy games. There we free-run the emulator at its natural rate
-            // (60 fps) and just present the latest frame.
-            let lock = !cfg!(feature = "flip")
-                && self.shared.driven.load(Ordering::Relaxed)
+            let lock = self.shared.driven.load(Ordering::Relaxed)
                 && speed == Speed::Normal
                 && !rewinding
                 && transport.is_none();

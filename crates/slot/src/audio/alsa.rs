@@ -222,18 +222,26 @@ struct Playback {
     alsa: Alsa,
     pcm: Option<*mut c_void>,
     rate: u32,
+    failing: bool,
 }
 
 fn play(ring: &Arc<Ring>, sample_rate: u32) -> Result<Playback, AudioError> {
     let alsa = Alsa::load()?;
-    let (pcm, actual_rate) = alsa.open_pcm(sample_rate)?;
-    // The ring runs at the rate the hardware actually took, so the emulator's
-    // resampler converts the core's output to match.
+    // Prefer a rate the codec actually locks onto; the ring runs at that rate
+    // so the emulator's resampler converts the core's output to match.
+    let (pcm, actual_rate) = match alsa.open_pcm(sample_rate) {
+        Ok((pcm, rate)) => (Some(pcm), rate),
+        Err(e) => {
+            eprintln!("slot: audio: {e}, retrying");
+            (None, preferred_rates(sample_rate)[0])
+        }
+    };
     ring.reopen(actual_rate);
     Ok(Playback {
         alsa,
-        pcm: Some(pcm),
+        pcm,
         rate: actual_rate,
+        failing: pcm.is_none(),
     })
 }
 
@@ -251,10 +259,16 @@ impl Playback {
                     eprintln!("slot: audio released after silence");
                 }
                 (None, true) => match self.alsa.open_pcm(self.rate) {
-                    Ok((pcm, _rate)) => self.pcm = Some(pcm),
+                    Ok((pcm, _rate)) => {
+                        eprintln!("slot: audio reopened at {:.1} ms", crate::boot_time::ms());
+                        self.pcm = Some(pcm);
+                        self.failing = false;
+                    }
                     Err(e) => {
-                        eprintln!("slot: audio: {e}");
-                        return;
+                        if !self.failing {
+                            eprintln!("slot: audio: {e}, retrying");
+                            self.failing = true;
+                        }
                     }
                 },
                 _ => {}
