@@ -15,6 +15,13 @@ states.
 It keeps everything it owns in a single `Slot` folder and **never touches your
 MinUI Roms or Saves**.
 
+> **Device support:** this is built for the **Miyoo Flip (`my355`)**. Other MinUI
+> devices use a different `Tools/<platform>/` folder and different hardware, so
+> the Flip pak will not appear or run on them. There is an **experimental,
+> not-yet-working** Miyoo Mini Plus (`miyoomini`) build — the Mini Plus has no
+> GPU, so its graphics path is still a work in progress. If you have a Mini Plus
+> and want to help, see [TESTERS.md](TESTERS.md).
+
 ## Watch the launch video
 
 <div align="center">

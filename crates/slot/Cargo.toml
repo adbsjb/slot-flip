@@ -10,6 +10,10 @@ default = ["host"]
 host = ["dep:winit", "dep:cpal", "dep:gilrs", "slot-gfx/host"]
 device = ["slot-gfx/device"]
 flip = ["slot-gfx/flip", "slot-power/flip", "slot-store/flip"]
+# Experimental Miyoo Mini Plus (miyoomini) target. The Mini Plus has no GPU, so
+# it uses a software framebuffer surface instead of the Flip's GLES path and its
+# own button map. Work in progress — see TESTERS.md.
+miyoomini = ["slot-gfx/miyoomini", "slot-store/flip"]
 
 [dependencies]
 slot-gfx = { path = "../slot-gfx", default-features = false }

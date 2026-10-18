@@ -8,6 +8,8 @@ mod headless;
 #[cfg(feature = "host")]
 mod host;
 mod lcd3x;
+#[cfg(feature = "miyoomini")]
+mod miyoofb;
 mod pipeline;
 mod power;
 mod quad;
@@ -26,6 +28,8 @@ pub use headless::HeadlessSurface;
 pub use host::HostSurface;
 pub use gl::load as load_gl;
 pub use lcd3x::{lcd3x_mask, mask_texture_rgba8};
+#[cfg(feature = "miyoomini")]
+pub use miyoofb::{probe as probe_fb, FbInfo};
 pub use pipeline::{SCALE, SRC_H, SRC_W, WHOLE_TEXTURE};
 pub use power::{screen_brightness, screen_scale, screen_width};
 #[cfg(feature = "flip")]

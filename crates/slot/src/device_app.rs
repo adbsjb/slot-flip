@@ -1,23 +1,32 @@
 use std::path::PathBuf;
+#[cfg(not(feature = "miyoomini"))]
 use std::time::{Duration, Instant};
 
-use slot::frontend::Frontend;
 use slot::input::DeviceInput;
-#[cfg(not(feature = "flip"))]
+#[cfg(not(feature = "miyoomini"))]
+use slot::frontend::Frontend;
+#[cfg(not(any(feature = "flip", feature = "miyoomini")))]
 use slot_gfx::FbdevSurface;
 #[cfg(feature = "flip")]
 use slot_gfx::SdlSurface;
+#[cfg(not(feature = "miyoomini"))]
 use slot_gfx::{Compositor, Surface};
+#[cfg(not(feature = "miyoomini"))]
 use slot_power::{trace_first_frame, DevicePlatform};
 
 const CARD: &str = "/mnt/sdcard";
 
+#[cfg(not(feature = "miyoomini"))]
 const MIN_FRAME: Duration = Duration::from_millis(12);
 
+#[cfg(not(feature = "miyoomini"))]
 const STEP_TIMEOUT: Duration = Duration::from_millis(12);
 
+#[cfg(not(feature = "miyoomini"))]
+#[cfg(not(feature = "miyoomini"))]
 const MARGIN: Duration = Duration::from_micros(1500);
 
+#[cfg(not(feature = "miyoomini"))]
 struct Pacer {
     last_return: Option<Instant>,
     period: Duration,
@@ -26,8 +35,10 @@ struct Pacer {
     next: usize,
 }
 
+#[cfg(not(feature = "miyoomini"))]
 const WORK_WINDOW: usize = 32;
 
+#[cfg(not(feature = "miyoomini"))]
 impl Pacer {
     fn new() -> Self {
         Pacer {
@@ -71,6 +82,35 @@ pub fn run() {
     let root = std::env::var_os("SLOT_ROOT")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(CARD));
+    #[cfg(feature = "miyoomini")]
+    run_miyoomini(&root);
+    #[cfg(not(feature = "miyoomini"))]
+    run_gles(root);
+}
+
+// The Miyoo Mini Plus has no GPU, so the GLES renderer cannot run. Probe its
+// framebuffer, report what it looks like, then exit cleanly — the software
+// compositor this target needs is not written yet. This leaves testers a useful
+// slot.log instead of a silent crash. See TESTERS.md.
+#[cfg(feature = "miyoomini")]
+fn run_miyoomini(root: &std::path::Path) {
+    eprintln!("slot: EXPERIMENTAL miyoomini build — software renderer not yet implemented");
+    // Confirm the input map loads and devices enumerate, so the log shows the
+    // buttons were found even though nothing is drawn yet.
+    slot::input::keymap::load(root);
+    let _ = DeviceInput::open(root);
+    match slot_gfx::probe_fb() {
+        Ok(info) => eprintln!("slot: {}", info.report()),
+        Err(e) => eprintln!("slot: framebuffer probe failed: {e}"),
+    }
+    eprintln!(
+        "slot: input map and hardware probing are wired up, but drawing to the \
+         framebuffer is still TODO. Please share this slot.log on the GitHub thread."
+    );
+}
+
+#[cfg(not(feature = "miyoomini"))]
+fn run_gles(root: PathBuf) {
     #[cfg(not(feature = "flip"))]
     let surface_result = FbdevSurface::new();
     #[cfg(feature = "flip")]

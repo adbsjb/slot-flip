@@ -25,6 +25,31 @@ the seams.
    the template for an SDL2 target; add a sibling feature if a new device needs
    different display/audio wiring.
 
+## Example: the experimental `miyoomini` (Miyoo Mini Plus) target
+
+This is a worked example of a sibling feature, and a caution about two things
+that are easy to get wrong:
+
+- **Architecture.** The Mini Plus is 32-bit ARM (Cortex-A7), so it builds for
+  `armv7-unknown-linux-gnueabihf`, **not** aarch64 like the Flip. The committed
+  Flip cores are aarch64 and will not run there; it needs armhf cores.
+- **No GPU.** The SSD202D has no GPU, so neither the Flip's GLES2 surface nor
+  upstream's EGL fbdev surface works — it has only a raw `/dev/fb0` (RGB565).
+  A working port needs a **software** compositor, which is still TODO.
+
+What the `miyoomini` feature already does:
+
+| Concern | Where |
+| --- | --- |
+| Button map (native L1/R1/L2/R2, no stick/lid) | `code_to_btn` in `crates/slot/src/input/evdev.rs` |
+| Framebuffer probe + diagnostics | `crates/slot-gfx/src/miyoofb.rs` (`probe`) |
+| Early-exit probe path (no renderer yet) | `run_miyoomini` in `crates/slot/src/device_app.rs` |
+| Pak + launch script | `flip/Tools/miyoomini/Slot.pak/` |
+| CI build (armhf) + packaging | `.github/workflows/release.yml` (`build-miyoomini`) |
+
+The remaining work is a CPU rasteriser that consumes the same `Draw` list the
+GLES pipeline uses and blits to the framebuffer. See `TESTERS.md` for status.
+
 ## User-facing config (data-driven, no rebuild)
 
 | File | Purpose |

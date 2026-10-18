@@ -10,6 +10,8 @@ default = ["host"]
 host = ["dep:glutin", "dep:glutin-winit", "dep:winit", "dep:raw-window-handle"]
 device = []
 flip = []
+# Software-framebuffer surface for GPU-less MinUI devices (Miyoo Mini Plus).
+miyoomini = []
 test-support = []
 
 [dependencies]
