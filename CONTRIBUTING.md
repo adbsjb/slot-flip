@@ -199,6 +199,15 @@ mandatory — a clear explanation in the PR is fine.
 
 ---
 
+## Working on the codebase
+
+[AGENTS.md](AGENTS.md) is the developer guide for this fork: how it differs from
+upstream, how to sync with upstream without losing fork behaviour, how to verify
+changes on a real device, and how to write release notes. It is written for
+humans and AI agents alike.
+
+---
+
 ## Be decent
 
 This is a hobby project. Be patient, be specific, and assume good faith.
