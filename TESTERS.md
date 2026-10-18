@@ -40,8 +40,8 @@ why.
 4. Grab the log it wrote: `<SD CARD>/Slot/slot.log`.
 5. For the most useful log, create an empty file named `DEBUG` inside the
    `Slot.pak` folder before launching — this also records your button presses to
-   `Slot/input-trace.txt`. Press every button a couple of times, then quit.
-6. Post `slot.log` (and `input-trace.txt` if you made one) on the GitHub thread
+   `Slot/input-trace.log`. Press every button a couple of times, then quit.
+6. Post `slot.log` (and `input-trace.log` if you made one) on the GitHub thread
    or open an issue.
 
 That log tells me the panel geometry and exact pixel format, and the trace tells
