@@ -61,6 +61,11 @@ forward or volunteer.
   Pro / Brick, Powkiddy RGB30. Each is its own SoC + display path, so it's a
   real port, not a repackage. If a device has a GPU, it's usually much cheaper
   (see the A30). Device support table is in the [README](README.md).
+- 💡 **NextUI** — a MinUI-based custom OS. Because it keeps MinUI's
+  `Tools/<platform>/*.pak` model (and the same `my355` slug on the Flip),
+  Slot's Flip pak is expected to be **drop-in with no code changes** — it just
+  needs someone on NextUI to verify. See
+  [#7](https://github.com/boomchu-123/slot-flip/issues/7).
 - 💡 **Theme presets** — ship a few ready-made `theme.txt` looks.
 - 💡 **More wallpaper options** in-app.
 - 💡 **Docs**: short video/GIF walkthroughs per feature.
