@@ -7,7 +7,7 @@ use slot_input::{InputSource, Millis};
 use slot_power::{Platform, Power};
 use slot_store::format_stamp;
 use slot_ui::{
-    arrows_hint_face, badge_face, bezel_face, cart_shadow, chip_face, chip_shadow_face,
+    arrows_hint_face, badge_face, cart_shadow, chip_face, chip_shadow_face,
     date_time_text, gb_cart_shadow, hhmm, hint_face, icon_face, menu_face, photo_face,
     quick_caret_face, quick_label_face, quick_legend_faces, quick_value_face, rebuild_count_face,
     rebuild_title_face, set_clock_hint_face, buttons_face, socket_face, sticker_face, title_face,
@@ -15,6 +15,9 @@ use slot_ui::{
     QuickRow, QuickValue, RebuildScreen, StickerFields, Toast, UndoFace, ALERT_PX, BOLT_PX,
     HUD_ICON_PX, HUD_INK, LEGEND,
 };
+
+#[cfg(not(feature = "flip"))]
+use slot_ui::bezel_face;
 
 use crate::app::{App, LinkRow, Phase};
 use crate::build_info::Build;
