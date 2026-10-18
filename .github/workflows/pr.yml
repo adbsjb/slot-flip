@@ -31,10 +31,16 @@ jobs:
         run: |
           set -eu
           # Each target is behind its own feature; make sure none regressed.
+          # Only check features that exist on the branch under test (the
+          # experimental device features are not on `flip` yet).
           for feat in flip miyoomini my282; do
-            echo "::group::feature $feat"
-            cargo check -p slot --no-default-features --features "$feat" --target-dir "target-$feat"
-            echo "::endgroup::"
+            if grep -qE "^${feat} = " crates/slot/Cargo.toml; then
+              echo "::group::feature $feat"
+              cargo check -p slot --no-default-features --features "$feat" --target-dir "target-$feat"
+              echo "::endgroup::"
+            else
+              echo "skip $feat (not present on this branch)"
+            fi
           done
 
       - name: Run tests
