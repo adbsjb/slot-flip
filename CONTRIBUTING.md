@@ -169,6 +169,22 @@ mandatory — a clear explanation in the PR is fine.
   experimental branch is for.
 - For device ports, include the `slot.log` from a real run.
 
+### Review policy
+
+- `flip` and `experimental` are **protected**. Nothing lands directly; changes
+  go through a pull request that passes CI (`pr-checks`) and gets reviewed.
+- Open PRs from **your own fork** (`flip` for stable fixes, `experimental` for
+  device work). You don't need push access to the repo.
+- Only the maintainer has write access, so **branches in this repo are
+  maintainer-only** — that's deliberate.
+- **Automated dumps and unsolicited bot PRs are closed without review.** If
+  you're an AI agent or a script, don't open a PR: open an issue with your
+  reasoning instead, and let a person decide.
+- First-time contributors' CI runs need manual approval before they execute —
+  that's a security default, not a judgement on your patch.
+- If a PR goes quiet for a long time, a polite bump is fine; PRs that are
+  abandoned may be closed.
+
 ---
 
 ## Assets & legal

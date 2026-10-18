@@ -1,0 +1,58 @@
+name: pr
+
+# Runs on every pull request so branch protection can require a green check
+# before anything merges. This is deliberately read-only (no secrets, no write
+# token): forked PRs can run it, but can't do anything with it.
+
+on:
+  pull_request:
+    branches: [flip, experimental]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pr-checks:
+    name: pr-checks
+    runs-on: ubuntu-latest
+    container: rust:1-bookworm
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install build deps
+        run: |
+          set -eu
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            libudev-dev libasound2-dev pkg-config
+
+      - name: Check the device builds compile
+        run: |
+          set -eu
+          # Each target is behind its own feature; make sure none regressed.
+          for feat in flip miyoomini my282; do
+            echo "::group::feature $feat"
+            cargo check -p slot --no-default-features --features "$feat" --target-dir "target-$feat"
+            echo "::endgroup::"
+          done
+
+      - name: Run tests
+        run: |
+          set -eu
+          # Non-root, matching how the tests are expected to run (one test is
+          # sensitive to root-owned files in a container).
+          useradd -m tester || true
+          chown -R tester /__w 2>/dev/null || true
+          su tester -c '
+            set -eu
+            for c in slot slot-store slot-power slot-input slot-ui slot-retro slot-gfx; do
+              echo "::group::$c"
+              cargo test -p "$c" --lib --target-dir target-test
+              echo "::endgroup::"
+            done
+            echo "::group::integration"
+            cargo test -p slot-store -p slot-power -p slot-ui --tests --target-dir target-test
+            cargo test -p slot --test evdev --test input --test platform --target-dir target-test
+            echo "::endgroup::"
+          '
