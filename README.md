@@ -20,7 +20,8 @@ MinUI Roms or Saves**.
 | Device | MinUI platform | Pak folder | Status | Download |
 | --- | --- | --- | --- | --- |
 | **Miyoo Flip** | `my355` | `Tools/my355/Slot.pak` | ✅ **Supported** (stable) | [Latest release](https://github.com/boomchu-123/slot-flip/releases/latest) |
-| **Miyoo Mini Plus** | `miyoomini` | `Tools/miyoomini/Slot.pak` | 🧪 **Experimental — not working yet** | [Pre-releases](https://github.com/boomchu-123/slot-flip/releases) |
+| **Miyoo A30** | `my282` | `Tools/my282/Slot.pak` | 🧪 **Experimental** — has a GPU, may work; unverified | [Pre-releases](https://github.com/boomchu-123/slot-flip/releases) |
+| **Miyoo Mini Plus** | `miyoomini` | `Tools/miyoomini/Slot.pak` | 🧪 **Experimental — not working yet** (no GPU) | [Pre-releases](https://github.com/boomchu-123/slot-flip/releases) |
 | Any other MinUI device | — | — | ❌ Not supported | — |
 
 **Why not other devices?** Each MinUI device loads tools only from its own
@@ -28,11 +29,17 @@ MinUI Roms or Saves**.
 display, inputs). The Flip pak will simply **not appear** on a device whose
 platform folder doesn't match, and even if copied across it won't run.
 
-**Miyoo Mini Plus is experimental and does not play games yet.** The Mini Plus
-has no GPU, so slot's graphics path is still a work in progress — the current
-build only probes the hardware and writes a log. **If you have a Mini Plus and
-want to help make it work, see [Testing the Mini Plus build](#testing-the-miyoo-mini-plus-build-experimental)
-below and [TESTERS.md](TESTERS.md).**
+**The two experimental builds need testers** (I only own a Flip):
+
+- **Miyoo A30 (`my282`)** has a Mali-400 GPU, so it uses slot's real graphics
+  renderer and has a genuine chance of working — but it's **unverified** and the
+  button map is a best guess.
+- **Miyoo Mini Plus (`miyoomini`)** has **no GPU**, so its graphics path is still
+  being written; that build only probes the hardware and **does not draw yet**.
+
+If you have either device and want to help, see
+[Testing the experimental builds](#testing-the-experimental-builds)
+below and [TESTERS.md](TESTERS.md).
 
 ## Watch the launch video
 
@@ -232,39 +239,47 @@ launch once, and read `Slot/slot.log` — each press is logged with its code.
 - **GBA core:** gpSP by default (it has an ARM64 dynarec; mGBA does not). Per-game
   overrides live in `Slot/Config/selected_core.ini`.
 
-## Testing the Miyoo Mini Plus build (experimental)
+## Testing the experimental builds
 
-> ⚠️ **This build does not work yet and will not play games.** It only checks
-> the hardware and writes a log. There is nothing to "use" — the point is to
-> collect information so the port can be finished. Only do this if you want to
-> **help test**.
+> ⚠️ **These builds are unverified.** The Mini Plus one does **not** draw to the
+> screen yet; the A30 one might work but hasn't been confirmed. Only do this if
+> you want to **help test** — the point is to collect logs so the ports can be
+> finished.
 
-I don't own a Miyoo Mini Plus, so this port depends on logs from people who do.
-Full detail is in **[TESTERS.md](TESTERS.md)**; here is exactly what to do:
+I only own a Miyoo Flip, so these ports depend on logs from people with the
+other devices. Full detail is in **[TESTERS.md](TESTERS.md)**; the steps are the
+same for both, just use your device's folder:
 
-1. **Install MinUI** on your Mini Plus (if you haven't already).
-2. **Download** `Slot.pak-miyoomini.zip` from the
+| If you have a… | Download | Copy to |
+| --- | --- | --- |
+| Miyoo A30 | `Slot.pak-my282.zip` | `<SD CARD>/Tools/my282/Slot.pak` |
+| Miyoo Mini Plus | `Slot.pak-miyoomini.zip` | `<SD CARD>/Tools/miyoomini/Slot.pak` |
+
+1. **Install MinUI** on your device (if you haven't already).
+2. **Download** the matching zip from the
    [pre-releases](https://github.com/boomchu-123/slot-flip/releases) (look for a
    release tagged `exp-v…` and marked *Pre-release*).
-3. **Unzip it** and copy the `Slot.pak` folder to
-   `<SD CARD>/Tools/miyoomini/Slot.pak` — note the **`miyoomini`** folder, not
-   `my355`.
+3. **Unzip it** and copy the `Slot.pak` folder into the folder for your device
+   from the table above — note the exact platform name, **not** `my355`.
 4. **Turn on debug logging:** create an empty file named **`DEBUG`** inside that
    `Slot.pak` folder (same level as `launch.sh`).
-5. **Boot MinUI**, open **Tools → Slot**. It will flash and return to MinUI —
-   **that's expected right now.**
-6. **Press every button a couple of times** after launching (if it stays open),
-   so the input trace records them.
+5. **Boot MinUI**, open **Tools → Slot**.
+   - On the **A30**, note what you see: does it show the shelf? a black screen? a
+     crash back to MinUI? Are the buttons right?
+   - On the **Mini Plus**, it will flash and return to MinUI — **that's expected
+     right now.**
+6. **Press every button a couple of times** (if it stays open), so the input
+   trace records them.
 7. **Collect two files** from the SD card and attach them to your report:
    - `<SD CARD>/Slot/slot.log`
    - `<SD CARD>/Slot/input-trace.log` (created because of the `DEBUG` file)
 
 **Where to report:** open an
-[issue](https://github.com/boomchu-123/slot-flip/issues) titled
-*"Mini Plus test log"* (or reply on the Reddit thread) and **paste/attach
-`slot.log` and `input-trace.log`**. That log tells me the exact screen format
-and whether the buttons are mapped right — the two things I need to build the
-software renderer without owning the device.
+[issue](https://github.com/boomchu-123/slot-flip/issues) saying which device you
+have (or reply on the Reddit thread) and **paste/attach `slot.log` and
+`input-trace.log`**. Those tell me the exact screen format and whether the
+buttons are mapped right — the things I need to finish the port without owning
+the device.
 
 Thank you — this is exactly how the Flip build got finished: run it, read the
 log, fix, repeat.

@@ -111,7 +111,7 @@ pub fn to_raw(ev: Ev) -> Option<RawEvent> {
 }
 
 // The Anbernic RG SP (H700) pad speaks BTN_* gamepad codes.
-#[cfg(not(any(feature = "flip", feature = "miyoomini")))]
+#[cfg(not(any(feature = "flip", feature = "miyoomini", feature = "my282")))]
 pub fn code_to_btn(code: u16) -> Option<Btn> {
     Some(match code {
         0x130 => Btn::A,
@@ -132,10 +132,47 @@ pub fn code_to_btn(code: u16) -> Option<Btn> {
     })
 }
 
-#[cfg(not(any(feature = "flip", feature = "miyoomini")))]
+#[cfg(not(any(feature = "flip", feature = "miyoomini", feature = "my282")))]
 const WANTED: [u16; 15] = [
     0x130, 0x131, 0x132, 0x133, 0x134, 0x135, 0x136, 0x137, 0x138, 0x13a, 0x13b, 0x162, 115, 114,
     116,
+];
+
+// The Miyoo A30 (my282) routes its buttons through the gpio keyboard node as
+// standard Linux key codes. MinUI's platform.h for the A30 uses the SDL/joystick
+// path rather than raw codes, so these are a best-effort default following the
+// common Allwinner/Miyoo layout (shared with the Mini Plus) — UNVERIFIED on
+// hardware. A tester's DEBUG trace confirms them; until then they can be
+// corrected without a rebuild via Config/buttons.ini. EXPERIMENTAL — see
+// TESTERS.md.
+#[cfg(feature = "my282")]
+pub fn code_to_btn(code: u16) -> Option<Btn> {
+    Some(match code {
+        103 => Btn::Up,
+        108 => Btn::Down,
+        105 => Btn::Left,
+        106 => Btn::Right,
+        57 => Btn::A,      // KEY_SPACE
+        29 => Btn::B,      // KEY_LEFTCTRL
+        42 => Btn::X,      // KEY_LEFTSHIFT
+        56 => Btn::Y,      // KEY_LEFTALT
+        18 => Btn::L1,     // KEY_E
+        20 => Btn::R1,     // KEY_T
+        15 => Btn::L2,     // KEY_TAB
+        14 => Btn::R2,     // KEY_BACKSPACE
+        97 => Btn::Select, // KEY_RIGHTCTRL
+        28 => Btn::Start,  // KEY_ENTER
+        1 => Btn::Menu,    // KEY_ESC
+        115 => Btn::VolUp,
+        114 => Btn::VolDown,
+        116 => Btn::Power,
+        _ => return None,
+    })
+}
+
+#[cfg(feature = "my282")]
+const WANTED: [u16; 18] = [
+    103, 108, 105, 106, 57, 29, 42, 56, 18, 20, 15, 14, 97, 28, 1, 115, 114, 116,
 ];
 
 // The Miyoo Mini Plus (miyoomini) routes its buttons through the gpio keyboard

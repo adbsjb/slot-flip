@@ -14,6 +14,11 @@ flip = ["slot-gfx/flip", "slot-power/flip", "slot-store/flip"]
 # it uses a software framebuffer surface instead of the Flip's GLES path and its
 # own button map. Work in progress — see TESTERS.md.
 miyoomini = ["slot-gfx/miyoomini", "slot-store/flip"]
+# Experimental Miyoo A30 (my282) target. The A30 has a Mali-400 GPU, so unlike
+# the Mini Plus it can use the existing GLES renderer via the fbdev/EGL surface
+# (the same one the upstream default path uses). It just needs its own button
+# map and a 32-bit armhf build. Work in progress — see TESTERS.md.
+my282 = ["slot-store/flip"]
 
 [dependencies]
 slot-gfx = { path = "../slot-gfx", default-features = false }

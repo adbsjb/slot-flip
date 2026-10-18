@@ -25,30 +25,44 @@ the seams.
    the template for an SDL2 target; add a sibling feature if a new device needs
    different display/audio wiring.
 
-## Example: the experimental `miyoomini` (Miyoo Mini Plus) target
+## Worked examples: the experimental Miyoo targets
 
-This is a worked example of a sibling feature, and a caution about two things
-that are easy to get wrong:
+Two sibling features live on the `experimental` branch. They illustrate the two
+things that are easy to get wrong when adding a device, and the big fork in the
+road (does it have a GPU?).
 
-- **Architecture.** The Mini Plus is 32-bit ARM (Cortex-A7), so it builds for
-  `armv7-unknown-linux-gnueabihf`, **not** aarch64 like the Flip. The committed
-  Flip cores are aarch64 and will not run there; it needs armhf cores.
-- **No GPU.** The SSD202D has no GPU, so neither the Flip's GLES2 surface nor
-  upstream's EGL fbdev surface works — it has only a raw `/dev/fb0` (RGB565).
-  A working port needs a **software** compositor, which is still TODO.
+Both are **32-bit ARM (Cortex-A7)**, so they build for
+`armv7-unknown-linux-gnueabihf`, **not** aarch64 like the Flip. The committed
+Flip cores are aarch64 and will not run on them; they need armhf cores.
 
-What the `miyoomini` feature already does:
+### `my282` — Miyoo A30 (has a GPU)
 
-| Concern | Where |
-| --- | --- |
-| Button map (native L1/R1/L2/R2, no stick/lid) | `code_to_btn` in `crates/slot/src/input/evdev.rs` |
-| Framebuffer probe + diagnostics | `crates/slot-gfx/src/miyoofb.rs` (`probe`) |
-| Early-exit probe path (no renderer yet) | `run_miyoomini` in `crates/slot/src/device_app.rs` |
-| Pak + launch script | `flip/Tools/miyoomini/Slot.pak/` |
-| CI build (armhf) + packaging | `.github/workflows/release.yml` (`build-miyoomini`) |
+The A30 has a **Mali-400 GPU**, so it reuses slot's existing GLES renderer
+through the fbdev/EGL surface (the same path the upstream default uses). It needs
+no new renderer — just a feature that routes it to `run_gles`, its own button
+map, and an armhf build. This is the cheaper, more promising target.
 
-The remaining work is a CPU rasteriser that consumes the same `Draw` list the
-GLES pipeline uses and blits to the framebuffer. See `TESTERS.md` for status.
+### `miyoomini` — Miyoo Mini Plus (no GPU)
+
+The SSD202D has **no GPU**, so neither the Flip's GLES2 surface nor the EGL fbdev
+surface works — it has only a raw `/dev/fb0` (RGB565). A working port needs a
+**software** compositor, which is still TODO. Its build probes the framebuffer,
+logs it, and exits.
+
+### Where each seam lives
+
+| Concern | `my282` (A30) | `miyoomini` (Mini Plus) |
+| --- | --- | --- |
+| Feature in `crates/slot/Cargo.toml` | `my282` | `miyoomini` |
+| Button map (`code_to_btn`, `crates/slot/src/input/evdev.rs`) | best-guess default | native L1/R1/L2/R2, no stick/lid |
+| Renderer path (`crates/slot/src/device_app.rs`) | `run_gles` + `FbdevSurface` | `run_miyoomini` (probe only) |
+| Framebuffer probe | n/a | `crates/slot-gfx/src/miyoofb.rs` |
+| Pak + launch script | `flip/Tools/my282/Slot.pak/` | `flip/Tools/miyoomini/Slot.pak/` |
+| CI (armhf build + pre-release) | `.github/workflows/experimental.yml` (matrix) | same |
+
+The Mini Plus's remaining work is a CPU rasteriser that consumes the same `Draw`
+list the GLES pipeline uses and blits to the framebuffer. See `TESTERS.md` for
+current status of both.
 
 ## User-facing config (data-driven, no rebuild)
 
