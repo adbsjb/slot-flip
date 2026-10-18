@@ -15,6 +15,11 @@ states.
 It keeps everything it owns in a single `Slot` folder and **never touches your
 MinUI Roms or Saves**.
 
+ROMs must be unzipped. slot does not read `.zip` or `.7z` files.
+
+Upstream's user guide is at [slot-cfw.fyi](https://slot-cfw.fyi). Release notes
+for this fork are in the [changelog](CHANGELOG.md).
+
 ## Device support
 
 | Device | MinUI platform | Pak folder | Status | Download |

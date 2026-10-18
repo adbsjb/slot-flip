@@ -96,6 +96,7 @@ pub fn run() {
     frontend.upload_faces(&mut compositor);
     // Load any user button remap before input threads start reading events.
     slot::input::keymap::load(&root);
+    frontend.upload_bezel(&mut compositor, surface.window_size());
     let mut input = DeviceInput::open(&root);
     let card = root.clone();
     let _ = std::thread::Builder::new()
