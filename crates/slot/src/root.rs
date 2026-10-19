@@ -59,12 +59,16 @@ background = random
 const STARTER_BUTTONS_INI: &str = "\
 # Button remap for Slot.
 #
+# You do not need to edit this by hand: open Menu > Buttons in Slot, pick a
+# button and press the key you want for it. Slot writes this file for you.
+#
 # Each line is: <kernel-key-code> = <button>
 # Codes may be decimal (109) or hex (0x135). Any code you do NOT list keeps the
 # built-in mapping for your device, so you only need to list what you change.
 #
 # Button names:
 #   up down left right  a b x y  l1 r1 l2 r2  start select menu  volup voldown
+# Use `none` to switch a key off:   57 = none
 #
 # To find your device's codes, run the input trace build and read the log, or
 # check your platform's evdev key codes.

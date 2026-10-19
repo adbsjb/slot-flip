@@ -80,9 +80,12 @@ lights are lit.
 Slot ships with a sensible map for each device it knows about, but any MinUI
 handheld can be remapped without a rebuild.
 
-- In Slot, open the quick menu and choose **Buttons** to see the current
-  bindings and where to change them.
-- To remap, edit `Slot/Config/buttons.ini`. Each line is:
+- In Slot, open the quick menu and choose **Buttons**. Pick a button, press
+  **A**, then press the key you want for it. It is applied and saved at once,
+  and a key that was already in use swaps with it. **Reset to built-in** undoes
+  everything.
+- Or edit `Slot/Config/buttons.ini` by hand (the screen writes the same file).
+  Each line is:
 
   ```ini
   # <kernel-key-code> = <button>
@@ -121,8 +124,9 @@ MinUI handheld:
 1. Copy `Slot.pak` into that device's `Tools/<platform>/` folder (the
    `<platform>` is the same name MinUI uses for that device, e.g. `tg5040`).
 2. Launch it once to generate the `Slot` folder.
-3. If the buttons are wrong, remap them in `Slot/Config/buttons.ini` using the
-   `DEBUG` log trick above to read your device's key codes.
+3. If the buttons are wrong, fix them in Slot under **Buttons** (press **A** on a
+   button, then the key you want). Nothing needs editing by hand, and the screen
+   works on any device whose buttons Slot can read.
 
 The display and audio use SDL2, which MinUI provides on its supported devices.
 LED and backlight paths in `launch.sh` are device-specific — see `PORTING.md`

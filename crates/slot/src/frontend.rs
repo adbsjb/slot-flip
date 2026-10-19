@@ -86,7 +86,7 @@ struct AboutFace {
 #[derive(Default)]
 struct ButtonsFace {
     tex: Option<TexId>,
-    built: bool,
+    rev: Option<u32>,
 }
 
 #[derive(Default)]
@@ -792,15 +792,15 @@ fn sync_about(app: &mut App, compositor: &mut Compositor, state: &mut AboutFace)
 }
 
 fn sync_buttons(app: &mut App, compositor: &mut Compositor, state: &mut ButtonsFace) {
-    if !matches!(app.phase(), Phase::Buttons) || state.built {
+    if !matches!(app.phase(), Phase::Buttons) {
         return;
     }
-    state.built = true;
-    let bindings: Vec<(u16, &'static str)> = crate::input::keymap::bindings()
-        .into_iter()
-        .map(|(code, btn)| (code, btn.as_name()))
-        .collect();
-    let face = buttons_face(&bindings);
+    let rev = app.buttons_rev();
+    if state.rev == Some(rev) {
+        return;
+    }
+    state.rev = Some(rev);
+    let face = buttons_face(&app.buttons_view());
     let id = upload(compositor, &mut state.tex, face);
     app.set_buttons_face(id);
 }

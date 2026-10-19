@@ -23,6 +23,7 @@ use slot_ui::{
 };
 
 use crate::audio::Sfx;
+use crate::buttons_editor::ButtonsEditor;
 use crate::core_picker::{Chip, CorePicker, Outcome, Press};
 use crate::link_kind::{link_carried, link_kind, serial_option, LinkKind};
 use crate::link_radio::{radio_jobs, LinkRole, RadioJob, RadioJobs};
@@ -321,6 +322,7 @@ pub struct App {
     quick_clock_faces: Option<[(TexId, u32, u32); 2]>,
     sticker_face: Option<TexId>,
     buttons_face: Option<TexId>,
+    buttons_ui: ButtonsEditor,
     wallpaper: Option<TexId>,
     battery_percent: slot_ui::Printed,
     bolt: Option<TexId>,
@@ -447,6 +449,7 @@ impl App {
             quick_clock_faces: None,
             sticker_face: None,
             buttons_face: None,
+            buttons_ui: ButtonsEditor::default(),
             wallpaper: None,
             battery_percent: slot_ui::Printed::default(),
             bolt: None,
@@ -687,6 +690,15 @@ impl App {
 
     pub fn set_buttons_face(&mut self, face: TexId) {
         self.buttons_face = Some(face);
+    }
+
+    /// Changes whenever the Buttons screen would look different.
+    pub fn buttons_rev(&self) -> u32 {
+        self.buttons_ui.rev()
+    }
+
+    pub fn buttons_view(&self) -> slot_ui::ButtonsView {
+        self.buttons_ui.view()
     }
 
     pub fn set_clock_faces(&mut self, line: TexId, hint: TexId) {
@@ -1325,9 +1337,11 @@ impl App {
                     row: QuickRow::About,
                 }
             }
-            Phase::Buttons if action == Action::GbaDown(Btn::B) || action == Action::QuickMenu => {
-                self.phase = Phase::QuickMenu {
-                    row: QuickRow::Buttons,
+            Phase::Buttons => {
+                if self.buttons_ui.input(action, self.clock) {
+                    self.phase = Phase::QuickMenu {
+                        row: QuickRow::Buttons,
+                    }
                 }
             }
             Phase::QuickMenu { row } => self.quick_menu_input(row, action),
@@ -1366,7 +1380,10 @@ impl App {
                 self.phase = clock_screen(self.utc_secs(), self.state.utc_offset_min, true);
             }
             QuickRow::About => self.phase = Phase::About,
-            QuickRow::Buttons => self.phase = Phase::Buttons,
+            QuickRow::Buttons => {
+                self.buttons_ui.enter();
+                self.phase = Phase::Buttons;
+            }
             QuickRow::Screen | QuickRow::Game => {
                 if let Some(row) = row.child() {
                     self.phase = Phase::QuickMenu { row };
@@ -1783,6 +1800,12 @@ impl App {
     }
 
     fn timers(&mut self) {
+        if matches!(self.phase, Phase::Buttons) {
+            self.buttons_ui.tick(self.clock);
+        } else {
+            // Left the screen (lid closed, power menu) while waiting for a key.
+            self.buttons_ui.cancel();
+        }
         self.play_hold();
         let offer = self.undo_label();
         if let Some(p) = &mut self.polaroids {

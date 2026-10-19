@@ -209,22 +209,39 @@ Any image works — Slot scales it to fit the cart label.
 ### Button remapping
 
 Slot ships with the correct map for the Flip, but you can rebind any button
-without a rebuild:
+without a rebuild. No file editing needed:
 
-- In Slot, open the quick menu and choose **Buttons** to see the current
-  bindings and where to change them.
-- To remap, edit `Slot/Config/buttons.ini`. Each line is a kernel key code
-  mapped to a button:
+1. Open the quick menu and choose **Buttons**. Every button is listed with the
+   key it is on.
+2. Move to the button you want to change and press **A**.
+3. Press the physical key you want for it. It takes effect straight away and is
+   saved.
+
+- If that key already did something else, the two **swap**, so no button is ever
+  left without a key. (Pressing the key a button is already on changes nothing.)
+- Press no key for a few seconds and the change is cancelled.
+- The power, volume and lid keys are never captured, so they can't be bound
+  away.
+- **Reset to built-in** at the bottom restores the default map.
+- If you rebind the button you use to confirm or go back, the screen follows the
+  new key straight away. If you get stuck, delete `Slot/Config/buttons.ini` and
+  restart Slot.
+
+The screen saves to `Slot/Config/buttons.ini`, and you can still edit that file
+by hand. Each line is a kernel key code mapped to a button:
 
   ```ini
   # <kernel-key-code> = <button>
   109 = r1
   104 = l2
+  57 = none      # switch a key off
   ```
 
   Codes may be decimal or hex (`0x135`). Button names:
-  `up down left right  a b x y  l1 r1 l2 r2  start select menu  volup voldown`.
-  Anything you don't list keeps its built-in mapping.
+  `up down left right  a b x y  l1 r1 l2 r2  start select menu  volup voldown`,
+  or `none` to switch a key off. Anything you don't list keeps its built-in
+  mapping. Slot rewrites the file when you change a binding in the screen, so
+  hand-written comments are not kept.
 
 To discover your codes, drop an empty file named `DEBUG` next to `launch.sh`,
 launch once, and read `Slot/slot.log` — each press is logged with its code.
@@ -293,9 +310,8 @@ filesystem check/repair (`fsck`/"Repair" on Windows/macOS). Always power the
 device down cleanly.
 
 **The buttons are wrong.**
-Open the quick menu → **Buttons** to see the current map, and edit
-`Slot/Config/buttons.ini` to rebind. Use the `DEBUG` log to find each button's
-key code. See [Button remapping](#button-remapping).
+Open the quick menu → **Buttons**, pick a button, press **A**, then press the key
+you want for it. See [Button remapping](#button-remapping).
 
 **Closing the lid doesn't sleep.**
 Confirm you're on the latest build. If a future device reports its lid

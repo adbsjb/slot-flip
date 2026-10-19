@@ -4,6 +4,7 @@ pub mod bezel;
 pub mod boot_time;
 pub mod bootlogo;
 pub mod build_info;
+pub mod buttons_editor;
 pub mod cable;
 pub mod cart_faces;
 pub mod core;
