@@ -125,7 +125,7 @@ silently delete. Section 5 turns this into a post-merge checklist.
 | Emulator pacing | On the Flip the emulator **free-runs at ~60 fps** and the display shows the latest frame, instead of being locked to the display. The panel refreshes below 60 Hz, so locking starves audio and slows the game. | `slot/src/emu.rs` (`let lock = !cfg!(feature = "flip") && ...`) |
 | Audio | Under `flip`, negotiates a rate the codec locks onto (48 kHz, then 44.1 kHz, then the core's) and runs the ring at the rate actually opened. Merged with upstream's release-after-silence and retry logic. | `slot/src/audio/alsa.rs` (`preferred_rates`, `open_pcm` returns `(pcm, rate)`) |
 | Input | Face buttons from the gpio node; the gamepad node is used for the analog stick only (reading both double-fires). A/B and X/Y swapped to match printed labels. R2 stands in for R1 (some units have a dead R1). Right stick = fast-forward. | `slot/src/input/evdev.rs` |
-| Button remap | `Config/buttons.ini` overrides the built-in map without a rebuild; in-app **Buttons** screen shows the bindings. | `input/keymap.rs`, `QuickRow::Buttons`, `Phase::Buttons` |
+| Button remap | `Config/buttons.ini` overrides the built-in map without a rebuild. The in-app **Buttons** screen edits it live: pick a button, press a key, the two swap if the key was taken, then it saves. The map is a live `Mutex`, not a set-once cell, and `to_raw` offers each key to a one-shot capture first. Power, volume and lid keys are never captured. | `input/keymap.rs`, `buttons_editor.rs`, `slot-ui/src/buttons.rs`, `QuickRow::Buttons`, `Phase::Buttons` |
 | Shaders | Default **Off** for GBA and GB/GBC under the `flip`, `my282` and `miyoomini` features (they all enable `slot-store/flip`). Other shaders are still selectable. | `slot-store/src/slot_state.rs` |
 | 4:3 fill and bezel | Upstream stretches 4:3 panels and draws an SP bezel. The Flip has its own bezel and the shelf was tuned at 3:2, so `upload_bezel` is a no-op under `flip`. | `slot/src/frontend.rs` |
 | Power | Both LEDs (green running/charged, red low battery, both charging). Lid close sleeps immediately via the hall sensor. | `slot-power/src/device.rs`, `launch.sh` |
@@ -229,6 +229,7 @@ grep -n 'upload_bezel' crates/slot/src/frontend.rs                # no-op under 
 grep -n 'BACKGROUND_KEY' crates/slot/src/wallpaper.rs             # pinned background
 grep -n 'SleepTimeout\|Buttons' crates/slot-ui/src/quick_menu.rs # fork menu rows
 grep -n 'keymap::load' crates/slot/src/device_app.rs              # remap loaded before input
+grep -n 'capture_offer' crates/slot/src/input/evdev.rs            # Buttons screen key capture
 grep -n 'canonicalize' crates/slot-power/src/device.rs            # read-only check
 grep -n 'SdlSurface\|mod sdl' crates/slot-gfx/src/lib.rs          # Flip surface exported
 grep -n 'cmp -s' flip/Tools/my355/Slot.pak/launch.sh              # core refresh
