@@ -500,9 +500,9 @@ Both are 32-bit armhf.
 
 ---
 
-## 13. Accommodating other devices (experimental)
+## 13. Accommodating other devices
 
-The goal of this branch is to run slot on as many MinUI handhelds as is
+The goal of this repo is to run slot on as many MinUI handhelds as is
 realistic. Every change should leave that door open. This is a habit more than a
 task: it costs little when done while writing the code and a lot when retrofitted.
 
@@ -556,7 +556,8 @@ which ones you ran. If you cannot run something on hardware, say that too.
    `buttons.ini`), and the cross-build recipe. Follow [PORTING.md](PORTING.md).
 3. **Keep CI honest.** `pr.yml` detects features from `crates/slot/Cargo.toml`,
    so a new feature is built automatically. Add the target to
-   `experimental.yml` so a tag produces its pak, and confirm the armhf or
+   `experimental.yml` (that workflow lives on the `experimental` branch) so a
+   tag produces its pak, and confirm the armhf or
    aarch64 build actually links.
 4. **Ship it as experimental.** `exp-v*` pre-release, a row in the README's
    device table marked experimental, an entry in TESTERS.md that says exactly
