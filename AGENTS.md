@@ -67,6 +67,9 @@ you release, and keep this table current.
 - **No ROMs, BIOS files or copyrighted cartridge art**, ever, in code, tests,
   docs or screenshots.
 - Comments explain *why*, not *what*. Match surrounding style. Run `cargo fmt`.
+- **Accommodate other devices where you reasonably can.** Do not make shared
+  code Flip-only by accident, and do not break the experimental targets. See
+  section 13.
 
 ---
 
@@ -494,3 +497,84 @@ Experimental targets: the A30 has a Mali-400 (reuses the GLES path, weak GPU, so
 keep shaders off by default); the Mini Plus has **no GPU**, so its renderer is a
 CPU compositor that does not exist yet and that build only probes `/dev/fb0`.
 Both are 32-bit armhf.
+
+---
+
+## 13. Accommodating other devices (experimental)
+
+The goal of this branch is to run slot on as many MinUI handhelds as is
+realistic. Every change should leave that door open. This is a habit more than a
+task: it costs little when done while writing the code and a lot when retrofitted.
+
+### Principles
+
+- **Shared code stays device-neutral.** Put device facts behind a seam (a Cargo
+  feature, a probe, or a config file) instead of hard-coding the Flip's values in
+  code every device runs. If a fix helps everyone (the 32-bit ARM crash-handler
+  registers are an example), do not gate it to one device.
+- **Prefer runtime detection and configuration over a new compile feature.**
+  Probe for the thing (a sysfs file, an input node's capabilities, an LED path)
+  and degrade quietly when it is absent. A missing lid sensor, LED, rumble motor
+  or analog stick must never be an error.
+- **Configurable beats compiled.** Key codes, paths and per-device quirks that a
+  user can fix in a file or in the app need no rebuild and no new release.
+  `Config/buttons.ini` is the model; reach for the same shape when a new
+  device-specific knob is needed.
+- **Do not leak one unit's quirks into other devices.** The Flip's stand-in for a
+  dead R1, its free-running emulator pacing and its codec rates are Flip facts
+  behind `cfg(feature = "flip")`. A different device gets its own answer or the
+  neutral default, not the Flip's.
+- **Default to the conservative choice on weak hardware.** Shaders default Off on
+  every ported device; a Mali-400 or a CPU-only framebuffer will not carry the
+  Flip's extra work. Offer the heavy option, do not impose it.
+- **Be honest about what is unverified.** An experimental build that compiles is
+  not a working port. Never merge a port into `flip` until a person with the
+  hardware has run it and sent a log.
+
+### Before you merge a change, ask of each target
+
+| Question | Why it bites |
+| --- | --- |
+| Does it build for 32-bit armhf? | `usize` and pointer width, 64-bit atomics, and `libc` struct fields differ (`arm_pc`, not `pc`). A clean x86 or aarch64 build proves nothing. |
+| Does it assume a GPU? | The Mini Plus has none; its path is a CPU compositor, not GLES. |
+| Does it assume a fast GPU? | The A30's Mali-400 is old GLES2 and slow. Keep per-frame work and shader cost low. |
+| Does it assume key codes, paths or a platform slug? | Use `code_to_btn` and the keymap; take `SLOT_ROOT` from the environment (`launch.sh` sets it) and keep each device's paths inside its own pak, not in shared code. |
+| Does it assume a lid, LEDs, a stick, rumble or a battery node? | These are optional per device. Absence must be a no-op. |
+| Does it assume a screen size or aspect? | The Flip is 640x480 and the shelf was tuned at 3:2. Other panels differ. |
+| Does it assume the Flip's audio codec or rates? | Negotiate and fall back; do not hard-code 48 kHz. |
+
+Build every target you touch (section 5 lists the commands) and say in the PR
+which ones you ran. If you cannot run something on hardware, say that too.
+
+### Adding a new device
+
+1. **Open an issue first** (device name, SoC, MinUI platform slug, GPU or not).
+   Decide whether it reuses the GLES path (cheap, like the A30) or needs a new
+   renderer (expensive, like the Mini Plus).
+2. **Add the seams, not a fork.** A Cargo feature, `flip/Tools/<platform>/Slot.pak/`
+   with `launch.sh`, a button map in `code_to_btn` (or rely on the user's
+   `buttons.ini`), and the cross-build recipe. Follow [PORTING.md](PORTING.md).
+3. **Keep CI honest.** `pr.yml` detects features from `crates/slot/Cargo.toml`,
+   so a new feature is built automatically. Add the target to
+   `experimental.yml` so a tag produces its pak, and confirm the armhf or
+   aarch64 build actually links.
+4. **Ship it as experimental.** `exp-v*` pre-release, a row in the README's
+   device table marked experimental, an entry in TESTERS.md that says exactly
+   what to run and which files to attach, and an issue to track hardware
+   verification.
+5. **Promote only on evidence.** When a tester's `slot.log` (and
+   `input-trace.log` for buttons) shows a clean boot, working input, display and
+   audio, move it to stable through `flip` and update the README, ROADMAP and
+   version map.
+
+### Helping people who own the hardware
+
+- Make failure **diagnosable**: logs that say what was probed and what was found,
+  and the `DEBUG` trace, so a tester's report is enough to fix the port without
+  the device in hand.
+- Make wrong guesses **cheap to correct**: wrong button map, wrong path or wrong
+  default should be fixable from a file or a menu, not a rebuild.
+- State plainly in release notes what is unverified, and who to send logs to.
+- The armhf builds cannot be run on a Flip. Do not claim they work; ask for a
+  tester and give them a copy-pasteable request.
+
