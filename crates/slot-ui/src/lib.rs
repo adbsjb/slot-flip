@@ -9,7 +9,6 @@ mod backdrop;
 mod barcode;
 mod battery;
 mod board;
-mod buttons;
 mod cart;
 mod clock;
 mod draw;
@@ -34,10 +33,6 @@ mod toast;
 pub use backdrop::{
     bezel_face, blur_background, default_background, default_game_bezel_face, draw_backdrop,
     draw_ground, game_bezel_face, wallpaper_face,
-};
-pub use buttons::{
-    buttons_face, draw_buttons, ButtonsRow, ButtonsView, PANEL_H as BUTTONS_PANEL_H,
-    PANEL_W as BUTTONS_PANEL_W,
 };
 pub use barcode::{code39, CODE39_NARROW, CODE39_WIDE};
 pub use battery::{draw_gauge, BOLT_PX, GAUGE_H, GAUGE_W, WALL};
@@ -78,8 +73,8 @@ pub use polaroids::{photo_face, PhotoFace, Polaroids, DOT, LEGEND, PHOTO_H, PHOT
 pub use power_menu::{menu_face, PowerChoice, MENU_PAD};
 pub use quick_menu::{
     draw_menu_ground, quick_caret_face, quick_label_face, quick_legend_faces, quick_pointer_face,
-    quick_row_top, quick_value_face, QuickMenu, QuickMenuFaces, QuickRow, QuickValue, QUICK_EDGE,
-    QUICK_LABEL_X, QUICK_PITCH,
+    quick_row_top, quick_value_face, QuickMenu, QuickMenuFaces, QuickRow, QuickValue, BIND_COUNT,
+    QUICK_EDGE, QUICK_LABEL_X, QUICK_PITCH,
 };
 pub use rebuild::{rebuild_count_face, rebuild_title_face, RebuildScreen};
 pub use refusal::Refusal;

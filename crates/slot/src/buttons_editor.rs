@@ -1,223 +1,77 @@
-//! State behind the Buttons screen: which row is picked, whether it is waiting
-//! for a key, and what to tell the player afterwards. It owns no drawing and no
-//! input device; it talks to the live map in [`crate::input::keymap`], which is
-//! where the physical key actually gets captured.
+//! Waiting for a key press, for the Buttons pages of the menu.
+//!
+//! The menu itself is drawn by `slot-ui`; this is only the little bit of state
+//! that says "the player pressed A on the A row, listen for the next key". The
+//! physical key is caught in [`crate::input::keymap`], so nothing here touches
+//! the input device.
 
-use slot_input::{Action, Btn};
-use slot_ui::{ButtonsRow, ButtonsView};
+use slot_input::Btn;
 
-use crate::input::keymap::{self, Outcome};
+use crate::input::keymap;
 
-/// The rows, in reading order: first column, then second. `None` is the
-/// "Reset" action row.
-const ROWS: [Option<Btn>; 16] = [
-    Some(Btn::Up),
-    Some(Btn::Down),
-    Some(Btn::Left),
-    Some(Btn::Right),
-    Some(Btn::A),
-    Some(Btn::B),
-    Some(Btn::X),
-    Some(Btn::Y),
-    Some(Btn::L1),
-    Some(Btn::R1),
-    Some(Btn::L2),
-    Some(Btn::R2),
-    Some(Btn::Start),
-    Some(Btn::Select),
-    Some(Btn::Menu),
-    None,
-];
-
-/// Rows in the first column; Left and Right jump by this much.
-const COLUMN: usize = ROWS.len() / 2;
-
-/// How long the screen waits for a key before giving up.
+/// How long a row waits for a key before giving up.
 pub const CAPTURE_MS: f64 = 6000.0;
 
+/// What happened to the row that was waiting.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum Captured {
+    /// A key was pressed for this button.
+    Key(Btn, u16),
+    /// Nothing was pressed in time.
+    TimedOut,
+}
+
 #[derive(Default)]
-pub struct ButtonsEditor {
-    cursor: usize,
-    /// The button being rebound and when the wait ends (clock milliseconds).
-    capture: Option<(Btn, f64)>,
-    notice: String,
-    shown_secs: u32,
+pub struct Capture {
+    /// The button being rebound, and when the wait ends (clock milliseconds).
+    waiting: Option<(Btn, f64)>,
     rev: u32,
 }
 
-fn label(btn: Btn) -> String {
-    match btn {
-        Btn::Up => "Up",
-        Btn::Down => "Down",
-        Btn::Left => "Left",
-        Btn::Right => "Right",
-        Btn::A => "A",
-        Btn::B => "B",
-        Btn::X => "X",
-        Btn::Y => "Y",
-        Btn::L1 => "L1",
-        Btn::R1 => "R1",
-        Btn::L2 => "L2",
-        Btn::R2 => "R2",
-        Btn::Start => "Start",
-        Btn::Select => "Select",
-        Btn::Menu => "Menu",
-        other => other.as_name(),
-    }
-    .to_string()
-}
-
-fn key_label(btn: Btn) -> String {
-    let keys = keymap::keys_for(btn);
-    if keys.is_empty() {
-        return "none".to_string();
-    }
-    keys.iter()
-        .map(|&c| keymap::key_name(c))
-        .collect::<Vec<_>>()
-        .join(" / ")
-}
-
-impl ButtonsEditor {
-    /// Changes whenever the picture would change, so the face is only rebuilt
-    /// when it has to be.
+impl Capture {
+    /// Changes whenever the picture would change.
     pub fn rev(&self) -> u32 {
         self.rev
     }
 
-    pub fn capturing(&self) -> bool {
-        self.capture.is_some()
+    pub fn waiting(&self) -> Option<Btn> {
+        self.waiting.map(|(btn, _)| btn)
     }
 
-    fn bump(&mut self) {
+    /// Start waiting for a key for `btn`.
+    pub fn start(&mut self, btn: Btn, now: f64) {
+        keymap::capture_arm();
+        self.waiting = Some((btn, now + CAPTURE_MS));
         self.rev = self.rev.wrapping_add(1);
     }
 
-    /// Start from a clean screen each time it is opened.
-    pub fn enter(&mut self) {
-        self.cancel();
-        self.cursor = 0;
-        self.notice.clear();
-        self.bump();
+    /// Force a redraw of the key names (after a reset from elsewhere).
+    pub fn bump(&mut self) {
+        self.rev = self.rev.wrapping_add(1);
     }
 
-    /// Stop waiting for a key, if it was.
+    /// Stop waiting, if it was.
     pub fn cancel(&mut self) {
-        if self.capture.take().is_some() {
+        if self.waiting.take().is_some() {
             keymap::capture_cancel();
-            self.bump();
+            self.rev = self.rev.wrapping_add(1);
         }
     }
 
-    /// Handle a menu action. Returns true when the player asked to leave.
-    pub fn input(&mut self, action: Action, now: f64) -> bool {
-        if self.capture.is_some() {
-            // Keys are being captured; nothing else should act meanwhile.
-            return false;
-        }
-        let last = ROWS.len() - 1;
-        let before = self.cursor;
-        match action {
-            Action::GbaDown(Btn::Up) => self.cursor = self.cursor.saturating_sub(1),
-            Action::GbaDown(Btn::Down) => self.cursor = (self.cursor + 1).min(last),
-            Action::GbaDown(Btn::Left) => self.cursor = self.cursor.saturating_sub(COLUMN),
-            Action::GbaDown(Btn::Right) => self.cursor = (self.cursor + COLUMN).min(last),
-            Action::GbaDown(Btn::A) => self.activate(now),
-            Action::GbaDown(Btn::B) | Action::QuickMenu => return true,
-            _ => {}
-        }
-        if self.cursor != before {
-            self.bump();
-        }
-        false
-    }
-
-    fn activate(&mut self, now: f64) {
-        match ROWS[self.cursor] {
-            Some(btn) => {
-                keymap::capture_arm();
-                self.capture = Some((btn, now + CAPTURE_MS));
-                self.shown_secs = 0;
-                self.notice.clear();
-            }
-            None => {
-                self.notice = match keymap::reset() {
-                    Ok(()) => "Built-in buttons restored".to_string(),
-                    Err(e) => {
-                        eprintln!("slot: buttons.ini: {e}");
-                        "Built-in buttons restored (could not save)".to_string()
-                    }
-                };
-            }
-        }
-        self.bump();
-    }
-
-    /// Poll for the captured key and the timeout. Call every frame.
-    pub fn tick(&mut self, now: f64) {
-        let Some((btn, deadline)) = self.capture else {
-            return;
-        };
+    /// Poll for the key or the timeout. Call every frame.
+    pub fn poll(&mut self, now: f64) -> Option<Captured> {
+        let (btn, deadline) = self.waiting?;
         if let Some(code) = keymap::capture_take() {
-            self.capture = None;
-            self.bind(btn, code);
-            self.bump();
-        } else if now >= deadline {
+            self.waiting = None;
+            self.rev = self.rev.wrapping_add(1);
+            return Some(Captured::Key(btn, code));
+        }
+        if now >= deadline {
             keymap::capture_cancel();
-            self.capture = None;
-            self.notice = "No key pressed, nothing changed".to_string();
-            self.bump();
-        } else {
-            let secs = ((deadline - now) / 1000.0).ceil() as u32;
-            if secs != self.shown_secs {
-                self.shown_secs = secs;
-                self.bump();
-            }
+            self.waiting = None;
+            self.rev = self.rev.wrapping_add(1);
+            return Some(Captured::TimedOut);
         }
-    }
-
-    fn bind(&mut self, btn: Btn, code: u16) {
-        let (outcome, saved) = keymap::rebind(btn, code);
-        let key = keymap::key_name(code);
-        self.notice = match outcome {
-            Outcome::Already => format!("{} is already {key}", label(btn)),
-            Outcome::Bound { swapped: None } => format!("{} is now {key}", label(btn)),
-            Outcome::Bound {
-                swapped: Some(prev),
-            } => format!(
-                "{} is now {key}; {} moved to {}",
-                label(btn),
-                label(prev),
-                key_label(prev)
-            ),
-        };
-        if let Err(e) = saved {
-            eprintln!("slot: buttons.ini: {e}");
-            self.notice.push_str(" (not saved)");
-        }
-    }
-
-    pub fn view(&self) -> ButtonsView {
-        let rows = ROWS
-            .iter()
-            .map(|row| match row {
-                Some(btn) => ButtonsRow {
-                    label: label(*btn),
-                    keys: key_label(*btn),
-                },
-                None => ButtonsRow {
-                    label: "Reset to built-in".to_string(),
-                    keys: String::new(),
-                },
-            })
-            .collect();
-        ButtonsView {
-            rows,
-            cursor: self.cursor,
-            prompt: self
-                .capture
-                .map(|(btn, _)| (label(btn), self.shown_secs.max(1))),
-            notice: self.notice.clone(),
-        }
+        None
     }
 }

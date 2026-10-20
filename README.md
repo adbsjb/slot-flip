@@ -211,9 +211,11 @@ Any image works — Slot scales it to fit the cart label.
 Slot ships with the correct map for the Flip, but you can rebind any button
 without a rebuild. No file editing needed:
 
-1. Open the quick menu and choose **Buttons**. Every button is listed with the
-   key it is on.
-2. Move to the button you want to change and press **A**.
+1. Open the quick menu and choose **Buttons**. It has a page per group of
+   controls: **D-pad**, **Face Buttons**, **Shoulders**, and **Start & Select**,
+   each listing its buttons with the key they are on.
+2. Move to the button you want to change and press **A**. Its key turns into
+   **Press a key…**.
 3. Press the physical key you want for it. It takes effect straight away and is
    saved.
 
@@ -222,12 +224,12 @@ without a rebuild. No file editing needed:
 - Press no key for a few seconds and the change is cancelled.
 - The power, volume and lid keys are never captured, so they can't be bound
   away.
-- **Reset to built-in** at the bottom restores the default map.
+- **Reset Buttons** at the bottom of the Buttons page restores the default map.
 - If you rebind the button you use to confirm or go back, the screen follows the
   new key straight away. If you get stuck, delete `Slot/Config/buttons.ini` and
   restart Slot.
 
-The screen saves to `Slot/Config/buttons.ini`, and you can still edit that file
+These pages save to `Slot/Config/buttons.ini`, and you can still edit that file
 by hand. Each line is a kernel key code mapped to a button:
 
   ```ini
@@ -310,8 +312,8 @@ filesystem check/repair (`fsck`/"Repair" on Windows/macOS). Always power the
 device down cleanly.
 
 **The buttons are wrong.**
-Open the quick menu → **Buttons**, pick a button, press **A**, then press the key
-you want for it. See [Button remapping](#button-remapping).
+Open the quick menu → **Buttons** → the group, pick a button, press **A**, then
+press the key you want for it. See [Button remapping](#button-remapping).
 
 **Closing the lid doesn't sleep.**
 Confirm you're on the latest build. If a future device reports its lid

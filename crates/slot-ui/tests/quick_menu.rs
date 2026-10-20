@@ -154,7 +154,11 @@ fn the_rows_run_in_the_order_the_user_chose() {
             QuickRow::ScreenGba,
             QuickRow::ScreenGbc,
             QuickRow::ScreenGb,
-            QuickRow::Buttons
+            QuickRow::Buttons,
+            QuickRow::BindDpad,
+            QuickRow::BindFace,
+            QuickRow::BindShoulder,
+            QuickRow::BindStartSelect
         ]
     );
     for page in [
@@ -164,6 +168,11 @@ fn the_rows_run_in_the_order_the_user_chose() {
         &QuickRow::GENERAL[..],
         &QuickRow::PLAY[..],
         &QuickRow::SETTINGS[..],
+        &QuickRow::BUTTONS[..],
+        &QuickRow::BUTTONS_DPAD[..],
+        &QuickRow::BUTTONS_FACE[..],
+        &QuickRow::BUTTONS_SHOULDER[..],
+        &QuickRow::BUTTONS_START_SELECT[..],
         &QuickRow::PLAY_SCREEN[..],
         &QuickRow::SCREEN_GBA[..],
         &QuickRow::SCREEN_GBC[..],
