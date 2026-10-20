@@ -80,10 +80,10 @@ lights are lit.
 Slot ships with a sensible map for each device it knows about, but any MinUI
 handheld can be remapped without a rebuild.
 
-- In Slot, open the quick menu and choose **Buttons**. Pick a button, press
-  **A**, then press the key you want for it. It is applied and saved at once,
-  and a key that was already in use swaps with it. **Reset to built-in** undoes
-  everything.
+- In Slot, open the quick menu and choose **Buttons**, then the group of controls
+  (D-pad, Face Buttons, Shoulders, Start & Select). Pick a button, press **A**,
+  then press the key you want for it. It is applied and saved at once, and a key
+  that was already in use swaps with it. **Reset Buttons** undoes everything.
 - Or edit `Slot/Config/buttons.ini` by hand (the screen writes the same file).
   Each line is:
 

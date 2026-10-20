@@ -7,15 +7,14 @@ use slot_input::{InputSource, Millis};
 use slot_power::{Platform, Power};
 use slot_store::{format_stamp, BezelPick, Platform as Console};
 use slot_ui::{
-    arrows_hint_coloured, arrows_hint_face, badge_face, cart_shadow, chip_face,
-    chip_shadow_face, date_time_text, default_game_bezel_face, footer_ink, game_bezel_face,
-    gb_cart_shadow, hhmm, hint_coloured, hint_face, icon_face, menu_face, photo_face,
-    quick_caret_face, quick_label_face, quick_legend_faces, quick_pointer_face, quick_value_face,
-    rebuild_count_face, rebuild_title_face, set_clock_hint_face, buttons_face, slot_back, slot_back_light,
-    slot_front, slot_front_light, socket_face, sticker_face, title_face, toast_face,
-    wallpaper_face, word_ink, CartFace, GbShell, Icon, LinkBadge, PowerChoice, QuickMenuFaces,
-    QuickRow, QuickValue, RebuildScreen, StickerFields, Toast, UndoFace, ALERT_PX, BOLT_PX,
-    HUD_ICON_PX, HUD_INK, LEGEND,
+    arrows_hint_coloured, arrows_hint_face, badge_face, cart_shadow, chip_face, chip_shadow_face,
+    date_time_text, default_game_bezel_face, footer_ink, game_bezel_face, gb_cart_shadow, hhmm,
+    hint_coloured, hint_face, icon_face, menu_face, photo_face, quick_caret_face, quick_label_face,
+    quick_legend_faces, quick_pointer_face, quick_value_face, rebuild_count_face,
+    rebuild_title_face, set_clock_hint_face, slot_back, slot_back_light, slot_front,
+    slot_front_light, socket_face, sticker_face, title_face, toast_face, wallpaper_face, word_ink,
+    CartFace, GbShell, Icon, LinkBadge, PowerChoice, QuickMenuFaces, QuickRow, QuickValue,
+    RebuildScreen, StickerFields, Toast, UndoFace, ALERT_PX, BOLT_PX, HUD_ICON_PX, HUD_INK, LEGEND,
 };
 
 #[cfg(not(feature = "flip"))]
@@ -57,7 +56,7 @@ pub struct Frontend {
     switcher: Switcher,
     clocks: Clocks,
     about: AboutFace,
-    buttons: ButtonsFace,
+    bindings: BindingSync,
     quick_clock: QuickClock,
     quick_palette: QuickPalette,
     wallpaper: WallpaperSync,
@@ -114,9 +113,13 @@ struct AboutFace {
 }
 
 #[derive(Default)]
-struct ButtonsFace {
-    tex: Option<TexId>,
+/// The key-name faces on the Buttons pages, rebuilt when a binding changes.
+struct BindingSync {
     rev: Option<u32>,
+    slots: Vec<[(TexId, u32, u32); 2]>,
+    slots_tex: Vec<(Option<TexId>, Option<TexId>)>,
+    waiting: Option<(TexId, u32, u32)>,
+    waiting_tex: Option<TexId>,
 }
 
 #[derive(Default)]
@@ -186,7 +189,7 @@ impl Frontend {
             switcher: Switcher::default(),
             clocks: Clocks::default(),
             about: AboutFace::default(),
-            buttons: ButtonsFace::default(),
+            bindings: BindingSync::default(),
             quick_clock: QuickClock::default(),
             quick_palette: QuickPalette::default(),
             wallpaper: WallpaperSync::default(),
@@ -536,7 +539,7 @@ impl Frontend {
         self.cart_faces.sync(self.session.app_mut(), compositor);
         sync_clock(self.session.app_mut(), compositor, &mut self.clocks);
         sync_about(self.session.app_mut(), compositor, &mut self.about);
-        sync_buttons(self.session.app_mut(), compositor, &mut self.buttons);
+        sync_bindings(self.session.app_mut(), compositor, &mut self.bindings);
         sync_quick_clock(self.session.app_mut(), compositor, &mut self.quick_clock);
         sync_quick_palette(self.session.app_mut(), compositor, &mut self.quick_palette);
         sync_wallpaper(self.session.app_mut(), compositor, &mut self.wallpaper);
@@ -1117,18 +1120,40 @@ fn sync_about(app: &mut App, compositor: &mut Compositor, state: &mut AboutFace)
     app.set_sticker_face(id);
 }
 
-fn sync_buttons(app: &mut App, compositor: &mut Compositor, state: &mut ButtonsFace) {
-    if !matches!(app.phase(), Phase::Buttons) {
+fn sync_bindings(app: &mut App, compositor: &mut Compositor, state: &mut BindingSync) {
+    // Key names only ever show inside the menu's Buttons pages (including the
+    // menus that open over a game), so nothing is built before one is opened.
+    if app.quick_menu().is_none() && app.in_game_menu().is_none() {
         return;
     }
-    let rev = app.buttons_rev();
-    if state.rev == Some(rev) {
+    let rev = app.binding_rev();
+    if state.rev == Some(rev) && !state.slots.is_empty() {
         return;
     }
     state.rev = Some(rev);
-    let face = buttons_face(&app.buttons_view());
-    let id = upload(compositor, &mut state.tex, face);
-    app.set_buttons_face(id);
+    let labels = app.binding_labels();
+    state.slots.clear();
+    state.slots_tex.clear();
+    for label in &labels {
+        let dim = quick_value_face(label, false);
+        let lit = quick_value_face(label, true);
+        let (dim_size, lit_size) = ((dim.w, dim.h), (lit.w, lit.h));
+        state.slots_tex.push((None, None));
+        let at = state.slots_tex.len() - 1;
+        let (dim_tex, lit_tex) = &mut state.slots_tex[at];
+        let dim_id = upload(compositor, dim_tex, dim);
+        let lit_id = upload(compositor, lit_tex, lit);
+        state.slots.push([
+            (dim_id, dim_size.0, dim_size.1),
+            (lit_id, lit_size.0, lit_size.1),
+        ]);
+    }
+    let waiting_face = quick_value_face("Press a key\u{2026}", true);
+    let (w, h) = (waiting_face.w, waiting_face.h);
+    let id = upload(compositor, &mut state.waiting_tex, waiting_face);
+    state.waiting = Some((id, w, h));
+    let waiting = state.waiting.expect("just built");
+    app.set_binding_faces(state.slots.clone(), waiting);
 }
 
 /// The textures the core picker reuses from one cart to the next.

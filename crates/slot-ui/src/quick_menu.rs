@@ -48,10 +48,30 @@ pub enum QuickRow {
     ScreenGb,
     Buttons,
     SleepTimeout,
+    BindDpad,
+    BindFace,
+    BindShoulder,
+    BindStartSelect,
+    BindReset,
+    BindUp,
+    BindDown,
+    BindLeft,
+    BindRight,
+    BindA,
+    BindB,
+    BindX,
+    BindY,
+    BindL1,
+    BindR1,
+    BindL2,
+    BindR2,
+    BindStart,
+    BindSelect,
+    BindMenu,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 42] = [
+    pub const ALL: [QuickRow; 62] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -94,6 +114,26 @@ impl QuickRow {
         QuickRow::ScreenGb,
         QuickRow::Buttons,
         QuickRow::SleepTimeout,
+        QuickRow::BindDpad,
+        QuickRow::BindFace,
+        QuickRow::BindShoulder,
+        QuickRow::BindStartSelect,
+        QuickRow::BindReset,
+        QuickRow::BindUp,
+        QuickRow::BindDown,
+        QuickRow::BindLeft,
+        QuickRow::BindRight,
+        QuickRow::BindA,
+        QuickRow::BindB,
+        QuickRow::BindX,
+        QuickRow::BindY,
+        QuickRow::BindL1,
+        QuickRow::BindR1,
+        QuickRow::BindL2,
+        QuickRow::BindR2,
+        QuickRow::BindStart,
+        QuickRow::BindSelect,
+        QuickRow::BindMenu,
     ];
 
     pub const MAIN: [QuickRow; 5] = [
@@ -146,6 +186,42 @@ impl QuickRow {
         QuickRow::SleepTimeout,
     ];
 
+    /// The Buttons page: groups of controls, then the way back to defaults.
+    pub const BUTTONS: [QuickRow; 5] = [
+        QuickRow::BindDpad,
+        QuickRow::BindFace,
+        QuickRow::BindShoulder,
+        QuickRow::BindStartSelect,
+        QuickRow::BindReset,
+    ];
+
+    pub const BUTTONS_DPAD: [QuickRow; 4] = [
+        QuickRow::BindUp,
+        QuickRow::BindDown,
+        QuickRow::BindLeft,
+        QuickRow::BindRight,
+    ];
+
+    pub const BUTTONS_FACE: [QuickRow; 4] = [
+        QuickRow::BindA,
+        QuickRow::BindB,
+        QuickRow::BindX,
+        QuickRow::BindY,
+    ];
+
+    pub const BUTTONS_SHOULDER: [QuickRow; 4] = [
+        QuickRow::BindL1,
+        QuickRow::BindR1,
+        QuickRow::BindL2,
+        QuickRow::BindR2,
+    ];
+
+    pub const BUTTONS_START_SELECT: [QuickRow; 3] = [
+        QuickRow::BindStart,
+        QuickRow::BindSelect,
+        QuickRow::BindMenu,
+    ];
+
     pub const PLAY: [QuickRow; 4] = [
         QuickRow::Resume,
         QuickRow::States,
@@ -196,6 +272,23 @@ impl QuickRow {
             QuickRow::Resume | QuickRow::States | QuickRow::Settings | QuickRow::ExitGame => {
                 &QuickRow::PLAY
             }
+            QuickRow::BindDpad
+            | QuickRow::BindFace
+            | QuickRow::BindShoulder
+            | QuickRow::BindStartSelect
+            | QuickRow::BindReset => &QuickRow::BUTTONS,
+            QuickRow::BindUp | QuickRow::BindDown | QuickRow::BindLeft | QuickRow::BindRight => {
+                &QuickRow::BUTTONS_DPAD
+            }
+            QuickRow::BindA | QuickRow::BindB | QuickRow::BindX | QuickRow::BindY => {
+                &QuickRow::BUTTONS_FACE
+            }
+            QuickRow::BindL1 | QuickRow::BindR1 | QuickRow::BindL2 | QuickRow::BindR2 => {
+                &QuickRow::BUTTONS_SHOULDER
+            }
+            QuickRow::BindStart | QuickRow::BindSelect | QuickRow::BindMenu => {
+                &QuickRow::BUTTONS_START_SELECT
+            }
             QuickRow::PlayScreen | QuickRow::PlayGameplay => &QuickRow::SETTINGS,
             QuickRow::Shader | QuickRow::ColourCorrection | QuickRow::Palette | QuickRow::Bezel => {
                 &QuickRow::PLAY_SCREEN
@@ -210,6 +303,23 @@ impl QuickRow {
             QuickRow::GbaShader => Some(QuickRow::ScreenGba),
             QuickRow::GbcShader => Some(QuickRow::ScreenGbc),
             QuickRow::GbShader => Some(QuickRow::ScreenGb),
+            QuickRow::BindDpad
+            | QuickRow::BindFace
+            | QuickRow::BindShoulder
+            | QuickRow::BindStartSelect
+            | QuickRow::BindReset => Some(QuickRow::Buttons),
+            QuickRow::BindUp | QuickRow::BindDown | QuickRow::BindLeft | QuickRow::BindRight => {
+                Some(QuickRow::BindDpad)
+            }
+            QuickRow::BindA | QuickRow::BindB | QuickRow::BindX | QuickRow::BindY => {
+                Some(QuickRow::BindFace)
+            }
+            QuickRow::BindL1 | QuickRow::BindR1 | QuickRow::BindL2 | QuickRow::BindR2 => {
+                Some(QuickRow::BindShoulder)
+            }
+            QuickRow::BindStart | QuickRow::BindSelect | QuickRow::BindMenu => {
+                Some(QuickRow::BindStartSelect)
+            }
             QuickRow::FastForward => Some(QuickRow::Game),
             QuickRow::Wallpaper => Some(QuickRow::General),
             QuickRow::PlayScreen => Some(QuickRow::Settings),
@@ -246,6 +356,11 @@ impl QuickRow {
             QuickRow::ScreenGba => Some(QuickRow::SCREEN_GBA[0]),
             QuickRow::ScreenGbc => Some(QuickRow::SCREEN_GBC[0]),
             QuickRow::ScreenGb => Some(QuickRow::SCREEN_GB[0]),
+            QuickRow::Buttons => Some(QuickRow::BUTTONS[0]),
+            QuickRow::BindDpad => Some(QuickRow::BUTTONS_DPAD[0]),
+            QuickRow::BindFace => Some(QuickRow::BUTTONS_FACE[0]),
+            QuickRow::BindShoulder => Some(QuickRow::BUTTONS_SHOULDER[0]),
+            QuickRow::BindStartSelect => Some(QuickRow::BUTTONS_START_SELECT[0]),
             _ => None,
         }
     }
@@ -263,6 +378,29 @@ impl QuickRow {
             .iter()
             .position(|r| *r == self)
             .unwrap_or(0)
+    }
+
+    /// The control a row rebinds, if it rebinds one. The order is the one the
+    /// app uses for the binding faces (and for `Ctrl`'s list of controls).
+    pub fn bind_at(self) -> Option<usize> {
+        match self {
+            QuickRow::BindUp => Some(0),
+            QuickRow::BindDown => Some(1),
+            QuickRow::BindLeft => Some(2),
+            QuickRow::BindRight => Some(3),
+            QuickRow::BindA => Some(4),
+            QuickRow::BindB => Some(5),
+            QuickRow::BindX => Some(6),
+            QuickRow::BindY => Some(7),
+            QuickRow::BindL1 => Some(8),
+            QuickRow::BindR1 => Some(9),
+            QuickRow::BindL2 => Some(10),
+            QuickRow::BindR2 => Some(11),
+            QuickRow::BindStart => Some(12),
+            QuickRow::BindSelect => Some(13),
+            QuickRow::BindMenu => Some(14),
+            _ => None,
+        }
     }
 
     pub fn label(self) -> &'static str {
@@ -286,6 +424,26 @@ impl QuickRow {
             QuickRow::GbPalettes => "Palettes",
             QuickRow::Buttons => "Buttons",
             QuickRow::SleepTimeout => "Sleep Timeout",
+            QuickRow::BindDpad => "D-pad",
+            QuickRow::BindFace => "Face Buttons",
+            QuickRow::BindShoulder => "Shoulders",
+            QuickRow::BindStartSelect => "Start & Select",
+            QuickRow::BindReset => "Reset Buttons",
+            QuickRow::BindUp => "Up",
+            QuickRow::BindDown => "Down",
+            QuickRow::BindLeft => "Left",
+            QuickRow::BindRight => "Right",
+            QuickRow::BindA => "A",
+            QuickRow::BindB => "B",
+            QuickRow::BindX => "X",
+            QuickRow::BindY => "Y",
+            QuickRow::BindL1 => "L1",
+            QuickRow::BindR1 => "R1",
+            QuickRow::BindL2 => "L2",
+            QuickRow::BindR2 => "R2",
+            QuickRow::BindStart => "Start",
+            QuickRow::BindSelect => "Select",
+            QuickRow::BindMenu => "Menu",
             QuickRow::RunAhead => "Run-Ahead",
             QuickRow::Theme => "Theme",
             QuickRow::Wallpaper => "Wallpaper",
@@ -320,6 +478,10 @@ impl QuickRow {
                 | QuickRow::Screen
                 | QuickRow::Game
                 | QuickRow::Buttons
+                | QuickRow::BindDpad
+                | QuickRow::BindFace
+                | QuickRow::BindShoulder
+                | QuickRow::BindStartSelect
                 | QuickRow::General
                 | QuickRow::Resume
                 | QuickRow::States
@@ -602,6 +764,9 @@ pub struct QuickMenuFaces {
     pub legend: [(TexId, u32); 4],
 }
 
+/// How many controls the Buttons pages can rebind (see [`QuickRow::bind_at`]).
+pub const BIND_COUNT: usize = 15;
+
 pub struct QuickMenu<'a> {
     pub row: QuickRow,
     pub hidden: &'a [QuickRow],
@@ -615,6 +780,12 @@ pub struct QuickMenu<'a> {
     pub gb_bezel: Option<[(TexId, u32, u32); 2]>,
     pub gbc_bezel: Option<[(TexId, u32, u32); 2]>,
     pub bezel: Option<[(TexId, u32, u32); 2]>,
+    /// The key each control is on, dim and lit, in `bind_at` order.
+    pub bindings: Option<&'a [[(TexId, u32, u32); 2]]>,
+    /// Shown instead of a key while the row waits for one to be pressed.
+    pub bind_waiting: Option<(TexId, u32, u32)>,
+    /// The control whose row is waiting for a key.
+    pub bind_armed: Option<usize>,
     pub over_game: bool,
     pub canvas: Canvas,
 }
@@ -663,6 +834,30 @@ impl QuickMenu<'_> {
                     let px = x + pad - POINTER_GAP - pw as f32;
                     push(out, tex, px, y - POINTER_BLEED as f32, pw, ph);
                 }
+            }
+            if let Some(at) = row.bind_at() {
+                let waiting = self.bind_armed == Some(at);
+                let face = match waiting {
+                    true => self.bind_waiting,
+                    false => self
+                        .bindings
+                        .and_then(|f| f.get(at))
+                        .map(|f| f[lit as usize]),
+                };
+                let Some((tex, w, h)) = face else {
+                    continue;
+                };
+                if !lit || waiting {
+                    push(out, tex, right + pad - w as f32, y, w, h);
+                    continue;
+                }
+                let [(left_tex, lw, lh), (right_tex, rw, rh)] = faces.carets;
+                let rx = right - rw as f32;
+                push(out, right_tex, rx, y, rw, rh);
+                let vx = rx - CARET_GAP + pad - w as f32;
+                push(out, tex, vx, y, w, h);
+                push(out, left_tex, vx + pad - CARET_GAP - lw as f32, y, lw, lh);
+                continue;
             }
             let value = match row {
                 QuickRow::DateTime => self.clock.map(|c| c[lit as usize]),

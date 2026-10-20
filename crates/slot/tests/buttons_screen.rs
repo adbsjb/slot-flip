@@ -4,7 +4,6 @@ use std::sync::Mutex;
 
 use common::{app_booting_at, tmp_root_with_carts, CLOCK_IS_SET};
 use slot::app::{App, Phase};
-use slot::buttons_editor::CAPTURE_MS;
 use slot::input::keymap;
 use slot_input::{Action, Btn};
 use slot_store::{write_slot_state, SlotState};
@@ -14,16 +13,13 @@ use tempfile::TempDir;
 // The key map and the key capture are process-wide, so these tests take turns.
 static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
 
-const A_ROW: usize = 4;
-const RESET_ROW: usize = 15;
-
 fn press(a: &mut App, btn: Btn) {
     a.apply(Action::GbaDown(btn));
     a.apply(Action::GbaUp(btn));
 }
 
-/// On the Buttons screen with a clean map, the first row selected.
-fn on_buttons_screen() -> (TempDir, App) {
+/// On the carousel with a clean key map, ready to open the menu.
+fn on_carousel() -> (TempDir, App) {
     let d = tmp_root_with_carts(&["Emerald", "Fusion"]);
     write_slot_state(
         d.path(),
@@ -42,22 +38,29 @@ fn on_buttons_screen() -> (TempDir, App) {
     keymap::load(d.path());
     keymap::reset().expect("reset");
     keymap::capture_cancel();
-
     a.apply(Action::QuickMenu);
-    for _ in 0..QuickRow::Buttons.position(&[]) {
-        press(&mut a, Btn::Down);
-    }
-    assert_eq!(a.quick_menu(), Some(QuickRow::Buttons));
-    press(&mut a, Btn::A);
-    assert!(matches!(a.phase(), Phase::Buttons), "{:?}", a.phase());
     (d, a)
 }
 
-fn down_to(a: &mut App, row: usize) {
-    for _ in 0..row {
+/// Move down `n` rows on the page that is showing.
+fn down_on(a: &mut App, page: &[QuickRow], row: QuickRow) {
+    let at = page
+        .iter()
+        .position(|r| *r == row)
+        .unwrap_or_else(|| panic!("{row:?} is not on that page"));
+    for _ in 0..at {
         press(a, Btn::Down);
     }
-    assert_eq!(a.buttons_view().cursor, row);
+    assert_eq!(a.quick_menu(), Some(row), "the bar never reached {row:?}");
+}
+
+/// Open Menu > Buttons > Face, where the face button rows are.
+fn on_face_page(a: &mut App) {
+    down_on(a, &QuickRow::MAIN, QuickRow::Buttons);
+    press(a, Btn::A);
+    down_on(a, &QuickRow::BUTTONS, QuickRow::BindFace);
+    press(a, Btn::A);
+    assert_eq!(a.quick_menu(), Some(QuickRow::BindA), "Face did not open");
 }
 
 /// A key code nothing is bound to.
@@ -68,41 +71,44 @@ fn spare_key() -> u16 {
 }
 
 #[test]
-fn the_screen_lists_every_button_with_its_key() {
+fn the_face_page_lists_the_four_face_buttons() {
     let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
-    let (_d, a) = on_buttons_screen();
-    let view = a.buttons_view();
-    let labels: Vec<&str> = view.rows.iter().map(|r| r.label.as_str()).collect();
+    let (_d, mut a) = on_carousel();
+    on_face_page(&mut a);
+    assert_eq!(a.quick_menu(), Some(QuickRow::BindA));
+}
+
+#[test]
+fn the_buttons_page_groups_the_controls_and_fits_one_screen() {
+    let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let (_d, mut a) = on_carousel();
+    down_on(&mut a, &QuickRow::MAIN, QuickRow::Buttons);
+    press(&mut a, Btn::A);
+    // Six groups would overflow; the page is five rows and ends on the reset.
+    assert_eq!(QuickRow::BUTTONS.len(), 5);
     assert_eq!(
-        &labels[..8],
-        ["Up", "Down", "Left", "Right", "A", "B", "X", "Y"]
+        QuickRow::BUTTONS[4],
+        QuickRow::BindReset,
+        "Reset belongs at the end"
     );
-    assert_eq!(
-        &labels[8..15],
-        ["L1", "R1", "L2", "R2", "Start", "Select", "Menu"]
-    );
-    assert_eq!(view.rows.len(), 16, "fifteen buttons and the reset row");
-    let a_row = &view.rows[A_ROW];
-    assert!(
-        !a_row.keys.is_empty() && a_row.keys != "none",
-        "A should show its built-in key, got {:?}",
-        a_row.keys
-    );
-    assert!(view.prompt.is_none());
+    for row in QuickRow::BUTTONS {
+        assert_eq!(a.quick_menu(), Some(row));
+        press(&mut a, Btn::Down);
+    }
+    // The menu wraps, so one more Down is back at the top of the page.
+    assert_eq!(a.quick_menu(), Some(QuickRow::BindDpad));
 }
 
 #[test]
 fn pressing_a_key_after_choosing_a_button_rebinds_and_saves_it() {
     let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
-    let (d, mut a) = on_buttons_screen();
+    let (d, mut a) = on_carousel();
     let spare = spare_key();
-    let rev_before = a.buttons_rev();
+    on_face_page(&mut a);
 
-    down_to(&mut a, A_ROW);
     press(&mut a, Btn::A);
-    let view = a.buttons_view();
-    assert_eq!(view.prompt.as_ref().map(|p| p.0.as_str()), Some("A"));
-    assert_ne!(a.buttons_rev(), rev_before, "the picture has to be rebuilt");
+    assert_eq!(a.binding_waiting(), Some(4), "the A row is not waiting");
+    let rev = a.binding_rev();
 
     // The reader thread would do this when the key goes down.
     assert!(
@@ -111,27 +117,29 @@ fn pressing_a_key_after_choosing_a_button_rebinds_and_saves_it() {
     );
     a.tick_ms(a.now() + 1);
 
-    let view = a.buttons_view();
-    assert!(view.prompt.is_none(), "still waiting after the key arrived");
-    assert!(view.notice.starts_with("A is now"), "{:?}", view.notice);
+    assert_eq!(
+        a.binding_waiting(),
+        None,
+        "still waiting after the key arrived"
+    );
+    assert_ne!(a.binding_rev(), rev, "the names have to be rebuilt");
     assert_eq!(keymap::keys_for(Btn::A), vec![spare]);
-    assert_eq!(view.rows[A_ROW].keys, keymap::key_name(spare));
+    assert_eq!(a.binding_labels()[4], keymap::key_name(spare));
 
     let file = std::fs::read_to_string(d.path().join("Config/buttons.ini")).expect("buttons.ini");
     assert!(file.contains(&format!("{spare} = a")), "{file}");
-
     keymap::reset().expect("reset");
 }
 
 #[test]
 fn taking_a_key_that_another_button_has_swaps_the_two() {
     let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
-    let (_d, mut a) = on_buttons_screen();
+    let (_d, mut a) = on_carousel();
     let b_key = keymap::keys_for(Btn::B);
     let a_key = keymap::keys_for(Btn::A);
     assert_eq!((b_key.len(), a_key.len()), (1, 1), "defaults changed");
+    on_face_page(&mut a);
 
-    down_to(&mut a, A_ROW);
     press(&mut a, Btn::A);
     assert!(keymap::capture_offer(b_key[0], 1));
     a.tick_ms(a.now() + 1);
@@ -142,27 +150,30 @@ fn taking_a_key_that_another_button_has_swaps_the_two() {
         a_key,
         "B must not be left keyless"
     );
-    let notice = a.buttons_view().notice;
-    assert!(notice.contains("B moved to"), "{notice:?}");
-
+    let labels = a.binding_labels();
+    assert_eq!(labels[4], keymap::key_name(b_key[0]));
+    assert_eq!(labels[5], keymap::key_name(a_key[0]));
     keymap::reset().expect("reset");
 }
 
 #[test]
 fn no_key_within_the_wait_cancels_and_changes_nothing() {
     let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
-    let (_d, mut a) = on_buttons_screen();
+    let (_d, mut a) = on_carousel();
     let before = keymap::keys_for(Btn::A);
+    on_face_page(&mut a);
 
-    down_to(&mut a, A_ROW);
     press(&mut a, Btn::A);
-    assert!(a.buttons_view().prompt.is_some());
+    assert_eq!(a.binding_waiting(), Some(4));
+    a.tick_ms(a.now() + slot::buttons_editor::CAPTURE_MS as u64 + 1);
 
-    a.tick_ms(a.now() + CAPTURE_MS as u64 + 1);
-    let view = a.buttons_view();
-    assert!(view.prompt.is_none());
-    assert!(view.notice.contains("nothing changed"), "{:?}", view.notice);
+    assert_eq!(a.binding_waiting(), None);
     assert_eq!(keymap::keys_for(Btn::A), before);
+    assert_eq!(
+        a.quick_menu(),
+        Some(QuickRow::BindA),
+        "the menu left the row on its own"
+    );
     assert!(
         !keymap::capture_offer(spare_key(), 1),
         "the key capture was left armed after the timeout"
@@ -170,55 +181,29 @@ fn no_key_within_the_wait_cancels_and_changes_nothing() {
 }
 
 #[test]
-fn the_prompt_counts_down() {
-    let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
-    let (_d, mut a) = on_buttons_screen();
-    down_to(&mut a, A_ROW);
-    press(&mut a, Btn::A);
-    let start = a.now();
-
-    a.tick_ms(start + 100);
-    let first = a.buttons_view().prompt.expect("prompt").1;
-    let rev = a.buttons_rev();
-    a.tick_ms(start + 150);
-    assert_eq!(
-        a.buttons_rev(),
-        rev,
-        "no new picture within the same second"
-    );
-
-    a.tick_ms(start + 3500);
-    let later = a.buttons_view().prompt.expect("prompt").1;
-    assert!(later < first, "{later} should be below {first}");
-    keymap::capture_cancel();
-}
-
-#[test]
 fn nothing_else_acts_while_waiting_for_a_key() {
     let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
-    let (_d, mut a) = on_buttons_screen();
-    down_to(&mut a, A_ROW);
+    let (_d, mut a) = on_carousel();
+    on_face_page(&mut a);
     press(&mut a, Btn::A);
 
     press(&mut a, Btn::B);
     press(&mut a, Btn::Down);
-    assert!(matches!(a.phase(), Phase::Buttons), "B left while waiting");
     assert_eq!(
-        a.buttons_view().cursor,
-        A_ROW,
-        "the cursor moved while waiting"
+        a.quick_menu(),
+        Some(QuickRow::BindA),
+        "the menu moved while waiting"
     );
     keymap::capture_cancel();
 }
 
 #[test]
-fn leaving_the_screen_while_waiting_stops_the_capture() {
+fn closing_the_lid_while_waiting_stops_the_capture() {
     let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
-    let (_d, mut a) = on_buttons_screen();
-    down_to(&mut a, A_ROW);
+    let (_d, mut a) = on_carousel();
+    on_face_page(&mut a);
     press(&mut a, Btn::A);
 
-    // The lid closes while the prompt is up.
     a.apply(Action::LidClose);
     assert!(
         matches!(a.phase(), Phase::Doze { .. }),
@@ -228,7 +213,7 @@ fn leaving_the_screen_while_waiting_stops_the_capture() {
     a.tick_ms(a.now() + 1);
     assert!(
         !keymap::capture_offer(spare_key(), 1),
-        "keys are still being swallowed after the screen was left"
+        "keys are still being swallowed after the menu was left"
     );
     keymap::capture_cancel();
 }
@@ -236,29 +221,25 @@ fn leaving_the_screen_while_waiting_stops_the_capture() {
 #[test]
 fn reset_restores_the_built_in_map() {
     let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
-    let (d, mut a) = on_buttons_screen();
+    let (d, mut a) = on_carousel();
     let default_a = keymap::keys_for(Btn::A);
-
-    down_to(&mut a, A_ROW);
+    on_face_page(&mut a);
     press(&mut a, Btn::A);
     assert!(keymap::capture_offer(spare_key(), 1));
     a.tick_ms(a.now() + 1);
     assert!(keymap::customised());
 
-    // Back to the top, then to the last row.
-    for _ in 0..A_ROW {
-        press(&mut a, Btn::Up);
-    }
-    press(&mut a, Btn::Right);
-    for _ in 0..(RESET_ROW - 8) {
-        press(&mut a, Btn::Down);
-    }
-    assert_eq!(a.buttons_view().cursor, RESET_ROW);
+    // Back up to the Buttons page, then down to Reset Buttons.
+    press(&mut a, Btn::B);
+    assert_eq!(a.quick_menu(), Some(QuickRow::BindFace));
+    press(&mut a, Btn::B);
+    assert_eq!(a.quick_menu(), Some(QuickRow::Buttons));
+    press(&mut a, Btn::A);
+    down_on(&mut a, &QuickRow::BUTTONS, QuickRow::BindReset);
     press(&mut a, Btn::A);
 
     assert!(!keymap::customised());
     assert_eq!(keymap::keys_for(Btn::A), default_a);
-    assert!(a.buttons_view().notice.contains("restored"));
     let file = std::fs::read_to_string(d.path().join("Config/buttons.ini")).expect("buttons.ini");
     assert!(
         !file
@@ -269,29 +250,24 @@ fn reset_restores_the_built_in_map() {
 }
 
 #[test]
-fn left_and_right_move_between_the_columns_and_b_goes_back() {
+fn b_walks_back_from_a_page_to_its_parent_and_the_main_page_to_the_shelf() {
     let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
-    let (_d, mut a) = on_buttons_screen();
-    press(&mut a, Btn::Right);
-    assert_eq!(a.buttons_view().cursor, 8);
-    press(&mut a, Btn::Left);
-    assert_eq!(a.buttons_view().cursor, 0);
-    press(&mut a, Btn::Up);
-    assert_eq!(a.buttons_view().cursor, 0, "the cursor ran off the top");
-
+    let (_d, mut a) = on_carousel();
+    on_face_page(&mut a);
+    press(&mut a, Btn::B);
+    assert_eq!(a.quick_menu(), Some(QuickRow::BindFace));
     press(&mut a, Btn::B);
     assert_eq!(a.quick_menu(), Some(QuickRow::Buttons));
+    press(&mut a, Btn::B);
+    assert!(matches!(a.phase(), Phase::Shelf), "{:?}", a.phase());
 }
 
 #[test]
-fn opening_the_screen_again_starts_clean() {
+fn opening_the_menu_again_starts_on_the_top_row() {
     let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
-    let (_d, mut a) = on_buttons_screen();
-    down_to(&mut a, 6);
+    let (_d, mut a) = on_carousel();
+    press(&mut a, Btn::Down);
     press(&mut a, Btn::B);
-    press(&mut a, Btn::A);
-    assert!(matches!(a.phase(), Phase::Buttons));
-    let view = a.buttons_view();
-    assert_eq!(view.cursor, 0);
-    assert!(view.notice.is_empty());
+    a.apply(Action::QuickMenu);
+    assert_eq!(a.quick_menu(), Some(QuickRow::MAIN[0]));
 }

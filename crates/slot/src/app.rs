@@ -13,7 +13,7 @@ use slot_store::{
     VOLUME_MAX,
 };
 use slot_ui::{
-    board_from, board_x, board_zoom, draw_buttons, draw_empty_slot, draw_footer, draw_ground, draw_slot_name,
+    board_from, board_x, board_zoom, draw_empty_slot, draw_footer, draw_ground, draw_slot_name,
     draw_sticker, ease, footer_ink, grown, lid_at, lid_from, lift_of, on_board, repeat_gap,
     shelf_cart_at, ClockPicker, Draw, FfState, GbShell, Hud, HudKind, Icon, LinkBadge, Millis,
     Placed, Polaroids, PowerChoice, QuickMenu, QuickMenuFaces, QuickRow, QuickValue, Refusal,
@@ -23,7 +23,7 @@ use slot_ui::{
 };
 
 use crate::audio::Sfx;
-use crate::buttons_editor::ButtonsEditor;
+use crate::buttons_editor::{Capture, Captured};
 use crate::core_picker::{Chip, CorePicker, Outcome, Press};
 use crate::link_kind::{link_carried, link_kind, serial_option, LinkKind};
 use crate::link_radio::{radio_jobs, LinkRole, RadioJob, RadioJobs};
@@ -261,7 +261,6 @@ pub enum Phase {
         cart: String,
     },
     About,
-    Buttons,
     Doze {
         cart: Option<String>,
     },
@@ -372,8 +371,9 @@ pub struct App {
     states_from_menu: bool,
     menu_tap: Option<(Millis, Option<QuickRow>)>,
     sticker_face: Option<TexId>,
-    buttons_face: Option<TexId>,
-    buttons_ui: ButtonsEditor,
+    capture: Capture,
+    binding_faces: Option<Vec<[(TexId, u32, u32); 2]>>,
+    bind_waiting: Option<(TexId, u32, u32)>,
     ground: Option<TexId>,
     blur: Option<TexId>,
     wallpaper: Option<TexId>,
@@ -521,8 +521,9 @@ impl App {
             states_from_menu: false,
             menu_tap: None,
             sticker_face: None,
-            buttons_face: None,
-            buttons_ui: ButtonsEditor::default(),
+            capture: Capture::default(),
+            binding_faces: None,
+            bind_waiting: None,
             ground: None,
             blur: None,
             wallpaper: None,
@@ -929,6 +930,26 @@ impl App {
             | QuickRow::ScreenGba
             | QuickRow::ScreenGbc
             | QuickRow::ScreenGb
+            | QuickRow::BindDpad
+            | QuickRow::BindFace
+            | QuickRow::BindShoulder
+            | QuickRow::BindStartSelect
+            | QuickRow::BindReset
+            | QuickRow::BindUp
+            | QuickRow::BindDown
+            | QuickRow::BindLeft
+            | QuickRow::BindRight
+            | QuickRow::BindA
+            | QuickRow::BindB
+            | QuickRow::BindX
+            | QuickRow::BindY
+            | QuickRow::BindL1
+            | QuickRow::BindR1
+            | QuickRow::BindL2
+            | QuickRow::BindR2
+            | QuickRow::BindStart
+            | QuickRow::BindSelect
+            | QuickRow::BindMenu
             | QuickRow::GbBezel
             | QuickRow::GbcBezel
             | QuickRow::GbaBezel
@@ -1142,17 +1163,41 @@ impl App {
         self.sticker_face = Some(face);
     }
 
-    pub fn set_buttons_face(&mut self, face: TexId) {
-        self.buttons_face = Some(face);
+    /// The key each control is on, in [`slot_ui::QuickRow::bind_at`] order.
+    pub fn binding_labels(&self) -> Vec<String> {
+        bindings()
+            .iter()
+            .map(|&btn| {
+                let keys = crate::input::keymap::keys_for(btn);
+                match keys.is_empty() {
+                    true => "none".to_string(),
+                    false => keys
+                        .iter()
+                        .map(|&code| crate::input::keymap::key_name(code))
+                        .collect::<Vec<_>>()
+                        .join(" / "),
+                }
+            })
+            .collect()
     }
 
-    /// Changes whenever the Buttons screen would look different.
-    pub fn buttons_rev(&self) -> u32 {
-        self.buttons_ui.rev()
+    /// Changes whenever the key names (or which row is waiting) would change.
+    pub fn binding_rev(&self) -> u32 {
+        self.capture.rev()
     }
 
-    pub fn buttons_view(&self) -> slot_ui::ButtonsView {
-        self.buttons_ui.view()
+    /// The control whose row is waiting for a key, as a [`QuickRow::bind_at`] index.
+    pub fn binding_waiting(&self) -> Option<usize> {
+        self.capture.waiting().and_then(bind_at)
+    }
+
+    pub fn set_binding_faces(
+        &mut self,
+        faces: Vec<[(TexId, u32, u32); 2]>,
+        waiting: (TexId, u32, u32),
+    ) {
+        self.binding_faces = Some(faces);
+        self.bind_waiting = Some(waiting);
     }
 
     pub fn set_clock_faces(&mut self, line: TexId, hint: TexId) {
@@ -1942,13 +1987,6 @@ impl App {
                     row: QuickRow::About,
                 }
             }
-            Phase::Buttons => {
-                if self.buttons_ui.input(action, self.clock) {
-                    self.phase = Phase::QuickMenu {
-                        row: QuickRow::Buttons,
-                    }
-                }
-            }
             Phase::QuickMenu { row } => self.quick_menu_input(row, action),
             _ => {}
         }
@@ -1961,6 +1999,10 @@ impl App {
     }
 
     fn quick_menu_input(&mut self, row: QuickRow, action: Action) {
+        // The next key press belongs to the row that is waiting for one.
+        if self.capture.waiting().is_some() {
+            return;
+        }
         let row = match action {
             Action::GbaDown(Btn::Up) => row.up(self.hidden_rows()),
             Action::GbaDown(Btn::Down) => row.down(self.hidden_rows()),
@@ -2046,11 +2088,22 @@ impl App {
                 self.phase = clock_screen(self.utc_secs(), self.state.utc_offset_min, true);
             }
             QuickRow::About => self.phase = Phase::About,
-            QuickRow::Buttons => {
-                self.buttons_ui.enter();
-                self.phase = Phase::Buttons;
+            QuickRow::BindReset => {
+                match crate::input::keymap::reset() {
+                    Ok(()) => self.hud.toast(Toast::ButtonsReset, self.now()),
+                    Err(e) => {
+                        eprintln!("slot: buttons.ini: {e}");
+                        self.hud.toast(Toast::CardUnwritable, self.now());
+                    }
+                }
+                self.capture.bump();
             }
-            QuickRow::Screen
+            QuickRow::Buttons
+            | QuickRow::BindDpad
+            | QuickRow::BindFace
+            | QuickRow::BindShoulder
+            | QuickRow::BindStartSelect
+            | QuickRow::Screen
             | QuickRow::Game
             | QuickRow::General
             | QuickRow::ScreenGba
@@ -2093,12 +2146,35 @@ impl App {
             | QuickRow::GbBezel
             | QuickRow::GbcBezel
             | QuickRow::GbaBezel
-            | QuickRow::Bezel => {}
+            | QuickRow::Bezel
+            | QuickRow::BindUp
+            | QuickRow::BindDown
+            | QuickRow::BindLeft
+            | QuickRow::BindRight
+            | QuickRow::BindA
+            | QuickRow::BindB
+            | QuickRow::BindX
+            | QuickRow::BindY
+            | QuickRow::BindL1
+            | QuickRow::BindR1
+            | QuickRow::BindL2
+            | QuickRow::BindR2
+            | QuickRow::BindStart
+            | QuickRow::BindSelect
+            | QuickRow::BindMenu => {
+                // Pressing A on a control's row waits for its new key.
+                if let Some(btn) = row.bind_at().and_then(|at| bindings().get(at).copied()) {
+                    self.capture.start(btn, self.clock);
+                }
+            }
         }
     }
 
     fn change_setting(&mut self, row: QuickRow, right: bool) {
         let row = self.playing_row(row);
+        if row.bind_at().is_some() || row.child().is_some() {
+            return;
+        }
         if row == QuickRow::Palette {
             let to = match right {
                 true => self.state.gb_palette.next(),
@@ -2223,6 +2299,26 @@ impl App {
             | QuickRow::GbBezel
             | QuickRow::GbcBezel
             | QuickRow::GbaBezel
+            | QuickRow::BindDpad
+            | QuickRow::BindFace
+            | QuickRow::BindShoulder
+            | QuickRow::BindStartSelect
+            | QuickRow::BindReset
+            | QuickRow::BindUp
+            | QuickRow::BindDown
+            | QuickRow::BindLeft
+            | QuickRow::BindRight
+            | QuickRow::BindA
+            | QuickRow::BindB
+            | QuickRow::BindX
+            | QuickRow::BindY
+            | QuickRow::BindL1
+            | QuickRow::BindR1
+            | QuickRow::BindL2
+            | QuickRow::BindR2
+            | QuickRow::BindStart
+            | QuickRow::BindSelect
+            | QuickRow::BindMenu
             | QuickRow::Bezel => return,
         }
         self.persist();
@@ -2628,11 +2724,18 @@ impl App {
     }
 
     fn timers(&mut self) {
-        if matches!(self.phase, Phase::Buttons) {
-            self.buttons_ui.tick(self.clock);
-        } else {
-            // Left the screen (lid closed, power menu) while waiting for a key.
-            self.buttons_ui.cancel();
+        match self.capture.poll(self.clock) {
+            Some(Captured::Key(btn, code)) => {
+                let (_, saved) = crate::input::keymap::rebind(btn, code);
+                if let Err(e) = saved {
+                    eprintln!("slot: buttons.ini: {e}");
+                    self.hud.toast(Toast::CardUnwritable, self.now());
+                }
+            }
+            Some(Captured::TimedOut) => self.hud.toast(Toast::BindCancelled, self.now()),
+            // Left the menu (lid closed, power off) while waiting for a key.
+            None if !matches!(self.phase, Phase::QuickMenu { .. }) => self.capture.cancel(),
+            None => {}
         }
         self.play_hold();
         self.repeat_held_dir();
@@ -2978,6 +3081,9 @@ impl App {
                 wallpaper: self.quick_wallpaper_faces,
                 faces: self.quick_menu_faces.as_ref(),
                 ground: self.menu_ground(),
+                bindings: self.binding_faces.as_deref(),
+                bind_waiting: self.bind_waiting,
+                bind_armed: self.binding_waiting(),
                 palette: None,
                 gba_bezel: self.quick_bezel_faces[bezel_slot(Platform::Gba)],
                 gb_bezel: self.quick_bezel_faces[bezel_slot(Platform::Gb)],
@@ -3033,11 +3139,6 @@ impl App {
             Phase::About => {
                 slot_ui::draw_menu_ground(self.canvas(), self.menu_ground(), out);
                 draw_sticker(self.canvas(), self.sticker_face, out);
-                return;
-            }
-            Phase::Buttons => {
-                slot_ui::draw_menu_ground(self.canvas(), self.menu_ground(), out);
-                draw_buttons(self.canvas(), self.buttons_face, out);
                 return;
             }
             Phase::Inserting { cart, resumed, .. } => {
@@ -3107,6 +3208,9 @@ impl App {
                 gb_bezel: None,
                 gbc_bezel: None,
                 bezel: self.quick_bezel_faces[bezel_slot(self.playing_platform())],
+                bindings: None,
+                bind_waiting: None,
+                bind_armed: None,
                 over_game: true,
                 canvas: self.canvas(),
             }
@@ -4643,4 +4747,31 @@ fn bezel_slot(platform: Platform) -> usize {
         Platform::Gb => 1,
         Platform::Gbc => 2,
     }
+}
+
+/// The controls the Buttons pages rebind, in the order the pages show them.
+pub const BINDINGS: [Btn; slot_ui::BIND_COUNT] = [
+    Btn::Up,
+    Btn::Down,
+    Btn::Left,
+    Btn::Right,
+    Btn::A,
+    Btn::B,
+    Btn::X,
+    Btn::Y,
+    Btn::L1,
+    Btn::R1,
+    Btn::L2,
+    Btn::R2,
+    Btn::Start,
+    Btn::Select,
+    Btn::Menu,
+];
+
+fn bindings() -> &'static [Btn] {
+    BINDINGS.as_slice()
+}
+
+fn bind_at(btn: Btn) -> Option<usize> {
+    BINDINGS.iter().position(|b| *b == btn)
 }
