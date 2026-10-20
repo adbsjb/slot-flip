@@ -3,7 +3,7 @@
 //! and saves `Slot/Config/buttons.ini`. The screen only draws; what the keys do
 //! lives in the app, so everything here is a plain view of data it is handed.
 
-use slot_gfx::{Draw, TexId, OUT_H, OUT_W};
+use slot_gfx::{Draw, TexId};
 
 use crate::plate::UndoFace;
 use crate::text;
@@ -201,13 +201,13 @@ pub fn buttons_face(view: &ButtonsView) -> UndoFace {
     cv.finish()
 }
 
-pub fn draw_buttons(face: Option<TexId>, out: &mut Vec<Draw>) {
+pub fn draw_buttons(canvas: slot_gfx::Canvas, face: Option<TexId>, out: &mut Vec<Draw>) {
     let Some(tex) = face else {
         return;
     };
     out.push(Draw::Tex {
-        x: (OUT_W as f32 - PANEL_W as f32) / 2.0,
-        y: (OUT_H as f32 - PANEL_H as f32) / 2.0,
+        x: canvas.centred(PANEL_W as f32),
+        y: (canvas.h - PANEL_H as f32) / 2.0,
         w: PANEL_W as f32,
         h: PANEL_H as f32,
         tex,

@@ -44,7 +44,7 @@ fn on_buttons_screen() -> (TempDir, App) {
     keymap::capture_cancel();
 
     a.apply(Action::QuickMenu);
-    for _ in 0..QuickRow::Buttons.position() {
+    for _ in 0..QuickRow::Buttons.position(&[]) {
         press(&mut a, Btn::Down);
     }
     assert_eq!(a.quick_menu(), Some(QuickRow::Buttons));

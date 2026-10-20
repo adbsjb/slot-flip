@@ -108,4 +108,8 @@ pub type Millis = u64;
 
 pub trait InputSource {
     fn poll(&mut self, now: Millis) -> Vec<RawEvent>;
+
+    fn menu_dpad_display(&self) -> bool {
+        false
+    }
 }
