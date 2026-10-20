@@ -337,9 +337,10 @@ pub fn save() -> io::Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let tmp = path.with_extension("ini.tmp");
-    std::fs::write(&tmp, text)?;
-    std::fs::rename(&tmp, &path)
+    // Flushed to the card, not just handed to the kernel: the FAT card has no
+    // journal and the device is often powered off right after a change, so a
+    // plain write can be lost without any error.
+    slot_store::atomic_write(&path, text.as_bytes())
 }
 
 // ---------------------------------------------------------------------------
@@ -561,6 +562,16 @@ mod tests {
         // It reached the file, and a fresh load sees it.
         let text = std::fs::read_to_string(dir.path().join(BUTTONS_FILE)).unwrap();
         assert!(text.contains(&format!("{spare} = a")), "{text}");
+        let left_over: Vec<_> = std::fs::read_dir(dir.path().join("Config"))
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n != "buttons.ini")
+            .collect();
+        assert!(
+            left_over.is_empty(),
+            "save left temp files behind: {left_over:?}"
+        );
         load(dir.path());
         assert_eq!(keys_for(Btn::A), vec![spare]);
 
