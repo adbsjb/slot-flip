@@ -36,6 +36,7 @@ you release, and keep this table current.
 | --- | --- |
 | `v0.1.0` | v1.4.0 |
 | `v0.2.0` | v1.6.0 (+ gpSP JIT fix cherry-picked from v1.7.0) |
+| `v0.3.0` | v1.6.0 (unchanged; adds the in-app Buttons remap) |
 | `exp-v0.3.0` | v1.6.0 |
 
 ---
