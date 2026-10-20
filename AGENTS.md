@@ -32,11 +32,18 @@ The project is GPL-3.0-or-later (same as upstream). Keep upstream credit intact.
 Fork versions are independent of upstream's. Record the upstream base every time
 you release, and keep this table current.
 
+Keep the fork's own `v0.x` numbers rather than adopting upstream's. The tag says
+which fork release this is; the **release title and notes lead with the upstream
+base** ("upstream slot 1.7.0"), which is what owners need when comparing against
+upstream docs. Matching upstream's numbers would imply the same behaviour and a
+one-for-one patch cadence the fork does not have.
+
 | Fork release | Upstream base |
 | --- | --- |
 | `v0.1.0` | v1.4.0 |
 | `v0.2.0` | v1.6.0 (+ gpSP JIT fix cherry-picked from v1.7.0) |
 | `v0.3.0` | v1.6.0 (unchanged; adds the in-app Buttons remap) |
+| `v0.4.0` | v1.7.0 (skeuomorphic redesign; Buttons rebuilt as menu pages) |
 | `exp-v0.3.0` | v1.6.0 |
 
 ---
