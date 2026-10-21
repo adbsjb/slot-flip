@@ -27,6 +27,11 @@ struct Host {
     /// What `video` holds. Always the GBA canvas unless `native` is on.
     video_size: (u32, u32),
     native: bool,
+    /// Environment commands the core has asked for that we do not handle, so each
+    /// is reported once and not on every frame.
+    unhandled: std::collections::HashSet<c_uint>,
+    /// Core log lines already shown, so a core that repeats one is not repeated.
+    logged: std::collections::HashSet<String>,
     format: PixelFormat,
     audio: Vec<i16>,
     inputs: [u16; 2],
@@ -70,7 +75,32 @@ unsafe fn with_host<R>(f: impl FnOnce(&mut Host) -> R) -> Option<R> {
     Some(f(&mut *p))
 }
 
-unsafe extern "C" fn log_noop(_level: c_uint, _fmt: *const c_char) {}
+/// Whether to show a core's routine chatter (debug and info), not only its
+/// warnings and errors. Off unless `SLOT_CORE_LOG` is set.
+fn core_log_all() -> bool {
+    static ALL: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ALL.get_or_init(|| std::env::var_os("SLOT_CORE_LOG").is_some())
+}
+
+/// What a core says about itself. libretro's callback is variadic (`printf`
+/// style), which stable Rust cannot define, so this takes the two fixed
+/// arguments and prints the format string as written: `%s` and all, which is
+/// enough to name what went wrong. Without this a core that refuses a file does so
+/// silently and nothing can be diagnosed. Each distinct message is shown once,
+/// because the log is a file on the SD card.
+unsafe extern "C" fn log_forward(level: c_uint, fmt: *const c_char) {
+    // RETRO_LOG_DEBUG 0, INFO 1, WARN 2, ERROR 3.
+    if fmt.is_null() || (level < 2 && !core_log_all()) {
+        return;
+    }
+    let text = std::ffi::CStr::from_ptr(fmt).to_string_lossy();
+    let text = text.trim_end();
+    let first =
+        with_host(|h| h.logged.len() < 64 && h.logged.insert(text.to_string())).unwrap_or(true);
+    if first {
+        eprintln!("slot: core[{level}]: {text}");
+    }
+}
 
 unsafe extern "C" fn set_rumble_state(port: c_uint, effect: c_uint, strength: u16) -> bool {
     with_host(|h| h.rumble.set(port, effect, strength)).unwrap_or(false)
@@ -203,7 +233,7 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
             if data.is_null() {
                 return false;
             }
-            (*(data as *mut LogCallback)).log = log_noop as *const c_void;
+            (*(data as *mut LogCallback)).log = log_forward as *const c_void;
             true
         }
         SET_AUDIO_BUFFER_STATUS_CALLBACK => {
@@ -223,7 +253,13 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
             .is_some()
         }
         other => {
-            eprintln!("slot: env unhandled cmd {other}");
+            // A core can ask the same thing every frame (PCSX asks for a software
+            // framebuffer 60 times a second), and the log is a file on the SD card.
+            // Say it once.
+            let first = with_host(|h| h.unhandled.insert(other)).unwrap_or(true);
+            if first {
+                eprintln!("slot: env unhandled cmd {other}");
+            }
             false
         }
     }
@@ -580,6 +616,8 @@ impl LibretroCore {
             video: vec![0; VIDEO_BYTES],
             video_size: (GBA_W, GBA_H),
             native: false,
+            unhandled: std::collections::HashSet::new(),
+            logged: std::collections::HashSet::new(),
             format: PixelFormat::Xrgb8888,
             audio: Vec::new(),
             inputs: [0; 2],
@@ -843,6 +881,8 @@ mod tests {
             video: vec![0; VIDEO_BYTES],
             video_size: (GBA_W, GBA_H),
             native: false,
+            unhandled: std::collections::HashSet::new(),
+            logged: std::collections::HashSet::new(),
             format: PixelFormat::Xrgb8888,
             audio: Vec::new(),
             inputs: [0; 2],
@@ -1721,6 +1761,33 @@ mod tests {
     /// shift or a wrong stride changes the bytes.
     fn numbered(w: usize, h: usize) -> Vec<u8> {
         (0..(w * h) as u32).flat_map(|i| i.to_le_bytes()).collect()
+    }
+
+    #[test]
+    fn a_core_warning_is_shown_once_and_its_chatter_is_not_shown_at_all() {
+        let mut host = host_with(HashMap::new(), false);
+        let _active = Active::bind(&mut host);
+        let warn = CString::new("CD image is not usable: %s\n").unwrap();
+        let chatter = CString::new("loading %s\n").unwrap();
+        for _ in 0..40 {
+            unsafe { log_forward(2, warn.as_ptr()) };
+            unsafe { log_forward(1, chatter.as_ptr()) };
+        }
+        unsafe { log_forward(3, ptr::null()) };
+        let shown = unsafe { with_host(|h| h.logged.iter().cloned().collect::<Vec<_>>()) }.unwrap();
+        assert_eq!(shown, ["CD image is not usable: %s"]);
+    }
+
+    #[test]
+    fn a_command_the_core_keeps_asking_for_is_reported_once() {
+        let mut host = host_with(HashMap::new(), false);
+        let _active = Active::bind(&mut host);
+        for _ in 0..60 {
+            assert!(!unsafe { environment(65576, ptr::null_mut()) });
+        }
+        assert!(!unsafe { environment(63, ptr::null_mut()) });
+        let seen = unsafe { with_host(|h| h.unhandled.len()) }.unwrap();
+        assert_eq!(seen, 2, "each distinct command is remembered once");
     }
 
     #[test]

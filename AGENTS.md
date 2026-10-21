@@ -350,6 +350,13 @@ adb shell 'pidof slot; tail -30 <SD>/Slot/slot.log'
   straight into Slot"). Do not try to start Slot by killing MinUI processes;
   reboot instead.
 - The shell is BusyBox (`ps -p` is missing; `cmp`, `sha256sum` exist).
+- Cores' own warnings and errors reach `slot.log` as `core[N]: ...` (N = 2 warn,
+  3 error), each once; the format string is shown unexpanded (`%s`), because
+  libretro's callback is variadic. Drop a `CORELOG` file in the pak for their
+  routine messages too. This is how "core refused <file>" gets a reason.
+- A disc image that will not open is usually the image. Before suspecting the
+  core, run `chdman verify -i <file>.chd` on a computer (`brew install
+  rom-tools`); it checks the SHA-1 the file carries.
 - A clean boot log shows: the SDL video driver (KMSDRM), backlight/battery/rtc,
   audio at 48000 Hz, input nodes, and a first-frame time. A line containing
   `crash:` or `card: alarm` is a failure.
@@ -469,8 +476,9 @@ Notes are for people who own the device, not for developers.
 - Cores are aarch64 for the Flip. The experimental armhf targets do not bundle
   cores yet.
 - `cores/pcsx` builds PCSX-ReARMed (GPL-2.0) with no patches. Build it in the
-  device's bullseye box: that gives GLIBC_2.17, where the libretro buildbot's
-  prebuilt needs 2.34 and may not load on the device. It is **not bundled in the
+  device's bullseye box: that gives GLIBC_2.17 (the Flip's own libc is 2.36, so
+  the libretro buildbot's prebuilt, which needs 2.34, would also load; building
+  it ourselves is for the pinned, patchable, GPL-corresponding source). It is **not bundled in the
   pak yet**; when it is, add its `.meta` and source archive to the licence
   bundle like gpSP's, and note that it adds ~2 MB to every install.
 - Because `launch.sh` refreshes cores by comparison, shipping a new core in a
