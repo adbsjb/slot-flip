@@ -37,7 +37,8 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 - 💡 **Card repair on MinUI.** Upstream's SELECT + START repair is switched off
   on the Flip (its script is written for upstream's own devices and unmounts the
   card, which MinUI owns). A safe, tested version for the Flip needs its own
-  design; for now a read-only card is repaired from a computer
+  design; for now a read-only card is repaired from a computer. See
+  [#17](https://github.com/boomchu-123/slot-flip/issues/17)
 - 💡 Cartridge-label artwork: fetch real label images automatically (blocked
   on a ScreenScraper developer ID; currently you supply your own labels)
 
