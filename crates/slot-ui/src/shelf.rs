@@ -51,6 +51,8 @@ pub struct Shelf {
     interiors: Vec<Option<TexId>>,
     shadow: Option<TexId>,
     gb_shadow: Option<TexId>,
+    disc_shadow: Option<TexId>,
+    disc_glare: Option<TexId>,
     gbc_shadow: Option<TexId>,
     backing: Option<TexId>,
     gb_backing: Option<TexId>,
@@ -78,6 +80,8 @@ impl Shelf {
             scroll: 0.0,
             shadow: None,
             gb_shadow: None,
+            disc_shadow: None,
+            disc_glare: None,
             gbc_shadow: None,
             backing: None,
             gb_backing: None,
@@ -143,7 +147,12 @@ impl Shelf {
         match shell {
             GbShell::Notched => self.gb_shadow = Some(face),
             GbShell::Rounded => self.gbc_shadow = Some(face),
+            GbShell::Disc => self.disc_shadow = Some(face),
         }
+    }
+
+    pub fn set_disc_glare(&mut self, face: TexId) {
+        self.disc_glare = Some(face);
     }
 
     pub fn set_backing(&mut self, face: TexId) {
@@ -154,6 +163,8 @@ impl Shelf {
         match shell {
             GbShell::Notched => self.gb_backing = Some(face),
             GbShell::Rounded => self.gbc_backing = Some(face),
+            // A disc is never see-through, so it has no backing to draw.
+            GbShell::Disc => {}
         }
     }
 
@@ -216,6 +227,7 @@ impl Shelf {
             None => self.backing,
             Some(GbShell::Notched) => self.gb_backing,
             Some(GbShell::Rounded) => self.gbc_backing,
+            Some(GbShell::Disc) => None,
         };
         [self.interiors.get(i).copied().flatten(), board]
     }
@@ -460,6 +472,7 @@ impl Shelf {
                     None => self.shadow,
                     Some(GbShell::Notched) => self.gb_shadow,
                     Some(GbShell::Rounded) => self.gbc_shadow,
+                    Some(GbShell::Disc) => self.disc_shadow,
                 };
                 if let Some(tex) = backing {
                     out.push(Draw::Tex {
@@ -477,6 +490,7 @@ impl Shelf {
                     None => self.backing,
                     Some(GbShell::Notched) => self.gb_backing,
                     Some(GbShell::Rounded) => self.gbc_backing,
+                    Some(GbShell::Disc) => None,
                 };
                 let gba = self.shell(i).is_none();
                 // A GBA cart's board and back shell fill the cart's box, exactly where the
@@ -538,6 +552,18 @@ impl Shelf {
                     }
                 }
             });
+            if let (Some(GbShell::Disc), Some(tex), Some(_)) =
+                (self.shell(i), self.disc_glare, self.face(i))
+            {
+                out.push(Draw::Tex {
+                    x,
+                    y,
+                    w,
+                    h,
+                    tex,
+                    alpha: alpha * dim,
+                });
+            }
             if let (Some(true), Some((tex, sw, sh))) = (self.starred.get(i), self.star) {
                 let (lx, ly, lw, _) = label_rect(self.shell(i));
                 out.push(Draw::Tex {

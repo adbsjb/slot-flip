@@ -710,6 +710,7 @@ fn both_cartridges_go_into_the_slot_at_their_own_size() {
             let chrome = |face| {
                 let mut out = Vec::new();
                 SlotChrome {
+                    glare: None,
                     cart: &cart,
                     face,
                     rest,
@@ -783,6 +784,7 @@ fn no_frame_of_the_travel_jumps_further_than_the_cartridge_is_tall() {
             .map(|f| {
                 let mut out = Vec::new();
                 SlotChrome {
+                    glare: None,
                     cart: &cart,
                     face: None,
                     rest: (OUT_W - w) as f32 / 2.0,

@@ -405,6 +405,7 @@ pub struct App {
     quick_wallpaper_faces: Option<[(TexId, u32, u32); 2]>,
     quick_palette_faces: Option<[(TexId, u32, u32); 2]>,
     quick_bezel_faces: [Option<[(TexId, u32, u32); 2]>; 3],
+    disc_glare: Option<TexId>,
     game_bezel: Option<TexId>,
     in_game_menu: Option<QuickRow>,
     /// 0 while the pause footer is off the bottom, 1 when it sits in the carousel's place.
@@ -589,6 +590,7 @@ impl App {
             quick_wallpaper_faces: None,
             quick_palette_faces: None,
             quick_bezel_faces: [None, None, None],
+            disc_glare: None,
             game_bezel: None,
             in_game_menu: None,
             footer: 0.0,
@@ -1426,6 +1428,19 @@ impl App {
         for (_, shelf) in &mut self.shelves {
             shelf.set_gb_shadow(GbShell::Notched, notched);
             shelf.set_gb_shadow(GbShell::Rounded, rounded);
+        }
+    }
+
+    pub fn set_disc_glare(&mut self, face: TexId) {
+        self.disc_glare = Some(face);
+        for (_, shelf) in &mut self.shelves {
+            shelf.set_disc_glare(face);
+        }
+    }
+
+    pub fn set_disc_shadow(&mut self, face: TexId) {
+        for (_, shelf) in &mut self.shelves {
+            shelf.set_gb_shadow(GbShell::Disc, face);
         }
     }
 
@@ -4176,6 +4191,7 @@ impl App {
         };
         let (rest, scale) = self.shelf().selected_at(self.canvas());
         SlotChrome {
+            glare: self.disc_glare,
             cart,
             face,
             rest,
@@ -4296,6 +4312,7 @@ impl App {
         let alpha = self.alert_alpha();
         let (rest, scale) = self.shelf().selected_at(self.canvas());
         SlotChrome {
+            glare: self.disc_glare,
             cart,
             face,
             rest,

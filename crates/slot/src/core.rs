@@ -134,7 +134,9 @@ pub fn palette_for(
     rom: &Path,
     link: Option<u8>,
 ) -> Option<GbColors> {
-    (link.is_none() && platform != Platform::Gba && dmg_only(rom)).then_some(chosen)
+    // Only a Game Boy cart has a header to ask; a disc image's bytes are not one.
+    (link.is_none() && matches!(platform, Platform::Gb | Platform::Gbc) && dmg_only(rom))
+        .then_some(chosen)
 }
 
 pub fn dmg_only(rom: &Path) -> bool {

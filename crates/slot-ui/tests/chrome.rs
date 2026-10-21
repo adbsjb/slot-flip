@@ -141,6 +141,7 @@ fn cart_visible_height(out: &[Draw]) -> f32 {
 
 fn chrome_into(c: &Cart, seat: f32, out: &mut Vec<Draw>) {
     SlotChrome {
+        glare: None,
         cart: c,
         face: None,
         rest: centred(c),
@@ -174,6 +175,7 @@ fn a_cart_the_row_had_not_finished_moving_slides_across_as_it_goes_in() {
     let at = |seat: f32| {
         let mut out = Vec::new();
         SlotChrome {
+            glare: None,
             cart: &c,
             face: Some(face),
             rest,
@@ -234,6 +236,7 @@ fn a_cart_the_row_had_not_finished_moving_slides_across_as_it_goes_in() {
 fn draw_powering_on(t: f32, out: &mut Vec<Draw>) {
     let c = cart();
     SlotChrome {
+        glare: None,
         cart: &c,
         face: None,
         rest: CENTRED,
@@ -648,6 +651,7 @@ fn the_empty_slot_is_the_same_slot_the_chrome_draws() {
     let c = cart();
     let mut seated = Vec::new();
     SlotChrome {
+        glare: None,
         cart: &c,
         face: None,
         rest: CENTRED,
@@ -886,6 +890,7 @@ fn a_clear_carts_board_goes_into_the_slot_and_comes_out_with_it() {
             let seat = step as f32 / 10.0;
             let mut out = Vec::new();
             SlotChrome {
+                glare: None,
                 cart: &c,
                 face: Some(face),
                 rest: centred(&c),
