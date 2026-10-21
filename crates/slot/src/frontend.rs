@@ -894,7 +894,10 @@ impl UiFaces {
                 .iter()
                 .map(|f| menu_face(f.line()))
                 .collect(),
-            toasts: Toast::all().into_iter().map(toast_face).collect(),
+            toasts: Toast::all(Build::current().version)
+                .into_iter()
+                .map(toast_face)
+                .collect(),
             repair: {
                 let [not_now, repair] = repair_legends(footer_ink(false));
                 vec![
@@ -1208,6 +1211,7 @@ fn sync_about(app: &mut App, compositor: &mut Compositor, state: &mut AboutFace)
         battery,
         serial: &build.serial(),
         version: build.version,
+        upstream: crate::build_info::UPSTREAM,
     });
     let id = upload(compositor, &mut state.tex, face);
     app.set_sticker_face(id);

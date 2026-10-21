@@ -27,13 +27,15 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 - ✅ Lid power-off timer (upstream's **General > Lid Power Off**; the old Sleep
   Timeout setting carries over once)
 - ✅ Shaders default to Off on the Flip
-
+- ✅ **About shows both versions**: the fork build and the upstream slot release
+  it follows, plus a one-time "Updated to ..." word after an update
+- ✅ **Cart labels that are forgiving to add**: one flat `Labels/` folder works,
+  and a PNG named after the game pairs even when the ROM has region or revision
+  tags
 - ✅ **Released v0.5.0**: the v1.8.0 sync, Key Map under Controls, and the rebuilt
   mGBA core
 
 **Next**
-- 📋 **Show the upstream base on the About screen**, so owners can see which
-  slot version their build is without opening GitHub
 - 💡 **Card repair on MinUI.** Upstream's SELECT + START repair is switched off
   on the Flip (its script is written for upstream's own devices and unmounts the
   card, which MinUI owns). A safe, tested version for the Flip needs its own

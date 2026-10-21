@@ -652,6 +652,9 @@ impl App {
         if crate::wallpaper::carry_over_pin(root, &mut app.state) {
             app.persist();
         }
+        if app.note_build() {
+            app.persist();
+        }
         app.carousel = read_carousel(root);
         app.shortcuts = read_shortcuts(root);
         app.controls = read_controls(root);
@@ -669,6 +672,27 @@ impl App {
             app.phase = clock_screen(system_secs(), 0, false);
         }
         app
+    }
+
+    /// Mark this build as the one that has run on the card, and greet the first
+    /// boot of a newer one, so an owner who copies a pak over the old one sees
+    /// that it took. Only a card that records an older build gets a word: a new
+    /// install and a card from before this was recorded have nothing to compare
+    /// against, and guessing would put a banner up for no reason.
+    fn note_build(&mut self) -> bool {
+        let version = crate::build_info::Build::current().version;
+        match self.state.seen_version.as_str() {
+            "" => {
+                self.state.seen_version = version.to_string();
+                true
+            }
+            seen if seen == version => false,
+            _ => {
+                self.state.seen_version = version.to_string();
+                self.hud.toast(Toast::Updated(version), self.now());
+                true
+            }
+        }
     }
 
     fn start(&mut self) {

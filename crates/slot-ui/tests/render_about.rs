@@ -13,6 +13,7 @@ fn render_about() {
         battery: Some(87),
         serial: "04738857",
         version: "0.1.0",
+        upstream: "1.8.0",
     });
 
     let mut list = Vec::new();

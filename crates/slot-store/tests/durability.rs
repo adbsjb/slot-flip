@@ -245,6 +245,7 @@ fn a_card_from_before_the_settings_keeps_all_its_values() {
             show_titles: false,
             left_stick_dpad: true,
             lid_off_min: None,
+            seen_version: String::new(),
             bezel_gba: BezelPick::Ags102,
             bezel_gb: BezelPick::Ags102,
             bezel_gbc: BezelPick::Ags102,
@@ -663,4 +664,26 @@ fn the_old_sleep_timeout_key_is_not_written_back() {
         text.contains("lid_off_min=10"),
         "the choice was lost:\n{text}"
     );
+}
+
+#[test]
+fn the_build_that_last_ran_round_trips_and_nonsense_is_not_kept() {
+    let d = tempdir().unwrap();
+    std::fs::create_dir_all(d.path().join("Config")).unwrap();
+    let mut s = SlotState::default();
+    s.seen_version = "0.6.0".into();
+    write_slot_state(d.path(), &s).unwrap();
+    let text = std::fs::read_to_string(d.path().join("Config/slot.state")).unwrap();
+    assert!(text.contains("seen_version=0.6.0"), "{text}");
+    assert_eq!(read_slot_state(d.path()).seen_version, "0.6.0");
+
+    for bad in ["not a version!", "0.6.0; rm -rf", &"9".repeat(30)] {
+        let text = text.replace("seen_version=0.6.0", &format!("seen_version={bad}"));
+        std::fs::write(d.path().join("Config/slot.state"), &text).unwrap();
+        assert_eq!(
+            read_slot_state(d.path()).seen_version,
+            "",
+            "a version the sticker could not print was kept: {bad}"
+        );
+    }
 }

@@ -29,6 +29,9 @@ pub enum Toast {
     CardRepairFailed,
     ButtonsReset,
     BindCancelled,
+    /// Names the build that just started, which is the only in-app word an
+    /// owner gets when they copy a newer pak onto the card.
+    Updated(&'static str),
     Palette(GbColors),
     Duplicate(QuickRow),
 }
@@ -58,19 +61,23 @@ impl Toast {
         Toast::BindCancelled,
     ];
 
-    pub fn all() -> Vec<Toast> {
+    pub fn all(version: &'static str) -> Vec<Toast> {
         Self::FIXED
             .into_iter()
+            .chain(std::iter::once(Toast::Updated(version)))
             .chain(GbColors::all().map(Toast::Palette))
             .chain(bound_rows().map(Toast::Duplicate))
             .collect()
     }
 
     pub fn index(self) -> usize {
+        let fixed = Self::FIXED.len();
         match self {
-            Toast::Palette(p) => Self::FIXED.len() + p.index(),
+            Toast::Updated(_) => fixed,
+            Toast::Palette(p) => fixed + 1 + p.index(),
             Toast::Duplicate(row) => {
-                Self::FIXED.len()
+                fixed
+                    + 1
                     + GbColors::all().count()
                     + bound_rows().position(|r| r == row).unwrap_or(0)
             }
@@ -96,6 +103,9 @@ impl Toast {
         match self {
             Toast::CardRepaired | Toast::CardRepairFailed => REPAIR_HOLD_MS,
             Toast::Duplicate(_) => WARNING_HOLD_MS,
+            // Long enough to read over the shelf at boot, where nothing the
+            // player pressed asked for it.
+            Toast::Updated(_) => UPDATE_HOLD_MS,
             _ => crate::hud::HUD_MS,
         }
     }
@@ -115,6 +125,7 @@ impl Toast {
                 format!("Same as Console {}", row.label())
             }
             Toast::Duplicate(row) => format!("Same as {}", row.label()),
+            Toast::Updated(version) => format!("Updated to {version}"),
             other => other.fixed_text().to_string(),
         }
     }
@@ -142,7 +153,7 @@ impl Toast {
             Toast::ButtonsReset => "Key Map reset",
             Toast::BindCancelled => "No key pressed",
             Toast::Palette(p) => p.label(),
-            Toast::Duplicate(_) => "",
+            Toast::Duplicate(_) | Toast::Updated(_) => "",
         }
     }
 }
@@ -153,6 +164,7 @@ fn bound_rows() -> impl Iterator<Item = QuickRow> {
 
 const REPAIR_HOLD_MS: crate::hud::Millis = 6_000;
 const WARNING_HOLD_MS: crate::hud::Millis = 4_000;
+const UPDATE_HOLD_MS: crate::hud::Millis = 6_000;
 
 const TOAST_W: u32 = 240;
 const TOAST_H: u32 = 22;
@@ -349,7 +361,7 @@ mod tests {
     #[test]
     fn every_toast_is_set_at_full_size() {
         let font = text::label_font().expect("label font");
-        for t in Toast::all() {
+        for t in Toast::all("0.0.0") {
             let s = setting(t);
             let room = t
                 .icon()
