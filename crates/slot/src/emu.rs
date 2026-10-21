@@ -24,6 +24,17 @@ pub const FAST_STEPS: u32 = 6;
 
 pub const FAST_STEPS_MAX: u32 = 6;
 
+/// How long one emulated frame takes to run at normal speed. Everything the
+/// Game Boy family and NTSC discs do is paced at the panel's 60 Hz (a GBA's
+/// 59.73 fps has always been); a core that really runs at another rate, a 50 Hz
+/// PAL disc, gets its own period or it would play a fifth too fast.
+fn frame_period(fps: f64) -> Duration {
+    match fps {
+        f if (25.0..=75.0).contains(&f) && (f - 60.0).abs() > 3.0 => Duration::from_secs_f64(1.0 / f),
+        _ => PRESENT,
+    }
+}
+
 const FAST_TARGET: Duration = Duration::from_micros(14_000);
 
 const COST_BLEND: u32 = 4;
@@ -549,8 +560,9 @@ impl Worker {
             0 => av.sample_rate,
             hz => hz as f64,
         };
+        let period = frame_period(av.fps);
         let core_hz = match av.fps {
-            fps if fps > 0.0 => av.sample_rate / (fps * PRESENT.as_secs_f64()),
+            fps if fps > 0.0 => av.sample_rate / (fps * period.as_secs_f64()),
             _ => av.sample_rate,
         };
         let mut resampler = Resampler::new(core_hz, device_hz);
@@ -875,7 +887,7 @@ impl Worker {
                 continue;
             }
             ticked = false;
-            deadline += PRESENT * span;
+            deadline += period * span;
             let now = Instant::now();
             match deadline.checked_duration_since(now) {
                 Some(wait) => std::thread::sleep(wait),
@@ -1161,6 +1173,20 @@ fn drain_transport(transport: &mut dyn LinkChannel, link: &Link, cap: u32) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_pal_disc_is_paced_at_its_own_50_hz_and_everything_else_at_the_panels_60() {
+        assert_eq!(frame_period(50.0), Duration::from_millis(20));
+        assert_eq!(frame_period(49.76), Duration::from_secs_f64(1.0 / 49.76));
+        // A GBA's 59.7275 and an NTSC disc's 59.94 or 60 stay exactly as they were.
+        for fps in [60.0, 59.7275, 59.94, 60.1] {
+            assert_eq!(frame_period(fps), PRESENT, "{fps}");
+        }
+        // Nonsense from a core never stalls or races the loop.
+        for fps in [0.0, -1.0, f64::NAN, 1.0, 1000.0] {
+            assert_eq!(frame_period(fps), PRESENT, "{fps}");
+        }
+    }
+
     use super::*;
     use slot_retro::LoopbackLink;
 
