@@ -1,5 +1,5 @@
 use slot_gfx::{Canvas, Draw, TexId, OUT_H};
-use slot_store::Cart;
+use slot_store::{Cart, Platform};
 
 use crate::cart::{cart_box, label_colour, label_text, seated_box, SEATED_W};
 use crate::footer::Printed;
@@ -93,6 +93,8 @@ pub struct SlotChrome<'a> {
     /// The back plastic and the board a see-through cart shows under its front shell.
     pub behind: [Option<TexId>; 2],
     pub slot: Option<(TexId, TexId)>,
+    /// The glare laid over a disc. It does not turn with the disc.
+    pub glare: Option<TexId>,
     pub canvas: Canvas,
 }
 
@@ -148,7 +150,22 @@ impl SlotChrome<'_> {
                 alpha: cart_alpha,
             });
         }
+        // A disc turns as the slot takes it, and turns back as it comes out; a
+        // cart goes straight in.
+        let turn = match self.cart.platform {
+            Platform::Ps1 => crate::disc::spin(seat),
+            _ => 0.0,
+        };
         out.push(match self.face {
+            Some(tex) if turn != 0.0 => Draw::Turned {
+                x,
+                y,
+                w: cw,
+                h: ch,
+                tex,
+                alpha: cart_alpha,
+                turn,
+            },
             Some(tex) => Draw::Tex {
                 x,
                 y,
@@ -173,6 +190,17 @@ impl SlotChrome<'_> {
                 }
             }
         });
+
+        if let (Platform::Ps1, Some(tex)) = (self.cart.platform, self.glare) {
+            out.push(Draw::Tex {
+                x,
+                y,
+                w: cw,
+                h: ch,
+                tex,
+                alpha: cart_alpha,
+            });
+        }
 
         if let Some((tex, alpha)) = self.alert {
             let (w, h) = icon_box(ALERT_PX);

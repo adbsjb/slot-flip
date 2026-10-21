@@ -245,7 +245,10 @@ impl GameButton {
 
     pub fn of(platform: Platform) -> &'static [GameButton] {
         match platform {
-            Platform::Gba => &GameButton::ALL,
+            // The PlayStation pad has more buttons than this list names (X/Y, L2/R2,
+            // the stick clicks); until the in-game controls grow them it shares
+            // the GBA set, which is the widest the controls page knows.
+            Platform::Gba | Platform::Ps1 => &GameButton::ALL,
             Platform::Gb | Platform::Gbc => &GameButton::GAME_BOY,
         }
     }

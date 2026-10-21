@@ -2291,3 +2291,47 @@ fn the_shader_shortcut_does_nothing_in_the_save_state_switcher() {
     assert_eq!(slot_store::read_slot_state(d.path()).shader_gba, before);
     assert_eq!(a.toast(), None);
 }
+
+fn uses_tex(a: &App, id: usize) -> bool {
+    let mut out = Vec::new();
+    a.draw(&mut out);
+    out.iter()
+        .any(|d| matches!(*d, Draw::Part { tex, .. } if tex == TexId::from_raw(id)))
+}
+
+#[test]
+fn the_slot_is_a_playstation_on_the_disc_shelf_and_a_cart_slot_elsewhere() {
+    let mut a = app_with_platforms(&[(Platform::Gba, "Emerald"), (Platform::Ps1, "Sky Racer")]);
+    a.set_slot_faces(TexId::from_raw(77), TexId::from_raw(78));
+    a.set_console_faces(
+        TexId::from_raw(177),
+        TexId::from_raw(178),
+        TexId::from_raw(179),
+    );
+    assert!(!a.console_slot_wanted());
+    assert!(uses_tex(&a, 78), "the cart shelf lost its slot");
+    assert!(!uses_tex(&a, 178), "a PlayStation slot on the cart shelf");
+
+    tap(&mut a, Btn::R1);
+    assert_eq!(a.selected_stem(), Some("Sky Racer"));
+    assert!(a.console_slot_wanted());
+    assert!(uses_tex(&a, 178), "the disc shelf has no PlayStation slot");
+    assert!(uses_tex(&a, 177));
+    assert!(
+        !uses_tex(&a, 78),
+        "the cart slot is still drawn under a disc"
+    );
+
+    tap(&mut a, Btn::R1);
+    assert_eq!(a.selected_stem(), Some("Emerald"));
+    assert!(uses_tex(&a, 78), "the cart slot did not come back");
+    assert!(!uses_tex(&a, 178));
+}
+
+#[test]
+fn before_the_console_slot_is_drawn_a_disc_shelf_falls_back_to_the_cart_slot() {
+    let mut a = app_with_platforms(&[(Platform::Ps1, "Sky Racer")]);
+    a.set_slot_faces(TexId::from_raw(77), TexId::from_raw(78));
+    assert!(a.console_slot_wanted());
+    assert!(uses_tex(&a, 78), "a disc shelf drew no slot at all");
+}

@@ -10,15 +10,22 @@ pub enum Core {
     #[default]
     Mgba,
     Gpsp,
+    Pcsx,
 }
 
 impl Core {
+    /// The cores the picker board offers a choice between. A PlayStation disc has
+    /// one core and nothing to pick, so `Pcsx` is not here; see [`Core::EVERY`].
     pub const ALL: [Core; 2] = [Core::Mgba, Core::Gpsp];
+
+    /// Every core slot can run, pickable or not.
+    pub const EVERY: [Core; 3] = [Core::Mgba, Core::Gpsp, Core::Pcsx];
 
     pub fn as_str(&self) -> &'static str {
         match self {
             Core::Mgba => "mgba",
             Core::Gpsp => "gpsp",
+            Core::Pcsx => "pcsx",
         }
     }
 
@@ -30,6 +37,7 @@ impl Core {
         match self {
             Core::Mgba => "mGBA",
             Core::Gpsp => "gpSP",
+            Core::Pcsx => "PCSX-ReARMed",
         }
     }
 
@@ -37,14 +45,16 @@ impl Core {
         match s.trim().to_ascii_lowercase().as_str() {
             "mgba" => Some(Core::Mgba),
             "gpsp" => Some(Core::Gpsp),
+            "pcsx" => Some(Core::Pcsx),
             _ => None,
         }
     }
 
     pub fn runs(self, platform: Platform) -> bool {
         match self {
-            Core::Mgba => true,
+            Core::Mgba => platform != Platform::Ps1,
             Core::Gpsp => platform == Platform::Gba,
+            Core::Pcsx => platform == Platform::Ps1,
         }
     }
 
@@ -58,6 +68,7 @@ impl Core {
         }
         match platform {
             Platform::Gba | Platform::Gb | Platform::Gbc => Core::Mgba,
+            Platform::Ps1 => Core::Pcsx,
         }
     }
 }

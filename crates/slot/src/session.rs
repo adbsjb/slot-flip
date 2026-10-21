@@ -227,7 +227,9 @@ impl Session {
             self.pad.apply(Action::GbaUp(btn));
         }
         if let Some(emu) = &self.emu {
-            let mask = self.pad.mask(&self.app.controls());
+            let mask = self
+                .pad
+                .mask_for(&self.app.controls(), self.app.playing_platform());
             if trace() && mask.0 != self.sent {
                 eprintln!("slot: pad {:#06x}", mask.0);
             }
@@ -462,6 +464,7 @@ impl Session {
             );
             emu.set_rewinding(self.actually_rewinding());
             emu.set_turbo(self.app.turbo());
+            emu.set_native_pad(self.app.playing_platform() == slot_store::Platform::Ps1);
             emu.set_rewind_recording(self.app.records_rewind());
         }
     }

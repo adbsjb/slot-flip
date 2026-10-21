@@ -20,6 +20,10 @@ if [ -f "$DIR/DEBUG" ]; then
 	export SLOT_TRACE_LATENCY=1
 fi
 
+# Emulator cores report problems (a game they will not open, and why) in the log by
+# default. Drop a file named CORELOG here to see their routine messages too.
+[ -f "$DIR/CORELOG" ] && export SLOT_CORE_LOG=1
+
 # Optional isolation toggles (drop an empty file with the matching name in the
 # pak). NO_CORE runs the built-in mock, SILENT uses a stub audio sink, TEXTEST
 # shows a moving pattern instead of the game image.
@@ -31,7 +35,7 @@ fi
 # pak: seeded on first run, and refreshed whenever an update changes a core, so
 # core fixes actually reach people who already have Slot installed.
 mkdir -p "$SLOT_ROOT/System"
-for c in mgba_libretro.so gpsp_libretro.so; do
+for c in mgba_libretro.so gpsp_libretro.so pcsx_rearmed_libretro.so; do
 	if [ -f "$DIR/System/$c" ] && ! cmp -s "$DIR/System/$c" "$SLOT_ROOT/System/$c"; then
 		cp "$DIR/System/$c" "$SLOT_ROOT/System/$c"
 	fi

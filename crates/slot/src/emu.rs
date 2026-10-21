@@ -24,6 +24,17 @@ pub const FAST_STEPS: u32 = 6;
 
 pub const FAST_STEPS_MAX: u32 = 6;
 
+/// How long one emulated frame takes to run at normal speed. Everything the
+/// Game Boy family and NTSC discs do is paced at the panel's 60 Hz (a GBA's
+/// 59.73 fps has always been); a core that really runs at another rate, a 50 Hz
+/// PAL disc, gets its own period or it would play a fifth too fast.
+fn frame_period(fps: f64) -> Duration {
+    match fps {
+        f if (25.0..=75.0).contains(&f) && (f - 60.0).abs() > 3.0 => Duration::from_secs_f64(1.0 / f),
+        _ => PRESENT,
+    }
+}
+
 const FAST_TARGET: Duration = Duration::from_micros(14_000);
 
 const COST_BLEND: u32 = 4;
@@ -91,6 +102,7 @@ struct Shared {
     rewind: AtomicBool,
     rewind_fill: AtomicU8,
     turbo: AtomicBool,
+    native_pad: AtomicBool,
     recording: AtomicBool,
     stop: AtomicBool,
     volume: AtomicU8,
@@ -166,6 +178,7 @@ impl EmuHandle {
             rewind: AtomicBool::new(false),
             rewind_fill: AtomicU8::new(0),
             turbo: AtomicBool::new(true),
+            native_pad: AtomicBool::new(false),
             recording: AtomicBool::new(true),
             stop: AtomicBool::new(false),
             volume: AtomicU8::new(100),
@@ -365,6 +378,12 @@ impl EmuHandle {
         self.shared.turbo.store(on, Ordering::Relaxed);
     }
 
+    /// The pad is handed to the core as it is: X and Y are buttons of its own, not
+    /// the turbo keys the Game Boy cores are given.
+    pub fn set_native_pad(&self, on: bool) {
+        self.shared.native_pad.store(on, Ordering::Relaxed);
+    }
+
     pub fn set_rewind_recording(&self, on: bool) {
         self.shared.recording.store(on, Ordering::Relaxed);
     }
@@ -541,8 +560,9 @@ impl Worker {
             0 => av.sample_rate,
             hz => hz as f64,
         };
+        let period = frame_period(av.fps);
         let core_hz = match av.fps {
-            fps if fps > 0.0 => av.sample_rate / (fps * PRESENT.as_secs_f64()),
+            fps if fps > 0.0 => av.sample_rate / (fps * period.as_secs_f64()),
             _ => av.sample_rate,
         };
         let mut resampler = Resampler::new(core_hz, device_hz);
@@ -664,7 +684,7 @@ impl Worker {
                     }
                     core.set_frame_skip(false);
                     core.run_frame(ButtonMask(0));
-                    self.publish(core.video_xrgb8888());
+                    self.publish(&*core);
                 }
                 self.shared
                     .rewind_fill
@@ -683,9 +703,13 @@ impl Worker {
                 loop {
                     ran += 1;
                     let last = ran >= ceiling || cost.last(began.elapsed(), budget);
-                    let input = match self.shared.turbo.load(Ordering::Relaxed) {
-                        true => input.turbo(turbo_frame),
-                        false => input.without_turbo(),
+                    let input = if self.shared.native_pad.load(Ordering::Relaxed) {
+                        input
+                    } else {
+                        match self.shared.turbo.load(Ordering::Relaxed) {
+                            true => input.turbo(turbo_frame),
+                            false => input.without_turbo(),
+                        }
                     };
                     turbo_frame = turbo_frame.wrapping_add(1);
                     core.set_frame_skip(!last);
@@ -782,7 +806,7 @@ impl Worker {
                     }
                 }
                 flush_outbound(&mut transport, &link);
-                self.publish(core.video_xrgb8888());
+                self.publish(&*core);
                 self.frame_done(served);
 
                 since_snapshot += 1;
@@ -863,7 +887,7 @@ impl Worker {
                 continue;
             }
             ticked = false;
-            deadline += PRESENT * span;
+            deadline += period * span;
             let now = Instant::now();
             match deadline.checked_duration_since(now) {
                 Some(wait) => std::thread::sleep(wait),
@@ -907,7 +931,7 @@ impl Worker {
                     core.run_frame(ButtonMask(0));
                     core.set_frame_skip(false);
                     core.run_frame(ButtonMask(0));
-                    self.publish(core.video_xrgb8888());
+                    self.publish(&*core);
                     let _ = core.take_audio();
                     if let Err(e) = core.unserialize(&state) {
                         eprintln!("slot: refresh: {e}");
@@ -919,7 +943,8 @@ impl Worker {
                 let _ = reply.send(core.save_ram());
             }
             Cmd::Thumb(reply) => {
-                let _ = reply.send(crate::thumb::png(core.video_xrgb8888()));
+                let (w, h) = core.video_size();
+                let _ = reply.send(crate::thumb::png_sized(core.video_xrgb8888(), w, h));
             }
             Cmd::BeginLink(client_id, t) => {
                 self.shared.link_lost.store(false, Ordering::Relaxed);
@@ -1010,11 +1035,11 @@ impl Worker {
         }
     }
 
-    fn publish(&self, video: &[u8]) {
+    fn publish(&self, core: &dyn RetroCore) {
         let mut buf = self.frames.take_write();
         buf.clear();
-        buf.extend_from_slice(video);
-        self.frames.publish(buf);
+        buf.extend_from_slice(core.video_xrgb8888());
+        self.frames.publish_sized(buf, core.video_size());
         self.shared.published.fetch_add(1, Ordering::Relaxed);
         crate::latency::published();
     }
@@ -1148,6 +1173,20 @@ fn drain_transport(transport: &mut dyn LinkChannel, link: &Link, cap: u32) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_pal_disc_is_paced_at_its_own_50_hz_and_everything_else_at_the_panels_60() {
+        assert_eq!(frame_period(50.0), Duration::from_millis(20));
+        assert_eq!(frame_period(49.76), Duration::from_secs_f64(1.0 / 49.76));
+        // A GBA's 59.7275 and an NTSC disc's 59.94 or 60 stay exactly as they were.
+        for fps in [60.0, 59.7275, 59.94, 60.1] {
+            assert_eq!(frame_period(fps), PRESENT, "{fps}");
+        }
+        // Nonsense from a core never stalls or races the loop.
+        for fps in [0.0, -1.0, f64::NAN, 1.0, 1000.0] {
+            assert_eq!(frame_period(fps), PRESENT, "{fps}");
+        }
+    }
+
     use super::*;
     use slot_retro::LoopbackLink;
 

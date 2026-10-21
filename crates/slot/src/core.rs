@@ -8,11 +8,12 @@ use crate::root;
 const CORE_ENV: &str = "SLOT_CORE";
 
 pub fn dylib_name(core: Core) -> String {
-    format!(
-        "{}_libretro.{}",
-        core.as_str(),
-        std::env::consts::DLL_EXTENSION
-    )
+    let library = match core {
+        // The core's short name is `pcsx`; the library keeps its upstream name.
+        Core::Pcsx => "pcsx_rearmed",
+        other => other.as_str(),
+    };
+    format!("{library}_libretro.{}", std::env::consts::DLL_EXTENSION)
 }
 
 fn candidates(root: &Path, core: Core) -> Vec<PathBuf> {
@@ -103,6 +104,9 @@ fn open_named(
         }
         match LibretroCore::open_with(path, &bios, &saves) {
             Ok(mut opened) => {
+                // A PlayStation picture is bigger than the GBA canvas the Game Boy
+                // family is drawn into, so it keeps the size the core draws it at.
+                opened.set_native_video(platform == Platform::Ps1);
                 apply_core_options(
                     &mut opened,
                     core,
@@ -130,7 +134,9 @@ pub fn palette_for(
     rom: &Path,
     link: Option<u8>,
 ) -> Option<GbColors> {
-    (link.is_none() && platform != Platform::Gba && dmg_only(rom)).then_some(chosen)
+    // Only a Game Boy cart has a header to ask; a disc image's bytes are not one.
+    (link.is_none() && matches!(platform, Platform::Gb | Platform::Gbc) && dmg_only(rom))
+        .then_some(chosen)
 }
 
 pub fn dmg_only(rom: &Path) -> bool {
@@ -173,6 +179,8 @@ pub fn colour_option(
             "gpsp_color_correction",
             if on { "enabled" } else { "disabled" },
         )),
+        // A console picture has no handheld-LCD colour to correct.
+        Core::Pcsx => None,
     }
 }
 
@@ -194,7 +202,11 @@ pub fn apply_core_options(
     colour: bool,
     palette: Option<GbColors>,
 ) {
-    core.set_option(&format!("{}_frameskip", which.as_str()), "auto");
+    // PCSX-ReARMed names and values this differently, and a console runs at
+    // full speed on the Flip, so it keeps its own default.
+    if which != Core::Pcsx {
+        core.set_option(&format!("{}_frameskip", which.as_str()), "auto");
+    }
     if which == Core::Mgba {
         core.set_option("mgba_sgb_borders", "OFF");
         core.set_option("mgba_force_gbp", "ON");
@@ -214,6 +226,14 @@ pub fn apply_core_options(
             core.set_option(key, value);
         }
     }
+    if which == Core::Pcsx {
+        // The dynarec is what lets these handhelds run PlayStation games at full
+        // speed (without one mGBA ran ~20x slower), so say so rather than trust a
+        // default.
+        core.set_option("pcsx_rearmed_drc", "enabled");
+        // A real BIOS from BIOS/ when there is one, the built-in replacement when not.
+        core.set_option("pcsx_rearmed_bios", "auto");
+    }
     if which == Core::Gpsp {
         core.set_option("gpsp_serial", serial);
         core.set_option("gpsp_rtc_time_source", "system");
@@ -232,6 +252,19 @@ mod tests {
     use std::sync::Mutex;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn the_playstation_core_keeps_its_upstream_library_name() {
+        assert!(dylib_name(Core::Pcsx).starts_with("pcsx_rearmed_libretro."));
+        assert!(dylib_name(Core::Mgba).starts_with("mgba_libretro."));
+        assert!(dylib_name(Core::Gpsp).starts_with("gpsp_libretro."));
+    }
+
+    #[test]
+    fn a_console_core_has_no_colour_correction_to_set() {
+        assert_eq!(colour_option(Core::Pcsx, Platform::Ps1, true), None);
+        assert_eq!(colour_option(Core::Pcsx, Platform::Ps1, false), None);
+    }
 
     #[test]
     fn each_core_spells_colour_correction_its_own_way() {

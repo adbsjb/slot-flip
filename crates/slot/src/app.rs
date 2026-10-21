@@ -379,6 +379,8 @@ pub struct App {
     controls: Controls,
     capture: Option<BindCapture>,
     plugged_face: Option<TexId>,
+    console_plugged: Option<TexId>,
+    console_slot: Option<(TexId, TexId)>,
     binding_faces: HashMap<String, [(TexId, u32, u32); 2]>,
     carousel: CarouselKeys,
     shortcuts: ShortcutKeys,
@@ -405,6 +407,7 @@ pub struct App {
     quick_wallpaper_faces: Option<[(TexId, u32, u32); 2]>,
     quick_palette_faces: Option<[(TexId, u32, u32); 2]>,
     quick_bezel_faces: [Option<[(TexId, u32, u32); 2]>; 3],
+    disc_glare: Option<TexId>,
     game_bezel: Option<TexId>,
     in_game_menu: Option<QuickRow>,
     /// 0 while the pause footer is off the bottom, 1 when it sits in the carousel's place.
@@ -563,6 +566,8 @@ impl App {
             controls: Controls::default(),
             capture: None,
             plugged_face: None,
+            console_plugged: None,
+            console_slot: None,
             binding_faces: HashMap::new(),
             carousel: CarouselKeys::default(),
             shortcuts: ShortcutKeys::default(),
@@ -589,6 +594,7 @@ impl App {
             quick_wallpaper_faces: None,
             quick_palette_faces: None,
             quick_bezel_faces: [None, None, None],
+            disc_glare: None,
             game_bezel: None,
             in_game_menu: None,
             footer: 0.0,
@@ -936,6 +942,11 @@ impl App {
     pub fn in_game_hidden(&self) -> Vec<QuickRow> {
         let no_bezel = self.playing_platform() == Platform::Gba && !self.framed_panel();
         let mut hidden = Vec::new();
+        // A disc has no bezel, shader or colour correction of its own to change.
+        if self.playing_platform() == Platform::Ps1 {
+            hidden.extend([QuickRow::Shader, QuickRow::ColourCorrection, QuickRow::Bezel]);
+            hidden.extend([QuickRow::GameTurboA, QuickRow::GameTurboB]);
+        }
         if !self.palette_live {
             hidden.push(QuickRow::Palette);
         }
@@ -987,7 +998,16 @@ impl App {
             QuickRow::Shader
             | QuickRow::ColourCorrection
             | QuickRow::PlayBrightness
-            | QuickRow::PlayBlueLight => self.quick_value(self.playing_row(row)),
+            | QuickRow::PlayBlueLight => {
+                // A row with no per-system twin (a disc has none for the shader,
+                // colour correction or bezel) shows nothing; it must never be asked
+                // for again, or this would never return.
+                let twin = self.playing_row(row);
+                if twin == row {
+                    return None;
+                }
+                self.quick_value(twin)
+            }
             QuickRow::Brightness => Some(QuickValue::level(self.state.brightness)),
             QuickRow::BlueLight => Some(match self.state.blue_light {
                 0 => QuickValue::Off,
@@ -1131,7 +1151,13 @@ impl App {
         dim: (TexId, u32, u32),
         lit: (TexId, u32, u32),
     ) {
-        self.quick_bezel_faces[bezel_slot(platform)] = Some([dim, lit]);
+        if let Some(slot) = bezel_slot(platform) {
+            self.quick_bezel_faces[slot] = Some([dim, lit]);
+        }
+    }
+
+    fn quick_bezel_face(&self, platform: Platform) -> Option<[(TexId, u32, u32); 2]> {
+        bezel_slot(platform).and_then(|slot| self.quick_bezel_faces[slot])
     }
 
     pub fn bezel_files(&self, platform: Platform) -> Vec<String> {
@@ -1156,11 +1182,12 @@ impl App {
         choices
     }
 
-    fn bezel_pick(&mut self, platform: Platform) -> &mut BezelPick {
+    fn bezel_pick(&mut self, platform: Platform) -> Option<&mut BezelPick> {
         match platform {
-            Platform::Gba => &mut self.state.bezel_gba,
-            Platform::Gb => &mut self.state.bezel_gb,
-            Platform::Gbc => &mut self.state.bezel_gbc,
+            Platform::Gba => Some(&mut self.state.bezel_gba),
+            Platform::Gb => Some(&mut self.state.bezel_gb),
+            Platform::Gbc => Some(&mut self.state.bezel_gbc),
+            Platform::Ps1 => None,
         }
     }
 
@@ -1169,6 +1196,7 @@ impl App {
             Platform::Gba => &self.state.bezel_gba,
             Platform::Gb => &self.state.bezel_gb,
             Platform::Gbc => &self.state.bezel_gbc,
+            Platform::Ps1 => return BezelPick::None,
         };
         match self.bezel_choices(platform).contains(pick) {
             true => pick.clone(),
@@ -1181,7 +1209,10 @@ impl App {
         let key = self.resolved_bezel(platform).key();
         let at = choices.iter().position(|c| c.key() == key).unwrap_or(0);
         let n = choices.len();
-        *self.bezel_pick(platform) = choices[if right {
+        let Some(pick) = self.bezel_pick(platform) else {
+            return;
+        };
+        *pick = choices[if right {
             (at + 1) % n
         } else {
             (at + n - 1) % n
@@ -1415,6 +1446,19 @@ impl App {
         for (_, shelf) in &mut self.shelves {
             shelf.set_gb_shadow(GbShell::Notched, notched);
             shelf.set_gb_shadow(GbShell::Rounded, rounded);
+        }
+    }
+
+    pub fn set_disc_glare(&mut self, face: TexId) {
+        self.disc_glare = Some(face);
+        for (_, shelf) in &mut self.shelves {
+            shelf.set_disc_glare(face);
+        }
+    }
+
+    pub fn set_disc_shadow(&mut self, face: TexId) {
+        for (_, shelf) in &mut self.shelves {
+            shelf.set_gb_shadow(GbShell::Disc, face);
         }
     }
 
@@ -1672,6 +1716,42 @@ impl App {
         self.plugged_face = Some(tex);
     }
 
+    /// The slot a disc goes into: drawn as a PlayStation rather than the cart slot.
+    pub fn set_console_faces(&mut self, back: TexId, front: TexId, plugged: TexId) {
+        self.console_slot = Some((back, front));
+        self.console_plugged = Some(plugged);
+    }
+
+    /// Whether the slot on screen is a PlayStation: while a disc is in, or when the
+    /// shelf in view is the PS1 one.
+    pub fn console_slot_wanted(&self) -> bool {
+        match self.seated_cart() {
+            Some(cart) => cart.platform == Platform::Ps1,
+            None => self.shelf_is(Platform::Ps1),
+        }
+    }
+
+    fn shelf_is(&self, platform: Platform) -> bool {
+        self.shelves
+            .get(self.shelf_at)
+            .is_some_and(|(rack, _)| rack.platform() == Some(platform))
+    }
+
+    /// The back and front strips to draw the slot with right now.
+    fn slot_pair(&self) -> Option<(TexId, TexId)> {
+        match (self.console_slot_wanted(), self.console_slot) {
+            (true, Some(pair)) => Some(pair),
+            _ => self.slot_faces,
+        }
+    }
+
+    fn plugged_pair(&self) -> Option<TexId> {
+        match (self.console_slot_wanted(), self.console_plugged) {
+            (true, Some(tex)) => Some(tex),
+            _ => self.plugged_face,
+        }
+    }
+
     pub fn capturing(&self) -> bool {
         self.capture.is_some()
     }
@@ -1734,11 +1814,12 @@ impl App {
     }
 
     pub fn binding_table(&self) -> crate::input::Table {
-        crate::input::Table::new(
+        crate::input::Table::for_platform(
             &self.controls,
             &self.shortcuts,
             &self.carousel,
             self.state.turbo,
+            self.playing_platform(),
         )
     }
 
@@ -1979,7 +2060,9 @@ impl App {
     }
 
     pub fn records_rewind(&self) -> bool {
-        self.state.rewind
+        // A disc has no rewind button (L2 is a game button there), so nothing would
+        // ever use what was recorded.
+        self.state.rewind && self.playing_platform() != Platform::Ps1
     }
 
     pub fn picture_rect(&self) -> [f32; 4] {
@@ -2153,6 +2236,7 @@ impl App {
             Platform::Gba => self.state.shader_gba,
             Platform::Gb => self.state.shader_gb,
             Platform::Gbc => self.state.shader_gbc,
+            Platform::Ps1 => Shader::Off,
         }
     }
 
@@ -2169,6 +2253,7 @@ impl App {
             Platform::Gba => self.state.colour_correction_gba,
             Platform::Gb => self.state.colour_correction_gb,
             Platform::Gbc => self.state.colour_correction_gbc,
+            Platform::Ps1 => false,
         }
     }
 
@@ -3000,6 +3085,8 @@ impl App {
             Platform::Gba => (&mut self.state.shader_gba, &Shader::GBA[..]),
             Platform::Gb => (&mut self.state.shader_gb, &Shader::GB[..]),
             Platform::Gbc => (&mut self.state.shader_gbc, &Shader::GB[..]),
+            // The shaders imitate a handheld's LCD; a console picture has none to offer.
+            Platform::Ps1 => return,
         };
         *shader = shader.step(choices, right);
         let said = match *shader {
@@ -3052,6 +3139,7 @@ impl App {
                 Platform::Gba => QuickRow::GbaColourCorrection,
                 Platform::Gb => QuickRow::GbColourCorrection,
                 Platform::Gbc => QuickRow::GbcColourCorrection,
+                Platform::Ps1 => return true,
             };
             self.change_setting(row, true);
             let said = match self.colour_correction() {
@@ -3890,9 +3978,9 @@ impl App {
                 bind_waiting: self.keymap_waiting_face,
                 bind_armed: self.keymap_waiting(),
                 palette: self.quick_palette_faces,
-                gba_bezel: self.quick_bezel_faces[bezel_slot(Platform::Gba)],
-                gb_bezel: self.quick_bezel_faces[bezel_slot(Platform::Gb)],
-                gbc_bezel: self.quick_bezel_faces[bezel_slot(Platform::Gbc)],
+                gba_bezel: self.quick_bezel_face(Platform::Gba),
+                gb_bezel: self.quick_bezel_face(Platform::Gb),
+                gbc_bezel: self.quick_bezel_face(Platform::Gbc),
                 bezel: None,
                 over_game: false,
                 footer_legends: true,
@@ -3914,11 +4002,11 @@ impl App {
                             dim,
                             out,
                         );
-                        draw_empty_slot(self.canvas(), self.slot_faces, out);
+                        draw_empty_slot(self.canvas(), self.slot_pair(), out);
                     }
                     _ => {
                         self.shelf()
-                            .draw(self.canvas(), self.shelf_shake(), self.slot_faces, out);
+                            .draw(self.canvas(), self.shelf_shake(), self.slot_pair(), out);
                         draw_slot_name(
                             self.canvas(),
                             self.shelf_platform,
@@ -4032,7 +4120,7 @@ impl App {
                 gba_bezel: None,
                 gb_bezel: None,
                 gbc_bezel: None,
-                bezel: self.quick_bezel_faces[bezel_slot(self.playing_platform())],
+                bezel: self.quick_bezel_face(self.playing_platform()),
                 bindings: None,
                 bind_waiting: None,
                 bind_armed: None,
@@ -4101,7 +4189,7 @@ impl App {
             Phase::Playing { cart } if self.footer > 0.0 => {
                 let row = self.in_game_menu_shown().or(self.footer_row);
                 match row.is_some_and(QuickRow::binds) {
-                    true => slot_ui::draw_plugged_slot(self.canvas(), self.plugged_face, out),
+                    true => slot_ui::draw_plugged_slot(self.canvas(), self.plugged_pair(), out),
                     false => self.draw_seated_mouth(cart, out),
                 }
                 row
@@ -4109,15 +4197,15 @@ impl App {
             // The carousel menu is not a game, so the mouth stays empty, in the
             // same place the shelf already had it.
             Phase::QuickMenu { row } if row.binds() => {
-                slot_ui::draw_plugged_slot(self.canvas(), self.plugged_face, out);
+                slot_ui::draw_plugged_slot(self.canvas(), self.plugged_pair(), out);
                 Some(*row)
             }
             Phase::QuickMenu { row } => {
-                draw_empty_slot(self.canvas(), self.slot_faces, out);
+                draw_empty_slot(self.canvas(), self.slot_pair(), out);
                 Some(*row)
             }
             Phase::About => {
-                draw_empty_slot(self.canvas(), self.slot_faces, out);
+                draw_empty_slot(self.canvas(), self.slot_pair(), out);
                 self.draw_about_legend(out);
                 return;
             }
@@ -4160,6 +4248,7 @@ impl App {
         };
         let (rest, scale) = self.shelf().selected_at(self.canvas());
         SlotChrome {
+            glare: self.disc_glare,
             cart,
             face,
             rest,
@@ -4171,7 +4260,7 @@ impl App {
             game: false,
             over: true,
             behind: self.shelf().behind(stem),
-            slot: self.slot_faces,
+            slot: self.slot_pair(),
             canvas: self.canvas(),
         }
         .draw(out);
@@ -4280,6 +4369,7 @@ impl App {
         let alpha = self.alert_alpha();
         let (rest, scale) = self.shelf().selected_at(self.canvas());
         SlotChrome {
+            glare: self.disc_glare,
             cart,
             face,
             rest,
@@ -4297,7 +4387,7 @@ impl App {
                         | Phase::Ejecting { .. }
                 ),
             behind: self.shelf().behind(stem),
-            slot: self.slot_faces,
+            slot: self.slot_pair(),
             canvas: self.canvas(),
         }
         .draw(out);
@@ -5715,11 +5805,13 @@ fn free_stamp(ring: &StateRing, now: i64) -> String {
     stamp
 }
 
-fn bezel_slot(platform: Platform) -> usize {
+/// Where a platform's bezel thumbnails live; a PlayStation has no bezel to pick.
+fn bezel_slot(platform: Platform) -> Option<usize> {
     match platform {
-        Platform::Gba => 0,
-        Platform::Gb => 1,
-        Platform::Gbc => 2,
+        Platform::Gba => Some(0),
+        Platform::Gb => Some(1),
+        Platform::Gbc => Some(2),
+        Platform::Ps1 => None,
     }
 }
 

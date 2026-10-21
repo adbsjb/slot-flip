@@ -1,8 +1,8 @@
 use slot_store::{Cart, Platform};
 use slot_ui::{
     cart_box, draw_empty_slot, edge, foot_y, housing, icon_box, opening, recess, seated_box,
-    Canvas, Draw, Shelf, SlotChrome, TexId, ALERT_PX, CART_H, CART_W, GB_LABEL_H, GB_LABEL_Y,
-    LABEL_H, LABEL_Y, MOUTH_H, OUT_H, OUT_W,
+    Canvas, Draw, Shelf, SlotChrome, TexId, ALERT_PX, CART_H, CART_W, GBC_LABEL_H, GBC_LABEL_Y,
+    GB_LABEL_H, GB_LABEL_Y, LABEL_H, LABEL_Y, MOUTH_H, OUT_H, OUT_W,
 };
 
 const CENTRED: f32 = (OUT_W - CART_W) as f32 / 2.0;
@@ -43,6 +43,8 @@ fn label_band(c: &Cart) -> (f32, f32) {
     let (y, h) = match c.platform {
         Platform::Gba => (LABEL_Y as f32, LABEL_H as f32),
         Platform::Gb | Platform::Gbc => (GB_LABEL_Y as f32, GB_LABEL_H as f32),
+        // Borrows the Game Boy Color pak until a disc has a case of its own.
+        Platform::Ps1 => (GBC_LABEL_Y as f32, GBC_LABEL_H as f32),
     };
     let k = seated_box(c.platform).1 as f32 / cart_box(c.platform).1 as f32;
     (y * k, h * k)
@@ -139,6 +141,7 @@ fn cart_visible_height(out: &[Draw]) -> f32 {
 
 fn chrome_into(c: &Cart, seat: f32, out: &mut Vec<Draw>) {
     SlotChrome {
+        glare: None,
         cart: c,
         face: None,
         rest: centred(c),
@@ -172,6 +175,7 @@ fn a_cart_the_row_had_not_finished_moving_slides_across_as_it_goes_in() {
     let at = |seat: f32| {
         let mut out = Vec::new();
         SlotChrome {
+            glare: None,
             cart: &c,
             face: Some(face),
             rest,
@@ -232,6 +236,7 @@ fn a_cart_the_row_had_not_finished_moving_slides_across_as_it_goes_in() {
 fn draw_powering_on(t: f32, out: &mut Vec<Draw>) {
     let c = cart();
     SlotChrome {
+        glare: None,
         cart: &c,
         face: None,
         rest: CENTRED,
@@ -646,6 +651,7 @@ fn the_empty_slot_is_the_same_slot_the_chrome_draws() {
     let c = cart();
     let mut seated = Vec::new();
     SlotChrome {
+        glare: None,
         cart: &c,
         face: None,
         rest: CENTRED,
@@ -884,6 +890,7 @@ fn a_clear_carts_board_goes_into_the_slot_and_comes_out_with_it() {
             let seat = step as f32 / 10.0;
             let mut out = Vec::new();
             SlotChrome {
+                glare: None,
                 cart: &c,
                 face: Some(face),
                 rest: centred(&c),

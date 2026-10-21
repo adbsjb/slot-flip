@@ -37,6 +37,10 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 - ✅ **Released v0.6.0**: the About plate names the Flip, the one-time update word,
   and the forgiving cart labels
 
+- ✅ **Released v0.7.0**: PlayStation discs. A PS1 shelf, discs that spin into a
+  console-style slot with cover art, a PlayStation pad on the Flip's buttons, and
+  the PCSX-ReARMed core bundled ([#20](https://github.com/boomchu-123/slot-flip/issues/20))
+
 **Next**
 - 💡 **Card repair on MinUI.** Upstream's SELECT + START repair is switched off
   on the Flip (its script is written for upstream's own devices and unmounts the
@@ -45,6 +49,11 @@ a time; the fork's own work is the Flip port itself and a few small additions.
   [#17](https://github.com/boomchu-123/slot-flip/issues/17)
 - 💡 Cartridge-label artwork: fetch real label images automatically (blocked
   on a ScreenScraper developer ID; currently you supply your own labels)
+- 🚧 **More systems** ([#20](https://github.com/boomchu-123/slot-flip/issues/20)).
+  PlayStation is out in v0.7.0. Still to do there: disc swapping for multi-disc
+  games, passing the analog sticks to games, memory-card handling, and timing heavy 3D games. Next
+  systems: NES, SNES and the Sega consoles, each needing a core, a shelf and a
+  cartridge shape of its own. Nothing here is promised until it runs on hardware
 
 **Housekeeping that has bitten before**
 - Rebuild the mGBA and gpSP cores whenever a sync changes `cores/` (v0.4.0

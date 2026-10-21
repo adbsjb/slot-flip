@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -25,7 +25,9 @@ impl Cart {
                     self.code = code;
                 }
             }
-            _ => {
+            // A disc image has no header to read a title from; the shelf uses its name.
+            Platform::Ps1 => {}
+            Platform::Gb | Platform::Gbc => {
                 if let Some(title) = crate::gb::title(&self.rom) {
                     self.title = title;
                 }
@@ -73,12 +75,17 @@ pub fn scan(root: &Path) -> Result<Vec<Cart>, StoreError> {
             }
         };
         let labels = Labels::read(root, platform);
+        let entries: Vec<_> = entries.flatten().collect();
+        let in_playlists = match platform {
+            Platform::Ps1 => playlist_members(&entries),
+            _ => HashSet::new(),
+        };
         for entry in entries {
-            let Ok(entry) = entry else {
-                continue;
-            };
             let rom = entry.path();
             if is_hidden(&rom) || !platform.accepts(&rom) || !is_file(&entry) {
+                continue;
+            }
+            if is_listed_by_playlist(&rom, &in_playlists) {
                 continue;
             }
             let Some(stem) = rom.file_stem().and_then(|s| s.to_str()) else {
@@ -100,6 +107,45 @@ pub fn scan(root: &Path) -> Result<Vec<Cart>, StoreError> {
         (a.platform as u8, sort_key(&a.stem)).cmp(&(b.platform as u8, sort_key(&b.stem)))
     });
     Ok(carts)
+}
+
+/// The files a folder's `.m3u` playlists name, lower-cased and without any
+/// directory part. A multi-disc game is shelved once, as its playlist, so its
+/// individual discs must not appear beside it.
+fn playlist_members(entries: &[std::fs::DirEntry]) -> HashSet<String> {
+    let mut named = HashSet::new();
+    for entry in entries {
+        let path = entry.path();
+        let is_m3u = path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("m3u"));
+        if !is_m3u || is_hidden(&path) {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        for line in text.lines().map(str::trim) {
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            // Playlists written on Windows use backslashes.
+            let file = line.rsplit(['/', '\\']).next().unwrap_or(line);
+            named.insert(file.to_lowercase());
+        }
+    }
+    named
+}
+
+fn is_listed_by_playlist(rom: &Path, listed: &HashSet<String>) -> bool {
+    let is_m3u = rom
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("m3u"));
+    !is_m3u
+        && rom
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| listed.contains(&n.to_lowercase()))
 }
 
 pub fn listing(dir: &Path) -> HashMap<String, String> {

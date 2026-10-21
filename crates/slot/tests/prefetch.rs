@@ -3,7 +3,7 @@ mod common;
 use std::path::{Path, PathBuf};
 
 use common::{session_with_platform, tmp_root_with_real_carts};
-use slot::prefetch::{Prefetch, PREFETCH_REST_MS};
+use slot::prefetch::{Prefetch, MAX_PREFETCH, PREFETCH_REST_MS};
 use slot_input::{Btn, Millis, RawEvent};
 
 fn rom(dir: &Path, name: &str, len: usize) -> PathBuf {
@@ -95,4 +95,37 @@ fn resting_on_the_shelf_reads_the_selected_cart_and_inserting_lets_it_go() {
     step(&mut s, &mut now, vec![RawEvent::Up(Btn::A)]);
     step(&mut s, &mut now, vec![]);
     assert_eq!(s.prefetching(), None, "kept reading once the cart went in");
+}
+
+#[test]
+fn a_disc_image_is_never_read_ahead_in_full() {
+    let d = tempfile::tempdir().unwrap();
+    let big = d.path().join("game.chd");
+    // Sparse, so the test does not write 64 MB: only its length matters.
+    std::fs::File::create(&big)
+        .unwrap()
+        .set_len(MAX_PREFETCH + 1)
+        .unwrap();
+    let mut p = Prefetch::default();
+    p.browse(Some(&big), 0);
+    p.browse(Some(&big), PREFETCH_REST_MS);
+    assert_eq!(
+        p.wait(),
+        Some(0),
+        "a file this size is not worth reading ahead"
+    );
+}
+
+#[test]
+fn the_biggest_cartridge_still_is() {
+    let d = tempfile::tempdir().unwrap();
+    let rom = d.path().join("big.gba");
+    std::fs::File::create(&rom)
+        .unwrap()
+        .set_len(32 << 20)
+        .unwrap();
+    let mut p = Prefetch::default();
+    p.browse(Some(&rom), 0);
+    p.browse(Some(&rom), PREFETCH_REST_MS);
+    assert_eq!(p.wait(), Some(32 << 20));
 }

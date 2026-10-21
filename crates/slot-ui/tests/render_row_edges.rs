@@ -173,6 +173,7 @@ fn the_slot_takes_over_the_cart_where_the_row_had_it() {
     let mut after = Vec::new();
     s.draw_row(Canvas::FRAMED, Some(&cart.stem), 0.0, 0.0, 1.0, &mut after);
     SlotChrome {
+        glare: None,
         cart: &cart,
         face: Some(faces[s.index]),
         rest,

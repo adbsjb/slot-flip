@@ -42,10 +42,14 @@ jobs:
           file "$pak/slot" | grep -q aarch64
           file "$pak/System/mgba_libretro.so" | grep -q aarch64
           file "$pak/System/gpsp_libretro.so" | grep -q aarch64
+          file "$pak/System/pcsx_rearmed_libretro.so" | grep -q aarch64
           test -x "$pak/launch.sh"
           test -f "$pak/System/licenses/gpsp-GPL-2.0.txt"
           test -f "$pak/System/licenses/mgba-MPL-2.0.txt"
           test -f "$pak/System/licenses/gpsp-src.tar.gz"
+          test -f "$pak/System/licenses/pcsx-GPL-2.0.txt"
+          test -f "$pak/System/licenses/pcsx-src.tar.gz"
+          test -f "$pak/System/licenses/pcsx_rearmed_libretro.so.meta"
 
       - name: Package
         id: package
@@ -86,8 +90,9 @@ jobs:
           `<SD CARD>/Tools/my355/Slot.pak`, then boot MinUI and open
           **Tools -> Slot**. Full guide in the README.
 
-          Emulation by mGBA (MPL-2.0) and gpSP (GPL-2.0). Their licences,
-          patches and gpSP's source are in `System/licenses/`.
+          Emulation by mGBA (MPL-2.0), gpSP (GPL-2.0) and PCSX-ReARMed
+          (GPL-2.0). Their licences, patches and the gpSP and PCSX-ReARMed
+          source are in `System/licenses/`.
 
           A fork of slot by Brandon T. Kowalski (https://slot-cfw.fyi). Not
           affiliated with the upstream author or Nintendo. Use your own
