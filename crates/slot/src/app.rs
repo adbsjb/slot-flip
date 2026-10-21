@@ -942,6 +942,10 @@ impl App {
     pub fn in_game_hidden(&self) -> Vec<QuickRow> {
         let no_bezel = self.playing_platform() == Platform::Gba && !self.framed_panel();
         let mut hidden = Vec::new();
+        // A disc has no bezel, shader or colour correction of its own to change.
+        if self.playing_platform() == Platform::Ps1 {
+            hidden.extend([QuickRow::Shader, QuickRow::ColourCorrection, QuickRow::Bezel]);
+        }
         if !self.palette_live {
             hidden.push(QuickRow::Palette);
         }
@@ -993,7 +997,16 @@ impl App {
             QuickRow::Shader
             | QuickRow::ColourCorrection
             | QuickRow::PlayBrightness
-            | QuickRow::PlayBlueLight => self.quick_value(self.playing_row(row)),
+            | QuickRow::PlayBlueLight => {
+                // A row with no per-system twin (a disc has none for the shader,
+                // colour correction or bezel) shows nothing; it must never be asked
+                // for again, or this would never return.
+                let twin = self.playing_row(row);
+                if twin == row {
+                    return None;
+                }
+                self.quick_value(twin)
+            }
             QuickRow::Brightness => Some(QuickValue::level(self.state.brightness)),
             QuickRow::BlueLight => Some(match self.state.blue_light {
                 0 => QuickValue::Off,
