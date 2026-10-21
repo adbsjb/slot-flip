@@ -406,6 +406,18 @@ pub struct LibretroCore {
     _lib: Library,
 }
 
+/// The bytes to hand a core for `path`. A core that sets `need_fullpath`
+/// (disc images, in practice) opens the files itself and may ignore `data`, so
+/// reading a multi-hundred-megabyte image into RAM for it is waste and can
+/// exhaust memory on a handheld. It still gets a missing file reported here.
+fn content_bytes(path: &Path, need_fullpath: bool) -> std::io::Result<Vec<u8>> {
+    if need_fullpath {
+        std::fs::metadata(path)?;
+        return Ok(Vec::new());
+    }
+    std::fs::read(path)
+}
+
 fn cdir(path: &Path) -> Result<CString, CoreError> {
     CString::new(path.to_string_lossy().as_bytes())
         .map_err(|_| CoreError::Load(format!("{} contains a nul", path.display())))
@@ -579,14 +591,20 @@ impl RetroCore for LibretroCore {
     fn load(&mut self, rom: &Path) -> Result<(), CoreError> {
         self.unload();
         self.state_size = None;
-        self.rom = std::fs::read(rom)?;
+        let mut sys = SystemInfo::default();
+        unsafe { (self.api.get_system_info)(&mut sys) };
+        self.rom = content_bytes(rom, sys.need_fullpath)?;
         self.rom_path = Some(
             CString::new(rom.as_os_str().as_encoded_bytes())
                 .map_err(|_| CoreError::Load("rom path contains a nul".into()))?,
         );
         let info = GameInfo {
             path: self.rom_path.as_ref().map_or(ptr::null(), |p| p.as_ptr()),
-            data: self.rom.as_ptr() as *const c_void,
+            data: if self.rom.is_empty() {
+                ptr::null()
+            } else {
+                self.rom.as_ptr() as *const c_void
+            },
             size: self.rom.len(),
             meta: ptr::null(),
         };
@@ -1587,6 +1605,45 @@ mod tests {
         let button = |id| unsafe { input_state(1, DEVICE_JOYPAD, 0, id) };
         assert_eq!(button(0), 1, "B is bit 0 of the libretro joypad");
         assert_eq!(button(8), 0, "A is not held on port 1");
+    }
+
+    #[test]
+    fn input_state_answers_the_second_shoulders_and_stick_clicks() {
+        let mut host = host_with(HashMap::new(), false);
+        host.inputs = [
+            ButtonMask::L2 | ButtonMask::R3,
+            ButtonMask::R2 | ButtonMask::L3,
+        ];
+        let _active = Active::bind(&mut host);
+
+        let button = |port, id| unsafe { input_state(port, DEVICE_JOYPAD, 0, id) };
+        // libretro joypad ids 12..15 are L2, R2, L3, R3.
+        assert_eq!((button(0, 12), button(0, 13)), (1, 0), "L2 held, R2 not");
+        assert_eq!((button(0, 14), button(0, 15)), (0, 1), "R3 held, L3 not");
+        assert_eq!((button(1, 12), button(1, 13)), (0, 1), "R2 on port 1");
+        assert_eq!((button(1, 14), button(1, 15)), (1, 0), "L3 on port 1");
+    }
+
+    #[test]
+    fn a_core_that_needs_a_path_is_not_handed_the_file_in_memory() {
+        let dir = std::env::temp_dir().join(format!("slot-content-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let image = dir.join("disc.bin");
+        std::fs::write(&image, vec![7u8; 4096]).unwrap();
+
+        assert!(
+            content_bytes(&image, true).unwrap().is_empty(),
+            "a path-only core must not have the image read into RAM"
+        );
+        assert_eq!(content_bytes(&image, false).unwrap().len(), 4096);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_missing_file_is_still_reported_for_a_path_only_core() {
+        let missing = std::env::temp_dir().join("slot-content-does-not-exist.cue");
+        assert!(content_bytes(&missing, true).is_err());
+        assert!(content_bytes(&missing, false).is_err());
     }
 
     #[test]
