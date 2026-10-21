@@ -136,11 +136,12 @@ silently delete. Section 5 turns this into a post-merge checklist.
 | Emulator pacing | On the Flip the emulator **free-runs at ~60 fps** and the display shows the latest frame, instead of being locked to the display. The panel refreshes below 60 Hz, so locking starves audio and slows the game. | `slot/src/emu.rs` (`let lock = !cfg!(feature = "flip") && ...`) |
 | Audio | Under `flip`, negotiates a rate the codec locks onto (48 kHz, then 44.1 kHz, then the core's) and runs the ring at the rate actually opened. Merged with upstream's release-after-silence and retry logic. | `slot/src/audio/alsa.rs` (`preferred_rates`, `open_pcm` returns `(pcm, rate)`) |
 | Input | Face buttons from the gpio node; the gamepad node is used for the analog stick only (reading both double-fires). A/B and X/Y swapped to match printed labels. R2 stands in for R1 (some units have a dead R1). Right stick = fast-forward. | `slot/src/input/evdev.rs` |
-| Button remap | `Config/buttons.ini` overrides the built-in map without a rebuild. In the menu, **Buttons** opens pages of controls (D-pad, Face Buttons, Shoulders, Start & Select); A on a row waits for a key, the two swap if the key was taken, and it saves. The key names are menu values (faces built like the bezel/palette ones), not a separate screen. The map is a live `Mutex`, not a set-once cell, and `to_raw` offers each key to a one-shot capture first. Power, volume and lid keys are never captured. | `input/keymap.rs`, `buttons_editor.rs`, `slot-ui/src/quick_menu.rs` (`QuickRow::bind_at`, the `BUTTONS*` pages), `QuickMenu::bindings` |
+| Key Map | `Config/buttons.ini` overrides the built-in *kernel key code* map without a rebuild. Upstream's **Controls** pages set what a logical button does; the fork's **Controls > Key Map** (labelled "Key Map", `QuickRow::Buttons`) sets which physical key is that button: pages D-pad / Face / Shoulders / Start & Select, A on a row waits for a key, the two swap if it was taken, then it saves. Names are prefixed `keymap_` in `App` because upstream's own capture uses `capture` and `binding_faces`. The map is a live `Mutex`, and `to_raw` offers each key to a one-shot capture first. Power, volume and lid keys are never captured. | `input/keymap.rs`, `buttons_editor.rs`, `slot-ui/src/quick_menu.rs` (`bind_at`, `KEY_MAP*`), `QuickMenu::bindings` |
 | Shaders | Default **Off** for GBA and GB/GBC under the `flip`, `my282` and `miyoomini` features (they all enable `slot-store/flip`). Other shaders are still selectable. | `slot-store/src/slot_state.rs` |
 | 4:3 fill and bezel | Upstream stretches 4:3 panels and draws an SP bezel. The Flip has its own bezel and the shelf was tuned at 3:2, so `upload_bezel` is a no-op under `flip`. | `slot/src/frontend.rs` |
 | Power | Both LEDs (green running/charged, red low battery, both charging). Lid close sleeps immediately via the hall sensor. | `slot-power/src/device.rs`, `launch.sh` |
-| Sleep Timeout | Menu setting (1/3/5/10/30 min or Off) for auto power-off after sleep; persisted as `sleep_timeout_min`. | `slot-store` (`SLEEP_TIMEOUTS_MIN`), `QuickRow::SleepTimeout` |
+| Lid power-off | Upstream's **General > Lid Power Off** (`lid_off_min`, 1/3/5/10/15/30). The fork's old Sleep Timeout row is gone; a saved `sleep_timeout_min` is read once into `lid_off_min` (3 stays unset, 0 "Off" becomes 30) and never written back. | `slot-store/src/slot_state.rs` (`legacy_lid_off`) |
+| Card repair | Upstream's SELECT + START repair is **off on the Flip** (`repair_possible`): its script ships in upstream's own device bundle and unmounts the card, which belongs to MinUI here. The red alarm still shows. | `slot/src/app.rs` |
 | Wallpaper | `background = <file>` in `Config/slot.ini` pins one image; `random` (default) uses upstream's shuffled deck. | `slot/src/wallpaper.rs` |
 | Read-only card alarm | Resolves symlinks before comparing against `/proc/mounts`; otherwise `/mnt/SDCARD` falls through to the read-only squashfs `/` and alarms on every boot. | `slot-power/src/device.rs` (`read_only`) |
 | Paths | Data lives in `<SD>/Slot`, never MinUI's `Roms`/`Saves`. | `launch.sh` |
@@ -148,9 +149,10 @@ silently delete. Section 5 turns this into a post-merge checklist.
 | GBA core | gpSP by default (ARM64 dynarec); mGBA has none. Per-game override in `selected_core.txt`. | `slot-store/src/core.rs` |
 | Crash handler | Adds a 32-bit ARM register reader (upstream covers aarch64 and x86_64 only). | `slot/src/crash.rs` (experimental) |
 
-Quick-menu structure: upstream has pages **Screen** and **Gameplay** under a main
-list. The fork adds **Buttons** to the main page and **Sleep Timeout** to
-Gameplay. Tests assert row order and counts (section 6).
+Quick-menu structure: upstream owns the main list (General, Screen, Gameplay,
+Controls, About). The fork adds one page, **Key Map**, as the last entry under
+**Controls**. Tests assert row order and counts (section 6); some upstream tests
+walk a page with Up/Down, so adding a row to an upstream page can break them.
 
 ---
 
@@ -245,6 +247,26 @@ grep -n 'canonicalize' crates/slot-power/src/device.rs            # read-only ch
 grep -n 'SdlSurface\|mod sdl' crates/slot-gfx/src/lib.rs          # Flip surface exported
 grep -n 'cmp -s' flip/Tools/my355/Slot.pak/launch.sh              # core refresh
 ```
+
+**Cores are part of every sync.** Upstream adds patches to `cores/*/` without
+saying so in the changelog, and the frontend can depend on them (v1.8's Palette
+Auto needs its mGBA patch). Check the bundle against the patches:
+
+```sh
+git diff <previous-upstream-tag> <new-upstream-tag> --stat -- cores taskfile.yml
+for p in cores/mgba/*.patch;  do b=$(basename $p); [ -f flip/Tools/my355/Slot.pak/System/licenses/mgba-$b ]  || echo "MISSING $b"; done
+for p in cores/gpsp/*.patch;  do b=$(basename $p); [ -f flip/Tools/my355/Slot.pak/System/licenses/gpsp-$b ]  || echo "MISSING $b"; done
+```
+
+If a patch or pinned commit changed, rebuild the core (section 9) before
+releasing. The `core_options` test loads `vendor/mgba_libretro.so` and fails when
+that core is older than the frontend, so do not skip it. v0.4.0 shipped an mGBA
+core that was missing one of v1.7's patches because this step was skipped.
+
+**Also look for upstream device assumptions.** Scripts that ship only in
+upstream's `card/` bundle (`repair.sh`, `lid.sh`) never reach the Flip pak, and
+code that calls them or hard-codes another device's hardware (`rmmod 8821cs`)
+needs a decision, not a blind merge.
 
 Then run the full tests (section 6), then verify on a device (section 7). Open a
 PR from the sync branch so `pr-checks` runs on the merged tree.

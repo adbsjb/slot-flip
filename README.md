@@ -81,12 +81,15 @@ devices):
 
 - **Miyoo Flip port** — SDL2 + GLES display, the Flip's button map, lid sensor,
   and power LED, packaged as a MinUI Tool.
-- **Pin a specific background** — a `background =` key in `slot.ini` to choose
-  one wallpaper instead of the random shuffle (or set `random`).
-- **Remappable buttons** — an in-app **Buttons** screen plus a plain-text
-  `buttons.ini`, so any device's keys can be rebound without a rebuild.
+- **Wallpaper in the menu** — pick one under **General > Wallpaper** (your own
+  PNGs from `Slot/Wallpapers`, or Random, Default, Blur).
+- **Controls and Key Map** — upstream's **Controls** pages set what each button
+  does (in-game buttons, shortcuts, shelf keys). The fork adds a **Key Map**
+  page under them for the physical keys themselves, so a device whose keys
+  report differently can be fixed without a rebuild.
 - **Lid-close sleep + auto power-off** — shut the lid and it sleeps instantly,
-  then powers off after a timeout you choose in the menu (1–30 min, or never).
+  then powers off after the time you choose under **General > Lid Power Off**
+  (1–30 min).
 - **Right power LED behaviour** — green while running, red at low battery, both
   while charging.
 - **Portable config** — the button map and settings are data-driven, so the port
@@ -202,18 +205,21 @@ Any image works — Slot scales it to fit the cart label.
 ### Sleep & auto power-off
 
 - **Close the lid → sleeps immediately.**
-- While asleep, the device powers itself off after a timeout you pick in the
-  quick menu under **Sleep Timeout**: `1 / 3 / 5 / 10 / 30` minutes, or `Off` to
-  stay asleep indefinitely. The choice is saved across reboots.
+- While asleep, the device powers itself off after the time you pick in the
+  menu under **General > Lid Power Off**: `1 / 3 / 5 / 10 / 15 / 30` minutes. The
+  choice is saved across reboots. (Releases before v0.5.0 also had an `Off`
+  that stayed asleep forever; that now maps to 30 minutes.)
 
 ### Button remapping
 
 Slot ships with the correct map for the Flip, but you can rebind any button
 without a rebuild. No file editing needed:
 
-1. Open the quick menu and choose **Buttons**. It has a page per group of
-   controls: **D-pad**, **Face Buttons**, **Shoulders**, and **Start & Select**,
-   each listing its buttons with the key they are on.
+1. Open the quick menu and choose **Controls > Key Map**. It has a page per
+   group of controls: **D-pad**, **Face Buttons**, **Shoulders**, and
+   **Start & Select**, each listing its buttons with the key they are on.
+   (The other **Controls** pages set what a button *does*; the Key Map says
+   which physical key *is* that button.)
 2. Move to the button you want to change and press **A**. Its key turns into
    **Press a key…**.
 3. Press the physical key you want for it. It takes effect straight away and is
@@ -224,7 +230,7 @@ without a rebuild. No file editing needed:
 - Press no key for a few seconds and the change is cancelled.
 - The power, volume and lid keys are never captured, so they can't be bound
   away.
-- **Reset Buttons** at the bottom of the Buttons page restores the default map.
+- **Reset Key Map** at the bottom of the Key Map page restores the default map.
 - If you rebind the button you use to confirm or go back, the screen follows the
   new key straight away. If you get stuck, delete `Slot/Config/buttons.ini` and
   restart Slot.
@@ -309,11 +315,13 @@ Pokemon Emerald = mgba
 The SD card's filesystem has gone read-only, usually after a hard power-off or a
 yank mid-write, which can corrupt FAT. Put the card in a computer and run a
 filesystem check/repair (`fsck`/"Repair" on Windows/macOS). Always power the
-device down cleanly.
+device down cleanly. (Upstream slot can repair a read-only card itself with
+SELECT + START; that is turned off on the Flip, where MinUI owns the card, so
+use a computer.)
 
 **The buttons are wrong.**
-Open the quick menu → **Buttons** → the group, pick a button, press **A**, then
-press the key you want for it. See [Button remapping](#button-remapping).
+Open the quick menu → **Controls → Key Map** → the group, pick a button, press
+**A**, then press the key you want for it. See [Button remapping](#button-remapping).
 
 **Closing the lid doesn't sleep.**
 Confirm you're on the latest build. If a future device reports its lid

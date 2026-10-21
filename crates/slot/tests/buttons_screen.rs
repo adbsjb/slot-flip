@@ -54,11 +54,13 @@ fn down_on(a: &mut App, page: &[QuickRow], row: QuickRow) {
     assert_eq!(a.quick_menu(), Some(row), "the bar never reached {row:?}");
 }
 
-/// Open Menu > Buttons > Face, where the face button rows are.
+/// Open Menu > Controls > Key Map > Face, where the face button rows are.
 fn on_face_page(a: &mut App) {
-    down_on(a, &QuickRow::MAIN, QuickRow::Buttons);
+    down_on(a, &QuickRow::MAIN, QuickRow::Controls);
     press(a, Btn::A);
-    down_on(a, &QuickRow::BUTTONS, QuickRow::BindFace);
+    down_on(a, &QuickRow::CONTROL_PAGES, QuickRow::Buttons);
+    press(a, Btn::A);
+    down_on(a, &QuickRow::KEY_MAP, QuickRow::BindFace);
     press(a, Btn::A);
     assert_eq!(a.quick_menu(), Some(QuickRow::BindA), "Face did not open");
 }
@@ -82,16 +84,18 @@ fn the_face_page_lists_the_four_face_buttons() {
 fn the_buttons_page_groups_the_controls_and_fits_one_screen() {
     let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
     let (_d, mut a) = on_carousel();
-    down_on(&mut a, &QuickRow::MAIN, QuickRow::Buttons);
+    down_on(&mut a, &QuickRow::MAIN, QuickRow::Controls);
+    press(&mut a, Btn::A);
+    down_on(&mut a, &QuickRow::CONTROL_PAGES, QuickRow::Buttons);
     press(&mut a, Btn::A);
     // Six groups would overflow; the page is five rows and ends on the reset.
-    assert_eq!(QuickRow::BUTTONS.len(), 5);
+    assert_eq!(QuickRow::KEY_MAP.len(), 5);
     assert_eq!(
-        QuickRow::BUTTONS[4],
+        QuickRow::KEY_MAP[4],
         QuickRow::BindReset,
         "Reset belongs at the end"
     );
-    for row in QuickRow::BUTTONS {
+    for row in QuickRow::KEY_MAP {
         assert_eq!(a.quick_menu(), Some(row));
         press(&mut a, Btn::Down);
     }
@@ -107,8 +111,8 @@ fn pressing_a_key_after_choosing_a_button_rebinds_and_saves_it() {
     on_face_page(&mut a);
 
     press(&mut a, Btn::A);
-    assert_eq!(a.binding_waiting(), Some(4), "the A row is not waiting");
-    let rev = a.binding_rev();
+    assert_eq!(a.keymap_waiting(), Some(4), "the A row is not waiting");
+    let rev = a.keymap_rev();
 
     // The reader thread would do this when the key goes down.
     assert!(
@@ -118,13 +122,13 @@ fn pressing_a_key_after_choosing_a_button_rebinds_and_saves_it() {
     a.tick_ms(a.now() + 1);
 
     assert_eq!(
-        a.binding_waiting(),
+        a.keymap_waiting(),
         None,
         "still waiting after the key arrived"
     );
-    assert_ne!(a.binding_rev(), rev, "the names have to be rebuilt");
+    assert_ne!(a.keymap_rev(), rev, "the names have to be rebuilt");
     assert_eq!(keymap::keys_for(Btn::A), vec![spare]);
-    assert_eq!(a.binding_labels()[4], keymap::key_name(spare));
+    assert_eq!(a.keymap_labels()[4], keymap::key_name(spare));
 
     let file = std::fs::read_to_string(d.path().join("Config/buttons.ini")).expect("buttons.ini");
     assert!(file.contains(&format!("{spare} = a")), "{file}");
@@ -150,7 +154,7 @@ fn taking_a_key_that_another_button_has_swaps_the_two() {
         a_key,
         "B must not be left keyless"
     );
-    let labels = a.binding_labels();
+    let labels = a.keymap_labels();
     assert_eq!(labels[4], keymap::key_name(b_key[0]));
     assert_eq!(labels[5], keymap::key_name(a_key[0]));
     keymap::reset().expect("reset");
@@ -164,10 +168,10 @@ fn no_key_within_the_wait_cancels_and_changes_nothing() {
     on_face_page(&mut a);
 
     press(&mut a, Btn::A);
-    assert_eq!(a.binding_waiting(), Some(4));
+    assert_eq!(a.keymap_waiting(), Some(4));
     a.tick_ms(a.now() + slot::buttons_editor::CAPTURE_MS as u64 + 1);
 
-    assert_eq!(a.binding_waiting(), None);
+    assert_eq!(a.keymap_waiting(), None);
     assert_eq!(keymap::keys_for(Btn::A), before);
     assert_eq!(
         a.quick_menu(),
@@ -235,7 +239,7 @@ fn reset_restores_the_built_in_map() {
     press(&mut a, Btn::B);
     assert_eq!(a.quick_menu(), Some(QuickRow::Buttons));
     press(&mut a, Btn::A);
-    down_on(&mut a, &QuickRow::BUTTONS, QuickRow::BindReset);
+    down_on(&mut a, &QuickRow::KEY_MAP, QuickRow::BindReset);
     press(&mut a, Btn::A);
 
     assert!(!keymap::customised());
@@ -258,6 +262,8 @@ fn b_walks_back_from_a_page_to_its_parent_and_the_main_page_to_the_shelf() {
     assert_eq!(a.quick_menu(), Some(QuickRow::BindFace));
     press(&mut a, Btn::B);
     assert_eq!(a.quick_menu(), Some(QuickRow::Buttons));
+    press(&mut a, Btn::B);
+    assert_eq!(a.quick_menu(), Some(QuickRow::Controls));
     press(&mut a, Btn::B);
     assert!(matches!(a.phase(), Phase::Shelf), "{:?}", a.phase());
 }

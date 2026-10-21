@@ -16,7 +16,7 @@ use slot_store::{write_slot_state, Cart, Core, Platform, SlotState};
 use slot_ui::{
     board_at, board_in, grown, lid_at, lid_from, on_board, opening, shelf_cart_at, Canvas, Draw,
     Icon, Placed, TexId, BOARD_W, CART_H, CART_W, CHIP_H, CHIP_U, CHIP_V, CHIP_W, HINT_EDGE,
-    HINT_H, LID_TURN, SLIDE_UP, SOCKET_H, SOCKET_U, SOCKET_V, SOCKET_W, TURN_PAD,
+    LID_TURN, MOUTH_H, OUT_H, OUT_W, SLIDE_UP, SOCKET_H, SOCKET_U, SOCKET_V, SOCKET_W, TURN_PAD,
 };
 
 fn play(a: &mut App) {
@@ -324,8 +324,7 @@ fn app_with_platforms(carts: &[(Platform, &str)]) -> App {
 }
 
 fn tap(a: &mut App, btn: Btn) {
-    a.apply(Action::GbaDown(btn));
-    a.apply(Action::GbaUp(btn));
+    common::through(a, btn);
 }
 
 #[test]
@@ -484,7 +483,7 @@ fn the_switch_changes_the_name_on_the_band_and_says_nothing() {
         (Btn::R1, "Game Boy Advance"),
         (Btn::L1, "Game Boy Color"),
     ] {
-        a.apply_at(Action::GbaDown(btn), 1_000);
+        common::through_at(&mut a, btn, 1_000);
         assert_eq!(
             a.shelf_platform_name(),
             Some(want),
@@ -509,7 +508,7 @@ fn a_card_on_one_shelf_names_nothing_because_there_is_nowhere_to_switch_to() {
         "a card with only Game Boy Advance carts named its platform anyway"
     );
     for btn in [Btn::L1, Btn::R1] {
-        alone.apply_at(Action::GbaDown(btn), 1_000);
+        common::through_at(&mut alone, btn, 1_000);
         assert_eq!(
             alone.shelf_platform_name(),
             None,
@@ -562,8 +561,8 @@ fn a_held_direction_does_not_follow_the_shelf_it_was_pressed_on() {
     ]);
     a.apply_at(Action::GbaDown(Btn::Right), 0);
     assert_eq!(a.selected_stem(), Some("Bbb"));
-    a.apply_at(Action::GbaDown(Btn::R1), 10);
-    a.apply_at(Action::GbaDown(Btn::L1), 20);
+    a.apply_at(Action::NextShelf, 10);
+    a.apply_at(Action::PreviousShelf, 20);
     for _ in 0..120 {
         a.update(1.0 / 60.0);
     }
@@ -1344,18 +1343,24 @@ fn the_open_cart_rests_over_the_shelf_with_its_lid_turned() {
     let [cancel, swap, choose] = f.legend;
     let at = |tex| tex_at(&out, tex).expect("a legend hint is missing").1;
     let seen = |w: u32| (w - HINT_EDGE) as f32;
-    assert_eq!(at(cancel.0), [180.0, 386.0, cancel.1 as f32, HINT_H as f32]);
+    let y = OUT_H as f32 - MOUTH_H * 2.0;
+    assert_eq!(at(cancel.0), [234.0, y, cancel.1 as f32, MOUTH_H]);
     assert_eq!(
         at(swap.0)[0] + seen(swap.1) / 2.0,
-        360.0,
+        OUT_W as f32 / 2.0,
         "Swap is off the panel's centre"
     );
     assert_eq!(
-        at(choose.0)[0] + seen(choose.1),
-        540.0,
-        "Choose does not end at the cart's edge"
+        at(choose.0)[0],
+        at(swap.0)[0] + seen(swap.1) + 24.0,
+        "Choose is not beside Swap"
     );
-    assert_eq!((at(swap.0)[1], at(choose.0)[1]), (386.0, 386.0));
+    assert_eq!(
+        at(cancel.0)[0] + seen(cancel.1) + 24.0,
+        at(swap.0)[0],
+        "Cancel is not beside Swap"
+    );
+    assert_eq!((at(swap.0)[1], at(choose.0)[1]), (y, y));
 }
 
 #[test]
@@ -1972,32 +1977,6 @@ fn a_cart_with_no_line_reads_as_actual_size() {
         s.app().source_rect(),
         WHOLE_TEXTURE,
         "a cart with no line did not open at actual size"
-    );
-}
-
-#[test]
-fn the_power_menus_own_buttons_never_reach_the_game() {
-    let d = common::tmp_root_with_carts(&["Emerald", "Zzz"]);
-    let mut s = session_playing(d.path());
-    s.feed([RawEvent::Down(Btn::Power)], 1000);
-    s.feed([], 2100);
-    assert!(
-        s.app().power_menu().is_some(),
-        "the power menu never opened"
-    );
-    s.feed([RawEvent::Up(Btn::Power)], 2110);
-    s.feed([RawEvent::Down(Btn::Down)], 2200);
-    assert_eq!(
-        pad(&s) & ButtonMask::DOWN,
-        0,
-        "the press that moved the power menu's bar reached the game"
-    );
-    s.feed([RawEvent::Down(Btn::B)], 2300);
-    assert!(s.app().power_menu().is_none(), "B did not dismiss the menu");
-    assert_eq!(
-        pad(&s) & ButtonMask::B,
-        0,
-        "the B that cancelled the power menu was handed to the game underneath it"
     );
 }
 

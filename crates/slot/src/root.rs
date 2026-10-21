@@ -61,7 +61,7 @@ const STARTER_SLOT_INI: &str = "\
 const STARTER_BUTTONS_INI: &str = "\
 # Button remap for Slot.
 #
-# You do not need to edit this by hand: open Menu > Buttons in Slot, pick a
+# You do not need to edit this by hand: open Menu > Controls > Key Map in Slot, pick a
 # button and press the key you want for it. Slot writes this file for you.
 #
 # Each line is: <kernel-key-code> = <button>
@@ -80,6 +80,12 @@ const STARTER_BUTTONS_INI: &str = "\
 #   109 = r1
 #   104 = l2
 ";
+
+pub fn sweep_temps(root: &Path) {
+    for sub in ["Config", "Saves", "States"] {
+        slot_store::sweep_temps(&root.join(sub));
+    }
+}
 
 pub fn bios_dir(root: &Path) -> PathBuf {
     root.join("BIOS")

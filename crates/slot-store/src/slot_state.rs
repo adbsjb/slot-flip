@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::atomic::atomic_write;
-use crate::gb_palette::GbPalette;
+use crate::gb_palette::{GbColors, GbPalette};
 use crate::platform::Platform;
 
 pub const BRIGHTNESS_MAX: u8 = 9;
@@ -13,13 +13,7 @@ pub const UTC_OFFSET_MAX: i16 = 840;
 
 pub const FF_SPEEDS: [u8; 4] = [2, 3, 4, 6];
 
-pub const FF_SPEED_DEFAULT: u8 = 6;
-
-/// Minutes after the lid is closed (or the screen dozes) before the device
-/// powers itself off. 0 means never auto-power-off. The menu offers this set.
-pub const SLEEP_TIMEOUTS_MIN: [u16; 6] = [1, 3, 5, 10, 30, 0];
-
-pub const SLEEP_TIMEOUT_DEFAULT_MIN: u16 = 3;
+pub const LID_OFF_MIN: [u8; 6] = [1, 3, 5, 10, 15, 30];
 
 /// The Flip panel is happiest with the plain scaler: the fork's identity is a
 /// clean, shaderless picture. Other shaders are still offered in the menu.
@@ -38,7 +32,7 @@ const DEFAULT_SHADER_GBC: Shader = Shader::Off;
 #[cfg(not(feature = "flip"))]
 const DEFAULT_SHADER_GBC: Shader = Shader::Simpletex;
 
-pub const RUN_AHEAD_MAX: u8 = 1;
+pub const FF_SPEED_DEFAULT: u8 = 6;
 
 pub const RECENTS_MAX: usize = 10;
 
@@ -233,14 +227,12 @@ pub struct SlotState {
     pub colour_correction_gba: bool,
     pub colour_correction_gb: bool,
     pub colour_correction_gbc: bool,
-    pub sleep_timeout_min: u16,
     pub shader_gba: Shader,
     pub shader_gb: Shader,
     pub shader_gbc: Shader,
     pub eject_save: bool,
     pub turbo: bool,
     pub rewind: bool,
-    pub runahead: u8,
     pub gb_palettes: bool,
     pub gb_palette: GbPalette,
     pub appearance: Appearance,
@@ -248,6 +240,8 @@ pub struct SlotState {
     pub wallpaper_tint: WallpaperTint,
     pub show_recents: bool,
     pub show_titles: bool,
+    pub left_stick_dpad: bool,
+    pub lid_off_min: Option<u8>,
     pub bezel_gba: BezelPick,
     pub bezel_gb: BezelPick,
     pub bezel_gbc: BezelPick,
@@ -258,6 +252,23 @@ pub struct SlotState {
 }
 
 impl SlotState {
+    pub fn gb_colors(&self) -> GbColors {
+        match self.gb_palettes {
+            true => GbColors::Palette(self.gb_palette),
+            false => GbColors::Auto,
+        }
+    }
+
+    pub fn set_gb_colors(&mut self, to: GbColors) {
+        match to {
+            GbColors::Auto => self.gb_palettes = false,
+            GbColors::Palette(p) => {
+                self.gb_palettes = true;
+                self.gb_palette = p;
+            }
+        }
+    }
+
     pub fn played(&mut self, platform: Platform, stem: &str) {
         self.recents
             .retain(|r| !(r.platform == platform && r.stem == stem));
@@ -356,14 +367,12 @@ impl Default for SlotState {
             colour_correction_gba: false,
             colour_correction_gb: false,
             colour_correction_gbc: false,
-            sleep_timeout_min: SLEEP_TIMEOUT_DEFAULT_MIN,
             shader_gba: DEFAULT_SHADER_GBA,
             shader_gb: DEFAULT_SHADER_GB,
             shader_gbc: DEFAULT_SHADER_GBC,
             eject_save: true,
             turbo: true,
             rewind: true,
-            runahead: 0,
             gb_palettes: false,
             gb_palette: GbPalette::DEFAULT,
             appearance: Appearance::Dark,
@@ -371,6 +380,8 @@ impl Default for SlotState {
             wallpaper_tint: WallpaperTint::Off,
             show_recents: false,
             show_titles: false,
+            left_stick_dpad: true,
+            lid_off_min: None,
             bezel_gba: BezelPick::Ags102,
             bezel_gb: BezelPick::Ags102,
             bezel_gbc: BezelPick::Ags102,
@@ -430,7 +441,7 @@ fn write_list(root: &Path, name: &str, list: &[Recent]) -> std::io::Result<()> {
 
 pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
     let mut text = format!(
-        "cart={}\ncart_platform={}\nbrightness={}\nblue_light={}\nvolume={}\nvolume_hp={}\nmuted={}\nmuted_hp={}\nclock_set={}\nutc_offset_min={}\nrumble={}\nff_speed={}\nff_sound={}\ncolour_correction_gba={}\ncolour_correction_gb={}\nshader_gba={}\nshader_gb={}\neject_save={}\nturbo={}\nrewind={}\nrunahead={}\ngb_palettes={}\ngb_palette={}\nappearance={}\nwallpaper={}\n",
+        "cart={}\ncart_platform={}\nbrightness={}\nblue_light={}\nvolume={}\nvolume_hp={}\nmuted={}\nmuted_hp={}\nclock_set={}\nutc_offset_min={}\nrumble={}\nff_speed={}\nff_sound={}\ncolour_correction_gba={}\ncolour_correction_gb={}\nshader_gba={}\nshader_gb={}\neject_save={}\nturbo={}\nrewind={}\ngb_palettes={}\ngb_palette={}\nappearance={}\nwallpaper={}\n",
         s.cart.as_deref().unwrap_or(""),
         s.cart_platform.map_or(String::new(), platform_key),
         s.brightness,
@@ -451,7 +462,6 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
         s.eject_save as u8,
         s.turbo as u8,
         s.rewind as u8,
-        s.runahead,
         s.gb_palettes as u8,
         s.gb_palette.core_name(),
         s.appearance.name(),
@@ -463,9 +473,12 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
     ));
     text.push_str(&format!("shader_gbc={}\n", s.shader_gbc.name()));
     text.push_str(&format!("wallpaper_tint={}\n", s.wallpaper_tint.key()));
-    text.push_str(&format!("sleep_timeout_min={}\n", s.sleep_timeout_min));
     text.push_str(&format!("show_recents={}\n", s.show_recents as u8));
     text.push_str(&format!("show_titles={}\n", s.show_titles as u8));
+    text.push_str(&format!("left_stick_dpad={}\n", s.left_stick_dpad as u8));
+    if let Some(min) = s.lid_off_min {
+        text.push_str(&format!("lid_off_min={min}\n"));
+    }
     text.push_str(&format!("bezel_gba={}\n", s.bezel_gba.key()));
     text.push_str(&format!("bezel_gb={}\n", s.bezel_gb.key()));
     text.push_str(&format!("bezel_gbc={}\n", s.bezel_gbc.key()));
@@ -507,7 +520,6 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut eject_save = None;
     let mut turbo = None;
     let mut rewind = None;
-    let mut runahead = None;
     let mut gb_palettes = None;
     let mut gb_palette = None;
     let mut appearance = None;
@@ -515,12 +527,15 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut wallpaper_tint = None;
     let mut show_recents = None;
     let mut show_titles = None;
+    let mut left_stick_dpad = None;
+    let mut lid_off_min = None;
     let mut bezel_gba = None;
     let mut bezel_gb = None;
     let mut bezel_gbc = None;
     let mut shelf = None;
     let mut shelf_cart = None;
-    let mut sleep_timeout_min = None;
+    // Fork releases up to v0.4.0 saved the lid power-off timer under this key.
+    let mut legacy_sleep_timeout = None;
     for line in text.lines().filter(|l| !l.is_empty()) {
         let Some((key, value)) = line.split_once('=') else {
             continue;
@@ -547,7 +562,6 @@ fn parse(text: &str) -> Option<SlotState> {
             "eject_save" => eject_save = flag(value),
             "turbo" => turbo = flag(value),
             "rewind" => rewind = flag(value),
-            "runahead" => runahead = level(value, RUN_AHEAD_MAX),
             "gb_palettes" => gb_palettes = flag(value),
             "gb_palette" => gb_palette = GbPalette::parse(value),
             "appearance" => appearance = Appearance::parse(value),
@@ -555,13 +569,15 @@ fn parse(text: &str) -> Option<SlotState> {
             "wallpaper_tint" => wallpaper_tint = WallpaperTint::parse(value),
             "show_recents" => show_recents = flag(value),
             "show_titles" => show_titles = flag(value),
+            "left_stick_dpad" => left_stick_dpad = flag(value),
+            "lid_off_min" => lid_off_min = value.parse().ok().filter(|m| LID_OFF_MIN.contains(m)),
             "bezel_gba" => bezel_gba = Some(BezelPick::parse(value)),
             "bezel_gb" => bezel_gb = Some(BezelPick::parse(value)),
             "bezel_gbc" => bezel_gbc = Some(BezelPick::parse(value)),
             "shelf" => shelf = Some(value.to_string()).filter(|v| !v.is_empty()),
             "shelf_cart" => shelf_cart = recent_value(value),
             "shader_gb" => shader_gb = Shader::parse(value).filter(|s| Shader::GB.contains(s)),
-            "sleep_timeout_min" => sleep_timeout_min = sleep_timeout_value(value),
+            "sleep_timeout_min" => legacy_sleep_timeout = legacy_lid_off(value),
             "shader_gbc" => shader_gbc = Shader::parse(value).filter(|s| Shader::GB.contains(s)),
             _ => {}
         }
@@ -598,7 +614,6 @@ fn parse(text: &str) -> Option<SlotState> {
         eject_save: eject_save.unwrap_or(fallback.eject_save),
         turbo: turbo.unwrap_or(fallback.turbo),
         rewind: rewind.unwrap_or(fallback.rewind),
-        runahead: runahead.unwrap_or(fallback.runahead),
         gb_palettes: gb_palettes.unwrap_or(fallback.gb_palettes),
         gb_palette: gb_palette.unwrap_or(fallback.gb_palette),
         appearance: appearance.unwrap_or(fallback.appearance),
@@ -606,6 +621,8 @@ fn parse(text: &str) -> Option<SlotState> {
         wallpaper_tint: wallpaper_tint.unwrap_or(fallback.wallpaper_tint),
         show_recents: show_recents.unwrap_or(fallback.show_recents),
         show_titles: show_titles.unwrap_or(fallback.show_titles),
+        left_stick_dpad: left_stick_dpad.unwrap_or(fallback.left_stick_dpad),
+        lid_off_min: lid_off_min.or(legacy_sleep_timeout),
         bezel_gba: bezel_gba.unwrap_or(fallback.bezel_gba),
         bezel_gb: bezel_gb.unwrap_or(fallback.bezel_gb),
         bezel_gbc: bezel_gbc.unwrap_or(fallback.bezel_gbc),
@@ -613,7 +630,6 @@ fn parse(text: &str) -> Option<SlotState> {
         favorites: Vec::new(),
         shelf,
         shelf_cart,
-        sleep_timeout_min: sleep_timeout_min.unwrap_or(fallback.sleep_timeout_min),
     })
 }
 
@@ -647,11 +663,16 @@ fn ff_speed_value(value: &str) -> Option<u8> {
     value.parse().ok().filter(|n| FF_SPEEDS.contains(n))
 }
 
-fn sleep_timeout_value(value: &str) -> Option<u16> {
-    value
-        .parse()
-        .ok()
-        .filter(|n| SLEEP_TIMEOUTS_MIN.contains(n))
+/// An old `sleep_timeout_min` as a Lid Power Off choice. The fork's default (3)
+/// was never a decision, so it stays unset and follows upstream's default.
+/// "Off" (0, stay asleep forever) has no equivalent upstream, so it becomes the
+/// longest wait.
+fn legacy_lid_off(value: &str) -> Option<u8> {
+    match value.parse::<u16>().ok()? {
+        3 => None,
+        0 => LID_OFF_MIN.last().copied(),
+        n => u8::try_from(n).ok().filter(|m| LID_OFF_MIN.contains(m)),
+    }
 }
 
 fn level(value: &str, max: u8) -> Option<u8> {

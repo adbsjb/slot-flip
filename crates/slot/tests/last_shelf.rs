@@ -33,15 +33,12 @@ fn settle(a: &mut App) {
 }
 
 fn press(a: &mut App, btn: Btn) {
-    a.apply(Action::GbaDown(btn));
-    a.apply(Action::GbaUp(btn));
+    common::through(a, btn);
     settle(a);
 }
 
 fn power_off(a: &mut App) {
     a.apply(Action::PowerHold);
-    a.apply(Action::GbaDown(Btn::Down));
-    a.apply(Action::GbaDown(Btn::A));
     assert!(a.powering_off());
 }
 

@@ -1,5 +1,13 @@
+macro_rules! eprintln {
+    ($($arg:tt)*) => {{
+        use std::io::Write as _;
+        let _ = writeln!(std::io::stderr(), $($arg)*);
+    }};
+}
+
 pub mod app;
 pub mod audio;
+pub mod baseos;
 pub mod bezel;
 pub mod boot_time;
 pub mod bootlogo;

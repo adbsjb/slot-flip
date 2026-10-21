@@ -13,17 +13,36 @@ Legend: ✅ done · 🚧 in progress · 📋 planned · 💡 wanted / needs disc
 
 ## Stable — Miyoo Flip (`my355`)
 
-The Flip build is the supported release. Work here is mostly maintenance.
+The Flip build is the supported release. It tracks upstream slot one release at
+a time; the fork's own work is the Flip port itself and a few small additions.
 
-- ✅ SDL2 + GLES2 display, Flip button map, lid sleep, power LED
-- ✅ Remappable buttons: in-app **Buttons** screen (pick a button, press a key;
-  saved to `buttons.ini`), see [#8](https://github.com/boomchu-123/slot-flip/issues/8)
-- ✅ Pinned/random wallpapers, sleep timeout, auto power-off
-- ✅ Synced to upstream slot **v1.6.0** (plus the v1.7 gpSP JIT fix)
-- ✅ Synced to upstream slot **v1.7.0** (skeuomorphic redesign, favorites/recents, in-game menu, in-app wallpaper, per-platform bezels, run-ahead)
-- ✅ **Buttons** is part of the menu: pages per group of controls, each showing the key it is on
+**Done**
+- ✅ SDL2 + GLES2 display, Flip button map, lid sleep, power LED, 48 kHz audio
+- ✅ Synced to upstream slot **v1.8.0**: the redesigned shelf and menus, in-game
+  menu, favorites and recents, in-app wallpaper, bezels, **Controls** (in-game
+  buttons, shortcuts and shelf keys, with chords and clash warnings), and the
+  new palette and audio fixes
+- ✅ **Key Map** under Controls: which physical key each button is, saved to
+  `buttons.ini` ([#8](https://github.com/boomchu-123/slot-flip/issues/8))
+- ✅ Lid power-off timer (upstream's **General > Lid Power Off**; the old Sleep
+  Timeout setting carries over once)
+- ✅ Shaders default to Off on the Flip
+
+**Next**
+- 📋 **Release v0.5.0** (the v1.8.0 sync) and say plainly in the notes what moved:
+  Controls, the Key Map's new home, the lid timer, the rebuilt mGBA core
+- 📋 **Show the upstream base on the About screen**, so owners can see which
+  slot version their build is without opening GitHub
+- 💡 **Card repair on MinUI.** Upstream's SELECT + START repair is switched off
+  on the Flip (its script is written for upstream's own devices and unmounts the
+  card, which MinUI owns). A safe, tested version for the Flip needs its own
+  design; for now a read-only card is repaired from a computer
 - 💡 Cartridge-label artwork: fetch real label images automatically (blocked
   on a ScreenScraper developer ID; currently you supply your own labels)
+
+**Housekeeping that has bitten before**
+- Rebuild the mGBA and gpSP cores whenever a sync changes `cores/` (v0.4.0
+  shipped a core missing one of v1.7's patches). `AGENTS.md` has the checklist.
 
 ---
 
@@ -31,6 +50,10 @@ The Flip build is the supported release. Work here is mostly maintenance.
 
 These live on the `experimental` branch and ship as `exp-v*` **pre-releases**.
 They stay there until verified on hardware.
+
+> **Status:** `experimental` is still on upstream **v1.6**, behind the stable
+> branch. It needs the v1.8 sync, the Key Map, and the armhf builds re-checked
+> before testers get any of it. Until then, treat these ports as stale.
 
 ### Miyoo A30 (`my282`)
 

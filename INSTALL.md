@@ -64,8 +64,8 @@ Slot/
 Closing the lid puts the device to sleep **immediately**. While asleep, it
 powers itself off after a timeout you choose in the quick menu:
 
-- Open the quick menu and set **Sleep Timeout** to `1`, `3`, `5`, `10`, or
-  `30` minutes, or `Off` to stay asleep indefinitely (no auto power-off).
+- Open the menu and set **General > Lid Power Off** to `1`, `3`, `5`, `10`, `15`
+  or `30` minutes.
 
 The choice is saved and survives reboots.
 
@@ -80,10 +80,11 @@ lights are lit.
 Slot ships with a sensible map for each device it knows about, but any MinUI
 handheld can be remapped without a rebuild.
 
-- In Slot, open the quick menu and choose **Buttons**, then the group of controls
-  (D-pad, Face Buttons, Shoulders, Start & Select). Pick a button, press **A**,
-  then press the key you want for it. It is applied and saved at once, and a key
-  that was already in use swaps with it. **Reset Buttons** undoes everything.
+- In Slot, open the quick menu and choose **Controls > Key Map**, then the group
+  of controls (D-pad, Face Buttons, Shoulders, Start & Select). Pick a button,
+  press **A**, then press the key you want for it. It is applied and saved at
+  once, and a key that was already in use swaps with it. **Reset Key Map** undoes
+  everything.
 - Or edit `Slot/Config/buttons.ini` by hand (the screen writes the same file).
   Each line is:
 
@@ -124,8 +125,8 @@ MinUI handheld:
 1. Copy `Slot.pak` into that device's `Tools/<platform>/` folder (the
    `<platform>` is the same name MinUI uses for that device, e.g. `tg5040`).
 2. Launch it once to generate the `Slot` folder.
-3. If the buttons are wrong, fix them in Slot under **Buttons** (press **A** on a
-   button, then the key you want). Nothing needs editing by hand, and the screen
+3. If the buttons are wrong, fix them in Slot under **Controls > Key Map** (press
+   **A** on a button, then the key you want). Nothing needs editing by hand, and the screen
    works on any device whose buttons Slot can read.
 
 The display and audio use SDL2, which MinUI provides on its supported devices.
