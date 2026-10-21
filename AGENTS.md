@@ -45,6 +45,7 @@ one-for-one patch cadence the fork does not have.
 | `v0.3.0` | v1.6.0 (unchanged; adds the in-app Buttons remap) |
 | `v0.4.0` | v1.7.0 (skeuomorphic redesign; Buttons rebuilt as menu pages) |
 | `v0.5.0` | v1.8.0 (Controls; the remap moved to Controls > Key Map; rebuilt mGBA core) |
+| `v0.6.0` | v1.8.0 (fork work only: About names the device, update word, forgiving cart labels) |
 | `exp-v0.3.0` | v1.6.0 |
 
 ---

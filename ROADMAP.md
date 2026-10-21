@@ -34,6 +34,8 @@ a time; the fork's own work is the Flip port itself and a few small additions.
   tags
 - ✅ **Released v0.5.0**: the v1.8.0 sync, Key Map under Controls, and the rebuilt
   mGBA core
+- ✅ **Released v0.6.0**: the About plate names the Flip, the one-time update word,
+  and the forgiving cart labels
 
 **Next**
 - 💡 **Card repair on MinUI.** Upstream's SELECT + START repair is switched off
