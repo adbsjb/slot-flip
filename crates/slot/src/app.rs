@@ -379,6 +379,8 @@ pub struct App {
     controls: Controls,
     capture: Option<BindCapture>,
     plugged_face: Option<TexId>,
+    console_plugged: Option<TexId>,
+    console_slot: Option<(TexId, TexId)>,
     binding_faces: HashMap<String, [(TexId, u32, u32); 2]>,
     carousel: CarouselKeys,
     shortcuts: ShortcutKeys,
@@ -564,6 +566,8 @@ impl App {
             controls: Controls::default(),
             capture: None,
             plugged_face: None,
+            console_plugged: None,
+            console_slot: None,
             binding_faces: HashMap::new(),
             carousel: CarouselKeys::default(),
             shortcuts: ShortcutKeys::default(),
@@ -1696,6 +1700,42 @@ impl App {
 
     pub fn set_plugged_face(&mut self, tex: TexId) {
         self.plugged_face = Some(tex);
+    }
+
+    /// The slot a disc goes into: drawn as a PlayStation rather than the cart slot.
+    pub fn set_console_faces(&mut self, back: TexId, front: TexId, plugged: TexId) {
+        self.console_slot = Some((back, front));
+        self.console_plugged = Some(plugged);
+    }
+
+    /// Whether the slot on screen is a PlayStation: while a disc is in, or when the
+    /// shelf in view is the PS1 one.
+    pub fn console_slot_wanted(&self) -> bool {
+        match self.seated_cart() {
+            Some(cart) => cart.platform == Platform::Ps1,
+            None => self.shelf_is(Platform::Ps1),
+        }
+    }
+
+    fn shelf_is(&self, platform: Platform) -> bool {
+        self.shelves
+            .get(self.shelf_at)
+            .is_some_and(|(rack, _)| rack.platform() == Some(platform))
+    }
+
+    /// The back and front strips to draw the slot with right now.
+    fn slot_pair(&self) -> Option<(TexId, TexId)> {
+        match (self.console_slot_wanted(), self.console_slot) {
+            (true, Some(pair)) => Some(pair),
+            _ => self.slot_faces,
+        }
+    }
+
+    fn plugged_pair(&self) -> Option<TexId> {
+        match (self.console_slot_wanted(), self.console_plugged) {
+            (true, Some(tex)) => Some(tex),
+            _ => self.plugged_face,
+        }
     }
 
     pub fn capturing(&self) -> bool {
@@ -3945,11 +3985,11 @@ impl App {
                             dim,
                             out,
                         );
-                        draw_empty_slot(self.canvas(), self.slot_faces, out);
+                        draw_empty_slot(self.canvas(), self.slot_pair(), out);
                     }
                     _ => {
                         self.shelf()
-                            .draw(self.canvas(), self.shelf_shake(), self.slot_faces, out);
+                            .draw(self.canvas(), self.shelf_shake(), self.slot_pair(), out);
                         draw_slot_name(
                             self.canvas(),
                             self.shelf_platform,
@@ -4132,7 +4172,7 @@ impl App {
             Phase::Playing { cart } if self.footer > 0.0 => {
                 let row = self.in_game_menu_shown().or(self.footer_row);
                 match row.is_some_and(QuickRow::binds) {
-                    true => slot_ui::draw_plugged_slot(self.canvas(), self.plugged_face, out),
+                    true => slot_ui::draw_plugged_slot(self.canvas(), self.plugged_pair(), out),
                     false => self.draw_seated_mouth(cart, out),
                 }
                 row
@@ -4140,15 +4180,15 @@ impl App {
             // The carousel menu is not a game, so the mouth stays empty, in the
             // same place the shelf already had it.
             Phase::QuickMenu { row } if row.binds() => {
-                slot_ui::draw_plugged_slot(self.canvas(), self.plugged_face, out);
+                slot_ui::draw_plugged_slot(self.canvas(), self.plugged_pair(), out);
                 Some(*row)
             }
             Phase::QuickMenu { row } => {
-                draw_empty_slot(self.canvas(), self.slot_faces, out);
+                draw_empty_slot(self.canvas(), self.slot_pair(), out);
                 Some(*row)
             }
             Phase::About => {
-                draw_empty_slot(self.canvas(), self.slot_faces, out);
+                draw_empty_slot(self.canvas(), self.slot_pair(), out);
                 self.draw_about_legend(out);
                 return;
             }
@@ -4203,7 +4243,7 @@ impl App {
             game: false,
             over: true,
             behind: self.shelf().behind(stem),
-            slot: self.slot_faces,
+            slot: self.slot_pair(),
             canvas: self.canvas(),
         }
         .draw(out);
@@ -4330,7 +4370,7 @@ impl App {
                         | Phase::Ejecting { .. }
                 ),
             behind: self.shelf().behind(stem),
-            slot: self.slot_faces,
+            slot: self.slot_pair(),
             canvas: self.canvas(),
         }
         .draw(out);

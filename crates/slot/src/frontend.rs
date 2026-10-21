@@ -140,9 +140,16 @@ struct Clocks {
     ink: [u8; 3],
 }
 
+/// The PlayStation slot's strips, per theme: back and front, and the plugged one.
+struct ConsoleSlot {
+    slot: [(TexId, TexId); 2],
+    plugged: [TexId; 2],
+}
+
 struct ShelfLook {
     slot: [[TexId; 2]; 2],
     plugged: [TexId; 2],
+    console: Option<ConsoleSlot>,
     bolt: [TexId; 2],
     port: [Option<TexId>; 2],
     legend: [Vec<(TexId, u32)>; 2],
@@ -314,6 +321,7 @@ impl Frontend {
         self.look = Some(ShelfLook {
             slot,
             plugged,
+            console: None,
             bolt,
             port: [None, None],
             legend: [Vec::new(), Vec::new()],
@@ -336,6 +344,32 @@ impl Frontend {
         }
     }
 
+    /// Draws the PlayStation slot the first time a PlayStation shelf or disc needs it,
+    /// so a card with no discs never pays for it.
+    fn ensure_console_slot(&mut self, compositor: &mut Compositor) {
+        if !self.session.app().console_slot_wanted() {
+            return;
+        }
+        let Some(look) = &mut self.look else {
+            return;
+        };
+        if look.console.is_some() {
+            return;
+        }
+        let mut up =
+            |bytes: &[u8]| compositor.create_texture(slot_ui::SLOT_W, slot_ui::SLOT_H, bytes);
+        let dark = slot_ui::ps1_slot(false);
+        let light = slot_ui::ps1_slot(true);
+        look.console = Some(ConsoleSlot {
+            slot: [
+                (up(&dark.back), up(&dark.front)),
+                (up(&light.back), up(&light.front)),
+            ],
+            plugged: [up(&dark.plugged), up(&light.plugged)],
+        });
+        look.applied = None;
+    }
+
     fn apply_look(&mut self) {
         let light = self.session.app().light();
         let ready = self.look.as_ref().map(|look| {
@@ -346,6 +380,7 @@ impl Frontend {
                 look.applied == Some((light, legend_ready, port_ready)),
                 look.slot[i],
                 look.plugged[i],
+                look.console.as_ref().map(|c| (c.slot[i], c.plugged[i])),
                 look.bolt[i],
                 look.bolt[0],
                 look.port[i],
@@ -354,8 +389,18 @@ impl Frontend {
                 port_ready,
             )
         });
-        let Some((done, slot, plugged, bolt, hud_bolt, port, legend, legend_ready, port_ready)) =
-            ready
+        let Some((
+            done,
+            slot,
+            plugged,
+            console,
+            bolt,
+            hud_bolt,
+            port,
+            legend,
+            legend_ready,
+            port_ready,
+        )) = ready
         else {
             return;
         };
@@ -364,6 +409,11 @@ impl Frontend {
         }
         self.session.app_mut().set_slot_faces(slot[0], slot[1]);
         self.session.app_mut().set_plugged_face(plugged);
+        if let Some(((back, front), plugged)) = console {
+            self.session
+                .app_mut()
+                .set_console_faces(back, front, plugged);
+        }
         self.session.app_mut().set_bolt_face(bolt);
         self.session.app_mut().set_hud_bolt_face(hud_bolt);
         if let Some(tex) = port {
@@ -631,6 +681,7 @@ impl Frontend {
                 self.link_art_done = true;
             }
         }
+        self.ensure_console_slot(compositor);
         self.apply_look();
         sync_switcher(
             self.session.app_mut(),

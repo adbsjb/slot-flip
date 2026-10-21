@@ -65,13 +65,13 @@ fn a_disc_is_round_with_a_real_hole_you_can_see_through() {
 }
 
 #[test]
-fn the_clear_hub_is_translucent_and_the_print_is_solid() {
+fn the_clear_hub_is_frosted_plastic_and_the_print_is_solid() {
     let d = tmp_root();
     let f = cart_face(&disc(&d, "Game"));
-    let hub = at(&f, C + (0.2 * C as f32) as u32, C)[3];
+    let hub = at(&f, C + (0.17 * C as f32) as u32, C)[3];
     assert!(
-        (100..200).contains(&hub),
-        "the clamp ring is clear plastic: {hub}"
+        (180..255).contains(&hub),
+        "the clamp ring is clear plastic, not opaque print: {hub}"
     );
     assert_eq!(at(&f, C + (0.6 * C as f32) as u32, C)[3], 255);
 }
@@ -261,4 +261,126 @@ fn a_cart_never_spins_and_never_gets_a_glare() {
     assert!(!out
         .iter()
         .any(|d| matches!(d, Draw::Tex { tex, .. } if *tex == glare)));
+}
+
+fn write_png(path: &std::path::Path, w: u32, h: u32, px: impl Fn(u32, u32) -> [u8; 3]) {
+    let f = std::fs::File::create(path).unwrap();
+    let mut enc = png::Encoder::new(std::io::BufWriter::new(f), w, h);
+    enc.set_color(png::ColorType::Rgb);
+    enc.set_depth(png::BitDepth::Eight);
+    let px = &px;
+    let rgb: Vec<u8> = (0..h)
+        .flat_map(|y| (0..w).flat_map(move |x| px(x, y)))
+        .collect();
+    enc.write_header().unwrap().write_image_data(&rgb).unwrap();
+}
+
+/// The first few pixels along the middle of the left edge of a fitted cover.
+fn left_edge(cover: &[u8], d: u32) -> Vec<[u8; 3]> {
+    (1..6)
+        .map(|x| {
+            let i = (((d / 2) * d + x) * 4) as usize;
+            [cover[i], cover[i + 1], cover[i + 2]]
+        })
+        .collect()
+}
+
+const RED: [u8; 3] = [200, 20, 20];
+
+#[test]
+fn a_black_spine_is_trimmed_from_a_cover_before_it_goes_on_the_disc() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("spined.png");
+    // 200 wide: a black strip 21 wide (10.5%) with white lettering in it.
+    write_png(&p, 200, 200, |x, y| match (x, y) {
+        (8..=12, 40..=160) => [255, 255, 255],
+        (0..=20, _) => [0, 0, 0],
+        _ => RED,
+    });
+    let cover = slot_ui::disc_cover(&p, 100).expect("a cover");
+    for px in left_edge(&cover, 100) {
+        assert!(
+            px[0] > 150 && px[1] < 60,
+            "the spine is still on the disc: {px:?}"
+        );
+    }
+}
+
+#[test]
+fn dark_artwork_with_no_spine_is_left_alone() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("night.png");
+    // Dark, but not solid black: a night sky.
+    write_png(&p, 200, 200, |x, _| if x < 60 { [30, 24, 48] } else { RED });
+    let cover = slot_ui::disc_cover(&p, 100).expect("a cover");
+    let left = left_edge(&cover, 100);
+    assert!(
+        left.iter().all(|px| px[0] < 60 && px[2] > 30),
+        "dark art was cut: {left:?}"
+    );
+}
+
+#[test]
+fn a_ragged_black_edge_is_not_mistaken_for_a_spine() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("ragged.png");
+    // Black on only some rows, as artwork that happens to be dark there would be.
+    write_png(&p, 200, 200, |x, y| {
+        if x < 40 && y % 5 < 3 {
+            [0, 0, 0]
+        } else {
+            RED
+        }
+    });
+    let cover = slot_ui::disc_cover(&p, 100).expect("a cover");
+    let dark = (0..100u32)
+        .filter(|&y| {
+            let i = ((y * 100 + 2) * 4) as usize;
+            cover[i] < 60
+        })
+        .count();
+    assert!(
+        dark > 30,
+        "the picture was trimmed when it was not a spine: {dark}"
+    );
+}
+
+#[test]
+fn a_cover_is_always_fitted_to_a_square_and_a_tiny_one_is_not_trimmed() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("tiny.png");
+    write_png(&p, 32, 32, |_, _| [0, 0, 0]);
+    let cover = slot_ui::disc_cover(&p, 64).expect("a cover");
+    assert_eq!(cover.len(), 64 * 64 * 4);
+    assert!(
+        cover.chunks_exact(4).all(|p| p[..3] == [0, 0, 0]),
+        "nothing to trim here"
+    );
+}
+
+#[test]
+fn carts_still_use_the_plain_cover_fit() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("cart.png");
+    // The same black strip: on a cart's label this is the artwork, and stays.
+    write_png(&p, 200, 200, |x, _| if x <= 20 { [0, 0, 0] } else { RED });
+    let cover = slot_ui::cover_for(Platform::Gba, &p, 100, 100).expect("a cover");
+    let left = left_edge(&cover, 100);
+    assert!(
+        left.iter().all(|px| px[0] < 40),
+        "a cart's artwork was trimmed: {left:?}"
+    );
+}
+
+#[test]
+fn the_hub_shows_the_cover_through_it() {
+    let d = tmp_root();
+    write_cover(&d, "Red", [200, 20, 20]);
+    let f = cart_face(&disc(&d, "Red"));
+    let [r, g, b, a] = at(&f, C + (0.17 * C as f32) as u32, C);
+    assert!(a > 180);
+    assert!(
+        r > g + 30 && r > b + 30,
+        "the frosted hub is not tinted by the art: {r},{g},{b}"
+    );
 }

@@ -1,9 +1,10 @@
 //! Renders what a PlayStation disc looks like, for a designer's eye: with cover
 //! art, without, and at the angles it passes through as the slot takes it.
 //!
-//!     cargo run -p slot-ui --example disc_preview -- out.png
+//!     cargo run -p slot-ui --example disc_preview -- out.png [covers_dir]
 //!
-//! The cover is generated here, so nothing copyrighted is involved.
+//! By default the cover is generated here, so nothing copyrighted is involved. Give a
+//! folder of PNGs to see how your own cover art sits on a disc instead.
 
 use slot_store::scan;
 use slot_ui::{cart_face, disc_glare, disc_spin, CartFace, DISC_D};
@@ -112,7 +113,10 @@ fn drawn(face: &CartFace, glare: &CartFace, angle: f32, bg: [u8; 3], size: u32) 
 fn main() {
     let out = std::env::args()
         .nth(1)
-        .expect("usage: disc_preview <out.png>");
+        .expect("usage: disc_preview <out.png> [covers_dir]");
+    if let Some(dir) = std::env::args().nth(2) {
+        return covers_sheet(&out, std::path::Path::new(&dir));
+    }
     let root = tempfile::tempdir().unwrap();
     let art = face_of(root.path(), true, "Sky Racer");
     let bare = face_of(root.path(), false, "Midnight Garden Adventures");
@@ -154,5 +158,49 @@ fn main() {
         }
     }
     write_png(std::path::Path::new(&out), w, h, &sheet);
+    println!("wrote {out} ({w}x{h})");
+}
+
+/// One disc per PNG in `dir`, each named after its game, on the housing colour, so
+/// real cover art can be judged on the circle before it goes on a card.
+fn covers_sheet(out: &str, dir: &std::path::Path) {
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(root.path().join("Labels/PS1")).unwrap();
+    let mut names = Vec::new();
+    for e in std::fs::read_dir(dir).unwrap().flatten() {
+        let path = e.path();
+        if path.extension().is_some_and(|x| x == "png") {
+            let stem = path.file_stem().unwrap().to_string_lossy().to_string();
+            std::fs::copy(
+                &path,
+                root.path().join("Labels/PS1").join(format!("{stem}.png")),
+            )
+            .unwrap();
+            names.push(stem);
+        }
+    }
+    names.sort();
+    let glare = disc_glare();
+    let (cell, pad) = (300u32, 12u32);
+    let (w, h) = (names.len() as u32 * (cell + pad) + pad, cell + 2 * pad);
+    let mut sheet = vec![0x24u8; (w * h * 3) as usize];
+    for (i, name) in names.iter().enumerate() {
+        let games = root.path().join("Games/PS1");
+        std::fs::create_dir_all(&games).unwrap();
+        std::fs::write(games.join(format!("{name}.cue")), "").unwrap();
+        let carts = scan(root.path()).unwrap();
+        let cart = carts.iter().find(|c| &c.stem == name).unwrap();
+        println!("{name}: label paired = {}", cart.label.is_some());
+        let face = cart_face(cart);
+        let tile = drawn(&face, &glare, 0.0, HOUSING, cell);
+        let ox = pad + i as u32 * (cell + pad);
+        for y in 0..cell {
+            let src = (y * cell * 3) as usize;
+            let dst = (((pad + y) * w + ox) * 3) as usize;
+            sheet[dst..dst + (cell * 3) as usize]
+                .copy_from_slice(&tile[src..src + (cell * 3) as usize]);
+        }
+    }
+    write_png(std::path::Path::new(out), w, h, &sheet);
     println!("wrote {out} ({w}x{h})");
 }

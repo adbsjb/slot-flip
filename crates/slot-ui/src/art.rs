@@ -5,6 +5,61 @@ pub fn cover(path: &Path, w: u32, h: u32) -> Option<Vec<u8>> {
     cover_rgba(&src, sw, sh, w, h)
 }
 
+/// Cover art for a disc: the front of a jewel case, fitted to the circle it is
+/// printed on. A PlayStation front insert carries the black "PlayStation" spine
+/// strip down its left edge, which belongs to the case and not to the disc, so it
+/// is trimmed first.
+pub fn disc_cover(path: &Path, d: u32) -> Option<Vec<u8>> {
+    let (src, sw, sh) = decode(path)?;
+    let (src, sw) = trim_spine(src, sw, sh);
+    cover_rgba(&src, sw, sh, d, d)
+}
+
+/// Width of the spine as a fraction of the cover. The strip is ~54 px on a 512 px
+/// cover and its lettering runs to ~64, so this clears the lettering; the artwork
+/// starts straight after.
+const SPINE: f32 = 0.128;
+
+/// The leading columns, as fractions of the width, that are averaged to call a cover
+/// spined, and how black they must be on average. A scan's black edge is ragged
+/// (one real cover's columns run 1.00, 1.00, 1.00, 1.00, 0.84), so every column
+/// cannot be demanded; but dark artwork such as a night sky is nowhere near this black
+/// over the whole height, so an average this high is not mistaken for a spine.
+const SPINE_PROBE: (f32, f32) = (0.002, 0.008);
+const SPINE_BLACK: f32 = 0.94;
+
+/// Drops a black spine from the left of a cover, if it has one. Nothing else is
+/// ever trimmed, so artwork that merely starts dark is left alone.
+pub(crate) fn trim_spine(src: Vec<u8>, w: u32, h: u32) -> (Vec<u8>, u32) {
+    if w < 64 || h == 0 {
+        return (src, w);
+    }
+    let from = ((w as f32 * SPINE_PROBE.0).floor() as u32).max(1);
+    let to = ((w as f32 * SPINE_PROBE.1).ceil() as u32).max(3);
+    let black: usize = (from..=to)
+        .map(|x| {
+            (0..h)
+                .filter(|&y| {
+                    let i = ((y * w + x) * 4) as usize;
+                    src[i..i + 3].iter().all(|&c| c < 26)
+                })
+                .count()
+        })
+        .sum();
+    let share = black as f32 / ((to - from + 1) * h) as f32;
+    if share < SPINE_BLACK {
+        return (src, w);
+    }
+    let cut = (w as f32 * SPINE).round() as u32;
+    let kept = w - cut;
+    let mut out = Vec::with_capacity((kept * h * 4) as usize);
+    for y in 0..h {
+        let row = ((y * w + cut) * 4) as usize;
+        out.extend_from_slice(&src[row..row + (kept * 4) as usize]);
+    }
+    (out, kept)
+}
+
 pub fn cover_bytes(bytes: &[u8], w: u32, h: u32) -> Option<Vec<u8>> {
     let (src, sw, sh) = decode_png_bytes(bytes)?;
     cover_rgba(&src, sw, sh, w, h)

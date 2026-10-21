@@ -5,8 +5,9 @@
 //! hole: the slot shows through it as the disc goes in.
 //!
 //! From the middle out: the spindle hole (transparent), the clear clamp ring
-//! (translucent plastic), a fine stacking groove, then the printed surface that
-//! carries the cover art edge to edge, as the label side of a real disc does.
+//! (frosted plastic with the cover showing through it), a fine stacking groove,
+//! then the printed surface that carries the cover art edge to edge, as the label
+//! side of a real disc does.
 //! The rim is a touch darker where the plastic is thick.
 //!
 //! The glare across the print is a separate layer ([`glare`]), not part of the
@@ -25,8 +26,12 @@ use crate::text;
 pub const DISC_D: u32 = 300;
 
 const R: f32 = DISC_D as f32 / 2.0;
-const HOLE: f32 = 0.125 * R;
-const HUB: f32 = 0.30 * R;
+// Smaller than a real disc's clamp ring (about 0.275 of the radius): at true size
+// the hub hides the middle of a cover, which is where its title is.
+const HOLE: f32 = 0.11 * R;
+const HUB: f32 = 0.24 * R;
+/// How much of the cover shows through the clear hub, as frosted plastic.
+const FROST: f32 = 0.55;
 const GROOVE_HALF: f32 = 1.2;
 const RIM: f32 = 2.5;
 
@@ -120,14 +125,18 @@ pub fn face(title: &str, art: Option<Vec<u8>>) -> CartFace {
             }
             let i = ((y * DISC_D + x) * 4) as usize;
 
+            let p = &print[i..i + 4];
+            let art = [p[0] as f32, p[1] as f32, p[2] as f32];
             let (mut c, opacity) = if d >= HUB {
-                let p = &print[i..i + 4];
-                ([p[0] as f32, p[1] as f32, p[2] as f32], 1.0)
+                (art, 1.0)
             } else {
-                // Clear plastic, a little lighter towards the rim of the hole.
+                // Frosted clear plastic over the cover: silver, a little lighter
+                // towards the rim of the hole, with the artwork showing through.
                 let t = (d - HOLE) / (HUB - HOLE);
                 let v = 196.0 + 34.0 * t;
-                ([v - 6.0, v - 2.0, v], 0.60)
+                let silver = [v - 6.0, v - 2.0, v];
+                let mix = |k: usize| silver[k] * (1.0 - FROST) + art[k] * FROST;
+                ([mix(0), mix(1), mix(2)], 0.92)
             };
 
             // The stacking groove where the clear ring meets the print.

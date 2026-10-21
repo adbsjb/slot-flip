@@ -208,7 +208,10 @@ fn shadow(w: u32, h: u32, mask: &[u8]) -> CartFace {
 
 pub fn cart_face(cart: &Cart) -> CartFace {
     let (lw, lh) = label_size(cart);
-    let art = cart.label.as_deref().and_then(|p| art::cover(p, lw, lh));
+    let art = cart
+        .label
+        .as_deref()
+        .and_then(|p| cover_for(cart.platform, p, lw, lh));
     cart_face_with(cart, art)
 }
 
@@ -278,6 +281,14 @@ pub fn cart_backing(shell: Option<GbShell>) -> CartFace {
         rgba,
         w: s.w,
         h: s.h,
+    }
+}
+
+/// Cover art fitted to what it is printed on: a disc's circle, or a cart's label.
+pub fn cover_for(platform: Platform, path: &std::path::Path, w: u32, h: u32) -> Option<Vec<u8>> {
+    match platform {
+        Platform::Ps1 => art::disc_cover(path, w.min(h)),
+        _ => art::cover(path, w, h),
     }
 }
 
