@@ -2,8 +2,8 @@ mod common;
 
 use common::tmp_root;
 use slot_store::{
-    atomic_write, read_slot_state, write_slot_state, Appearance, BezelPick, GbPalette, Platform,
-    Recent, Shader, SlotState, WallpaperPick, WallpaperTint, FF_SPEEDS, FF_SPEED_DEFAULT,
+    atomic_write, read_slot_state, sweep_temps, write_slot_state, Appearance, BezelPick, GbPalette,
+    Platform, Recent, Shader, SlotState, WallpaperPick, WallpaperTint, FF_SPEEDS, FF_SPEED_DEFAULT,
 };
 use tempfile::tempdir;
 
@@ -20,6 +20,33 @@ fn atomic_write_leaves_no_partial_file_and_no_temp_behind() {
         .filter(|e| e.file_name() != "x.bin")
         .collect();
     assert!(strays.is_empty(), "temp files left behind: {strays:?}");
+}
+
+#[test]
+fn a_temp_left_by_an_interrupted_write_is_swept_and_nothing_else() {
+    let d = tempdir().unwrap();
+    let deep = d.path().join("States/GBA/mgba/Emerald");
+    std::fs::create_dir_all(&deep).unwrap();
+    let stray = deep.join(".resume.state.4242.7.tmp");
+    let mine = deep.join(format!(".resume.state.{}.0.tmp", std::process::id()));
+    let keep = [
+        deep.join("resume.state"),
+        deep.join(".hidden.tmp"),
+        deep.join("notes.4242.7.tmp"),
+        d.path().join(".x.y.tmp"),
+    ];
+    for p in keep.iter().chain([&stray, &mine]) {
+        std::fs::write(p, b"bytes").unwrap();
+    }
+    sweep_temps(d.path());
+    assert!(
+        !stray.exists(),
+        "a temp from an earlier run was left behind"
+    );
+    assert!(mine.exists(), "swept a temp this run may still be writing");
+    for p in &keep {
+        assert!(p.exists(), "swept {}", p.display());
+    }
 }
 
 #[test]
@@ -174,7 +201,6 @@ fn a_first_boot_rumbles_and_fast_forwards_silently_at_the_default() {
     );
     assert_eq!(s.shader_gba, Shader::Grid);
     assert_eq!(s.shader_gb, Shader::Simpletex);
-    assert_eq!(s.runahead, 0, "boots with run-ahead on");
 }
 
 #[test]
@@ -204,14 +230,12 @@ fn a_card_from_before_the_settings_keeps_all_its_values() {
             colour_correction_gba: false,
             colour_correction_gb: false,
             colour_correction_gbc: false,
-            sleep_timeout_min: slot_store::SLEEP_TIMEOUT_DEFAULT_MIN,
             shader_gba: Shader::Grid,
             shader_gb: Shader::Simpletex,
             shader_gbc: Shader::Simpletex,
             eject_save: true,
             turbo: true,
             rewind: true,
-            runahead: 0,
             gb_palettes: false,
             gb_palette: GbPalette::DEFAULT,
             appearance: Appearance::Dark,
@@ -219,6 +243,8 @@ fn a_card_from_before_the_settings_keeps_all_its_values() {
             wallpaper_tint: WallpaperTint::Off,
             show_recents: false,
             show_titles: false,
+            left_stick_dpad: true,
+            lid_off_min: None,
             bezel_gba: BezelPick::Ags102,
             bezel_gb: BezelPick::Ags102,
             bezel_gbc: BezelPick::Ags102,
@@ -245,7 +271,6 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         eject_save: false,
         turbo: false,
         rewind: false,
-        runahead: 1,
         gb_palettes: true,
         gb_palette: GbPalette::parse("GBC Dark Green →A").unwrap(),
         wallpaper_tint: WallpaperTint::Medium,
@@ -275,7 +300,6 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         "eject_save=0",
         "turbo=0",
         "rewind=0",
-        "runahead=1",
         "gb_palettes=1",
         "gb_palette=GBC Dark Green →A",
         "appearance=dark",
@@ -293,22 +317,21 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
 }
 
 #[test]
-fn a_run_ahead_the_row_does_not_offer_reads_as_off() {
+fn a_card_that_still_carries_run_ahead_keeps_the_rest_of_its_values() {
     let d = tmp_root();
     let s = SlotState {
         clock_set: true,
-        runahead: 1,
+        rewind: false,
         ..SlotState::default()
     };
     write_slot_state(d.path(), &s).unwrap();
     let path = d.path().join("Config/slot.state");
     let text = std::fs::read_to_string(&path).unwrap();
-    std::fs::write(&path, text.replace("runahead=1", "runahead=9")).unwrap();
-    assert_eq!(read_slot_state(d.path()).runahead, 0);
-    assert!(
-        read_slot_state(d.path()).clock_set,
-        "the rest of the card was thrown away with it"
-    );
+    std::fs::write(&path, text.replace("rewind=0\n", "rewind=0\nrunahead=1\n")).unwrap();
+    assert!(std::fs::read_to_string(&path)
+        .unwrap()
+        .contains("runahead=1"));
+    assert_eq!(read_slot_state(d.path()), s);
 }
 
 #[test]
@@ -558,5 +581,86 @@ fn a_card_from_before_the_gbc_split_starts_gbc_from_the_gb_c_settings() {
         (s.colour_correction_gbc, s.shader_gbc),
         (false, Shader::Off),
         "the GB settings overrode GBC's own"
+    );
+}
+
+#[test]
+fn lid_power_off_minutes_round_trip_and_drop_a_value_the_menu_does_not_offer() {
+    let d = tmp_root();
+    for min in [1, 3, 5, 10, 15, 30] {
+        let s = SlotState {
+            lid_off_min: Some(min),
+            ..Default::default()
+        };
+        write_slot_state(d.path(), &s).unwrap();
+        assert_eq!(read_slot_state(d.path()).lid_off_min, Some(min));
+    }
+    let path = d.path().join("Config").join("slot.state");
+    let text = std::fs::read_to_string(&path)
+        .unwrap()
+        .replace("lid_off_min=30", "lid_off_min=7");
+    std::fs::write(&path, text).unwrap();
+    assert_eq!(read_slot_state(d.path()).lid_off_min, None);
+}
+
+/// A complete state file, as an upgrading player has one, with `extra` lines
+/// added at the end. (The reader rejects a file that is missing keys.)
+fn complete_state(root: &std::path::Path, extra: &str) {
+    std::fs::create_dir_all(root.join("Config")).unwrap();
+    write_slot_state(root, &SlotState::default()).unwrap();
+    let path = root.join("Config/slot.state");
+    let text: String = std::fs::read_to_string(&path)
+        .unwrap()
+        .lines()
+        .filter(|l| !l.starts_with("lid_off_min="))
+        .map(|l| format!("{l}\n"))
+        .collect();
+    std::fs::write(&path, format!("{text}{extra}")).unwrap();
+}
+
+#[test]
+fn an_old_sleep_timeout_carries_over_to_lid_power_off() {
+    // The values the fork's menu offered, and where each one lands.
+    for (old, want) in [
+        ("1", Some(1)),
+        ("5", Some(5)),
+        ("10", Some(10)),
+        ("30", Some(30)),
+        // 3 was the fork's default, never a choice: follow upstream's default.
+        ("3", None),
+        // "Off" (stay asleep forever) has no equivalent: the longest wait.
+        ("0", Some(30)),
+        // Not something the menu ever offered.
+        ("2", None),
+        ("abc", None),
+    ] {
+        let d = tempdir().unwrap();
+        complete_state(d.path(), &format!("sleep_timeout_min={old}\n"));
+        assert_eq!(
+            read_slot_state(d.path()).lid_off_min,
+            want,
+            "sleep_timeout_min={old}"
+        );
+    }
+}
+
+#[test]
+fn a_lid_power_off_chosen_in_the_new_menu_beats_an_old_sleep_timeout() {
+    let d = tempdir().unwrap();
+    complete_state(d.path(), "sleep_timeout_min=10\nlid_off_min=5\n");
+    assert_eq!(read_slot_state(d.path()).lid_off_min, Some(5));
+}
+
+#[test]
+fn the_old_sleep_timeout_key_is_not_written_back() {
+    let d = tempdir().unwrap();
+    complete_state(d.path(), "sleep_timeout_min=10\n");
+    let s = read_slot_state(d.path());
+    write_slot_state(d.path(), &s).unwrap();
+    let text = std::fs::read_to_string(d.path().join("Config/slot.state")).unwrap();
+    assert!(!text.contains("sleep_timeout_min"), "{text}");
+    assert!(
+        text.contains("lid_off_min=10"),
+        "the choice was lost:\n{text}"
     );
 }
