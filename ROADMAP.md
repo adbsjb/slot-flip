@@ -28,9 +28,10 @@ a time; the fork's own work is the Flip port itself and a few small additions.
   Timeout setting carries over once)
 - ✅ Shaders default to Off on the Flip
 
+- ✅ **Released v0.5.0**: the v1.8.0 sync, Key Map under Controls, and the rebuilt
+  mGBA core
+
 **Next**
-- 📋 **Release v0.5.0** (the v1.8.0 sync) and say plainly in the notes what moved:
-  Controls, the Key Map's new home, the lid timer, the rebuilt mGBA core
 - 📋 **Show the upstream base on the About screen**, so owners can see which
   slot version their build is without opening GitHub
 - 💡 **Card repair on MinUI.** Upstream's SELECT + START repair is switched off
