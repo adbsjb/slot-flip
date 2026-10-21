@@ -111,6 +111,11 @@ impl Compositor {
         self.game.upload(xrgb8888);
     }
 
+    /// As `upload_game`, for a picture that is not the GBA-sized canvas.
+    pub fn upload_game_sized(&mut self, xrgb8888: &[u8], w: u32, h: u32) {
+        self.game.upload_sized(xrgb8888, w, h);
+    }
+
     pub fn draw_game(&mut self) {
         self.in_game_rect(|c| c.game.draw(&c.quad));
     }

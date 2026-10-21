@@ -88,6 +88,16 @@ pub trait RetroCore: Send {
     fn set_option(&mut self, _key: &str, _value: &str) {}
     fn set_frame_skip(&mut self, _skip: bool) {}
     fn video_xrgb8888(&self) -> &[u8];
+    /// Width and height of what `video_xrgb8888` holds. Every core defaults to
+    /// the fixed GBA-sized canvas the Game Boy family is centred in; a core in
+    /// native-video mode reports the size it actually draws.
+    fn video_size(&self) -> (u32, u32) {
+        (GBA_W, GBA_H)
+    }
+    /// Keep each frame at the size the core draws it, instead of cropping or
+    /// centring it in the GBA-sized canvas. Off by default so the Game Boy
+    /// family is untouched; systems with larger pictures turn it on.
+    fn set_native_video(&mut self, _on: bool) {}
     fn take_audio(&mut self) -> Vec<i16>;
     fn serialize(&mut self) -> Result<Vec<u8>, CoreError>;
     fn unserialize(&mut self, data: &[u8]) -> Result<(), CoreError>;

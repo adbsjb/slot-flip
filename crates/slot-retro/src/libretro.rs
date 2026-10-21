@@ -24,6 +24,9 @@ enum PixelFormat {
 
 struct Host {
     video: Vec<u8>,
+    /// What `video` holds. Always the GBA canvas unless `native` is on.
+    video_size: (u32, u32),
+    native: bool,
     format: PixelFormat,
     audio: Vec<i16>,
     inputs: [u16; 2],
@@ -330,6 +333,10 @@ unsafe extern "C" fn video_refresh(
         return;
     }
     with_host(|h| {
+        if h.native {
+            copy_native(h, data as *const u8, width, height, pitch);
+            return;
+        }
         let cols = width.min(GBA_W) as usize;
         let rows = height.min(GBA_H) as usize;
         let ox = (GBA_W as usize - cols) / 2;
@@ -340,26 +347,62 @@ unsafe extern "C" fn video_refresh(
         for y in 0..rows {
             let src = (data as *const u8).add(y * pitch);
             let row = ((y + oy) * GBA_W as usize + ox) * 4;
-            match h.format {
-                PixelFormat::Xrgb8888 => {
-                    ptr::copy_nonoverlapping(src, h.video.as_mut_ptr().add(row), cols * 4);
-                }
-                PixelFormat::Rgb565 => {
-                    for x in 0..cols {
-                        let p = ptr::read_unaligned((src as *const u16).add(x));
-                        let r = ((p >> 11) & 0x1f) as u8;
-                        let g = ((p >> 5) & 0x3f) as u8;
-                        let b = (p & 0x1f) as u8;
-                        let o = row + x * 4;
-                        h.video[o] = (b << 3) | (b >> 2);
-                        h.video[o + 1] = (g << 2) | (g >> 4);
-                        h.video[o + 2] = (r << 3) | (r >> 2);
-                        h.video[o + 3] = 0;
-                    }
-                }
-            }
+            copy_row(&mut h.video, h.format, src, row, cols);
         }
     });
+}
+
+/// The largest picture a core may report in native-video mode. PS1 tops out
+/// at 640x480 (a little more in PAL), so this only guards a core that reports
+/// nonsense from making the host allocate without limit.
+const MAX_NATIVE: u32 = 1024;
+
+/// Keep the frame at the size the core drew it: nothing is cropped or
+/// centred, and the buffer follows the core when it changes resolution.
+unsafe fn copy_native(h: &mut Host, src: *const u8, width: c_uint, height: c_uint, pitch: usize) {
+    let cols = width.min(MAX_NATIVE) as usize;
+    let rows = height.min(MAX_NATIVE) as usize;
+    if cols == 0 || rows == 0 {
+        return;
+    }
+    let need = cols * rows * 4;
+    if h.video.len() != need {
+        h.video.clear();
+        h.video.resize(need, 0);
+    }
+    h.video_size = (cols as u32, rows as u32);
+    for y in 0..rows {
+        copy_row(
+            &mut h.video,
+            h.format,
+            src.add(y * pitch),
+            y * cols * 4,
+            cols,
+        );
+    }
+}
+
+/// One scanline of `cols` pixels from the core into `video` at byte `row`,
+/// as XRGB8888 whichever format the core uses.
+unsafe fn copy_row(video: &mut [u8], format: PixelFormat, src: *const u8, row: usize, cols: usize) {
+    match format {
+        PixelFormat::Xrgb8888 => {
+            ptr::copy_nonoverlapping(src, video.as_mut_ptr().add(row), cols * 4);
+        }
+        PixelFormat::Rgb565 => {
+            for x in 0..cols {
+                let p = ptr::read_unaligned((src as *const u16).add(x));
+                let r = ((p >> 11) & 0x1f) as u8;
+                let g = ((p >> 5) & 0x3f) as u8;
+                let b = (p & 0x1f) as u8;
+                let o = row + x * 4;
+                video[o] = (b << 3) | (b >> 2);
+                video[o + 1] = (g << 2) | (g >> 4);
+                video[o + 2] = (r << 3) | (r >> 2);
+                video[o + 3] = 0;
+            }
+        }
+    }
 }
 
 unsafe extern "C" fn audio_sample(left: i16, right: i16) {
@@ -495,6 +538,8 @@ impl LibretroCore {
         }
         let mut host = Box::new(Host {
             video: vec![0; VIDEO_BYTES],
+            video_size: (GBA_W, GBA_H),
+            native: false,
             format: PixelFormat::Xrgb8888,
             audio: Vec::new(),
             inputs: [0; 2],
@@ -650,6 +695,23 @@ impl RetroCore for LibretroCore {
         &self.host.video
     }
 
+    fn video_size(&self) -> (u32, u32) {
+        self.host.video_size
+    }
+
+    fn set_native_video(&mut self, on: bool) {
+        if self.host.native == on {
+            return;
+        }
+        self.host.native = on;
+        // Back to the fixed canvas, blank, so the next frame starts clean. Turning
+        // it on needs nothing: the buffer is resized by the first frame.
+        if !on {
+            self.host.video = vec![0; VIDEO_BYTES];
+            self.host.video_size = (GBA_W, GBA_H);
+        }
+    }
+
     fn take_audio(&mut self) -> Vec<i16> {
         std::mem::take(&mut self.host.audio)
     }
@@ -739,6 +801,8 @@ mod tests {
     fn host_with(options: HashMap<String, CString>, options_dirty: bool) -> Box<Host> {
         Box::new(Host {
             video: vec![0; VIDEO_BYTES],
+            video_size: (GBA_W, GBA_H),
+            native: false,
             format: PixelFormat::Xrgb8888,
             audio: Vec::new(),
             inputs: [0; 2],
@@ -1605,6 +1669,126 @@ mod tests {
         let button = |id| unsafe { input_state(1, DEVICE_JOYPAD, 0, id) };
         assert_eq!(button(0), 1, "B is bit 0 of the libretro joypad");
         assert_eq!(button(8), 0, "A is not held on port 1");
+    }
+
+    fn native_host() -> Box<Host> {
+        let mut host = host_with(HashMap::new(), false);
+        host.native = true;
+        host
+    }
+
+    /// A frame where every pixel differs from its neighbours, so a crop, a
+    /// shift or a wrong stride changes the bytes.
+    fn numbered(w: usize, h: usize) -> Vec<u8> {
+        (0..(w * h) as u32).flat_map(|i| i.to_le_bytes()).collect()
+    }
+
+    #[test]
+    fn a_native_picture_keeps_its_size_and_is_not_cropped() {
+        let mut host = native_host();
+        let _active = Active::bind(&mut host);
+        let frame = numbered(320, 240);
+        unsafe { video_refresh(frame.as_ptr() as *const c_void, 320, 240, 320 * 4) };
+
+        let (size, video) = unsafe { with_host(|h| (h.video_size, h.video.clone())) }.unwrap();
+        assert_eq!(size, (320, 240));
+        assert_eq!(video, frame, "every pixel arrives where the core drew it");
+    }
+
+    #[test]
+    fn the_buffer_follows_the_core_when_it_changes_resolution() {
+        let mut host = native_host();
+        let _active = Active::bind(&mut host);
+        for (w, h) in [(320usize, 240usize), (640, 480), (256, 240)] {
+            let frame = numbered(w, h);
+            unsafe { video_refresh(frame.as_ptr() as *const c_void, w as _, h as _, w * 4) };
+            let (size, video) = unsafe { with_host(|h| (h.video_size, h.video.clone())) }.unwrap();
+            assert_eq!(size, (w as u32, h as u32));
+            assert_eq!(video, frame, "{w}x{h}");
+        }
+    }
+
+    #[test]
+    fn a_padded_pitch_is_skipped_not_drawn() {
+        let mut host = native_host();
+        let _active = Active::bind(&mut host);
+        let (w, h, pitch) = (64usize, 8usize, 96 * 4);
+        let mut padded = vec![0xEEu8; pitch * h];
+        let expect = numbered(w, h);
+        for y in 0..h {
+            padded[y * pitch..y * pitch + w * 4].copy_from_slice(&expect[y * w * 4..][..w * 4]);
+        }
+        unsafe { video_refresh(padded.as_ptr() as *const c_void, w as _, h as _, pitch) };
+
+        let video = unsafe { with_host(|h| h.video.clone()) }.unwrap();
+        assert_eq!(
+            video, expect,
+            "the padding at the end of a row is not picture"
+        );
+    }
+
+    #[test]
+    fn a_native_565_picture_is_widened_to_xrgb() {
+        let mut host = native_host();
+        host.format = PixelFormat::Rgb565;
+        let _active = Active::bind(&mut host);
+        // red, green, blue, white
+        let frame: Vec<u8> = [0xF800u16, 0x07E0, 0x001F, 0xFFFF]
+            .iter()
+            .flat_map(|p| p.to_le_bytes())
+            .collect();
+        unsafe { video_refresh(frame.as_ptr() as *const c_void, 2, 2, 2 * 2) };
+
+        let video = unsafe { with_host(|h| h.video.clone()) }.unwrap();
+        assert_eq!(video.len(), 2 * 2 * 4);
+        // Stored B, G, R, unused.
+        assert_eq!(&video[0..4], &[0, 0, 255, 0], "red");
+        assert_eq!(&video[4..8], &[0, 255, 0, 0], "green");
+        assert_eq!(&video[8..12], &[255, 0, 0, 0], "blue");
+        assert_eq!(&video[12..16], &[255, 255, 255, 0], "white");
+    }
+
+    #[test]
+    fn a_nonsense_size_is_capped_rather_than_allocated() {
+        let mut host = native_host();
+        let _active = Active::bind(&mut host);
+        let (w, h) = (MAX_NATIVE as usize + 76, MAX_NATIVE as usize + 76);
+        let frame = vec![0x55u8; w * h * 4];
+        unsafe { video_refresh(frame.as_ptr() as *const c_void, w as _, h as _, w * 4) };
+
+        let (size, len) = unsafe { with_host(|h| (h.video_size, h.video.len())) }.unwrap();
+        assert_eq!(size, (MAX_NATIVE, MAX_NATIVE));
+        assert_eq!(len, (MAX_NATIVE * MAX_NATIVE * 4) as usize);
+    }
+
+    #[test]
+    fn an_empty_native_frame_changes_nothing() {
+        let mut host = native_host();
+        let _active = Active::bind(&mut host);
+        let frame = numbered(32, 32);
+        unsafe {
+            video_refresh(frame.as_ptr() as *const c_void, 32, 32, 32 * 4);
+            video_refresh(frame.as_ptr() as *const c_void, 0, 0, 0);
+        }
+        let (size, video) = unsafe { with_host(|h| (h.video_size, h.video.clone())) }.unwrap();
+        assert_eq!(size, (32, 32));
+        assert_eq!(video, frame);
+    }
+
+    #[test]
+    fn without_native_video_a_big_picture_is_still_cropped_to_the_canvas() {
+        let mut host = host_with(HashMap::new(), false);
+        let _active = Active::bind(&mut host);
+        let frame = numbered(320, 240);
+        unsafe { video_refresh(frame.as_ptr() as *const c_void, 320, 240, 320 * 4) };
+
+        let (size, len) = unsafe { with_host(|h| (h.video_size, h.video.len())) }.unwrap();
+        assert_eq!(
+            size,
+            (GBA_W, GBA_H),
+            "the Game Boy family path must not change"
+        );
+        assert_eq!(len, VIDEO_BYTES);
     }
 
     #[test]
