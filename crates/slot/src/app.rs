@@ -945,6 +945,7 @@ impl App {
         // A disc has no bezel, shader or colour correction of its own to change.
         if self.playing_platform() == Platform::Ps1 {
             hidden.extend([QuickRow::Shader, QuickRow::ColourCorrection, QuickRow::Bezel]);
+            hidden.extend([QuickRow::GameTurboA, QuickRow::GameTurboB]);
         }
         if !self.palette_live {
             hidden.push(QuickRow::Palette);
@@ -1813,11 +1814,12 @@ impl App {
     }
 
     pub fn binding_table(&self) -> crate::input::Table {
-        crate::input::Table::new(
+        crate::input::Table::for_platform(
             &self.controls,
             &self.shortcuts,
             &self.carousel,
             self.state.turbo,
+            self.playing_platform(),
         )
     }
 
@@ -2058,7 +2060,9 @@ impl App {
     }
 
     pub fn records_rewind(&self) -> bool {
-        self.state.rewind
+        // A disc has no rewind button (L2 is a game button there), so nothing would
+        // ever use what was recorded.
+        self.state.rewind && self.playing_platform() != Platform::Ps1
     }
 
     pub fn picture_rect(&self) -> [f32; 4] {

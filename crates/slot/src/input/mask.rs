@@ -1,6 +1,6 @@
 use slot_input::{Action, Btn};
 use slot_retro::ButtonMask;
-use slot_store::{Controls, GameButton, Modifier};
+use slot_store::{Controls, Device, GameButton, Modifier, Platform};
 
 use super::bind::device_btn;
 
@@ -26,8 +26,18 @@ impl Pad {
     }
 
     pub fn mask(&self, controls: &Controls) -> ButtonMask {
+        self.mask_for(controls, Platform::Gba)
+    }
+
+    /// What the core sees for `platform`. The Game Boy family is the 12 named
+    /// buttons; a PlayStation pad keeps the shared ones and adds its own, which the
+    /// Flip's remaining buttons stand in for (see `PS1_EXTRAS`).
+    pub fn mask_for(&self, controls: &Controls, platform: Platform) -> ButtonMask {
+        let disc = platform == Platform::Ps1;
         let bits = GameButton::ALL
             .into_iter()
+            // Turbo is a GBA feature; on a disc its buttons are Triangle and Square.
+            .filter(|g| !(disc && matches!(g, GameButton::TurboA | GameButton::TurboB)))
             .filter(|g| {
                 controls.game(*g).is_some_and(|binding| {
                     let b = device_btn(binding.button);
@@ -39,7 +49,14 @@ impl Pad {
                 })
             })
             .fold(0, |bits, g| bits | bit(g));
-        ButtonMask(bits)
+        let extras = match disc {
+            true => PS1_EXTRAS
+                .iter()
+                .filter(|(device, _)| self.held.contains(&device_btn(*device)))
+                .fold(0, |bits, (_, bit)| bits | bit),
+            false => 0,
+        };
+        ButtonMask(bits | extras)
     }
 
     pub fn clear(&mut self) {
@@ -47,6 +64,17 @@ impl Pad {
         self.chorded.clear();
     }
 }
+
+/// The PlayStation buttons with no GBA equivalent, on the Flip's physical buttons by
+/// position: top (X) is Triangle, left (Y) is Square, and the lower shoulders are
+/// L2 and R2. Cross is the bottom button (B) and Circle the right (A), which the
+/// shared A/B bindings already give.
+const PS1_EXTRAS: [(Device, u16); 4] = [
+    (Device::X, ButtonMask::X),
+    (Device::Y, ButtonMask::Y),
+    (Device::L2, ButtonMask::L2),
+    (Device::R2, ButtonMask::R2),
+];
 
 fn bit(g: GameButton) -> u16 {
     match g {

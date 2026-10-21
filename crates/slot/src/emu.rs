@@ -91,6 +91,7 @@ struct Shared {
     rewind: AtomicBool,
     rewind_fill: AtomicU8,
     turbo: AtomicBool,
+    native_pad: AtomicBool,
     recording: AtomicBool,
     stop: AtomicBool,
     volume: AtomicU8,
@@ -166,6 +167,7 @@ impl EmuHandle {
             rewind: AtomicBool::new(false),
             rewind_fill: AtomicU8::new(0),
             turbo: AtomicBool::new(true),
+            native_pad: AtomicBool::new(false),
             recording: AtomicBool::new(true),
             stop: AtomicBool::new(false),
             volume: AtomicU8::new(100),
@@ -363,6 +365,12 @@ impl EmuHandle {
 
     pub fn set_turbo(&self, on: bool) {
         self.shared.turbo.store(on, Ordering::Relaxed);
+    }
+
+    /// The pad is handed to the core as it is: X and Y are buttons of its own, not
+    /// the turbo keys the Game Boy cores are given.
+    pub fn set_native_pad(&self, on: bool) {
+        self.shared.native_pad.store(on, Ordering::Relaxed);
     }
 
     pub fn set_rewind_recording(&self, on: bool) {
@@ -683,9 +691,13 @@ impl Worker {
                 loop {
                     ran += 1;
                     let last = ran >= ceiling || cost.last(began.elapsed(), budget);
-                    let input = match self.shared.turbo.load(Ordering::Relaxed) {
-                        true => input.turbo(turbo_frame),
-                        false => input.without_turbo(),
+                    let input = if self.shared.native_pad.load(Ordering::Relaxed) {
+                        input
+                    } else {
+                        match self.shared.turbo.load(Ordering::Relaxed) {
+                            true => input.turbo(turbo_frame),
+                            false => input.without_turbo(),
+                        }
                     };
                     turbo_frame = turbo_frame.wrapping_add(1);
                     core.set_frame_skip(!last);

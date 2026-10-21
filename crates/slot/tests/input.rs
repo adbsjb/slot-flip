@@ -163,3 +163,209 @@ fn turbo_a_and_b_fire_from_whatever_they_are_bound_to() {
     pad.apply(Action::GbaDown(Btn::L2));
     assert_eq!(pad.mask(&c).turbo(0).0, ButtonMask::A);
 }
+
+mod disc_pad {
+    use super::*;
+    use slot::input::Pad;
+    use slot_input::{Action, Btn, Context, Gestures, RawEvent};
+    use slot_retro::ButtonMask;
+    use slot_store::{CarouselKeys, Controls, Device, Platform, Shortcut, ShortcutKeys};
+
+    fn held(btns: &[Btn]) -> Pad {
+        let mut pad = Pad::default();
+        for b in btns {
+            pad.apply(Action::GbaDown(*b));
+        }
+        pad
+    }
+
+    fn mask(btns: &[Btn], platform: Platform) -> u16 {
+        held(btns).mask_for(&Controls::default(), platform).0
+    }
+
+    #[test]
+    fn the_face_buttons_are_where_a_playstation_pad_has_them() {
+        // Bottom (B) is Cross, right (A) is Circle: libretro's B and A.
+        assert_eq!(mask(&[Btn::B], Platform::Ps1), ButtonMask::B);
+        assert_eq!(mask(&[Btn::A], Platform::Ps1), ButtonMask::A);
+        // Top (X) is Triangle and left (Y) is Square: libretro's X and Y.
+        assert_eq!(mask(&[Btn::X], Platform::Ps1), ButtonMask::X);
+        assert_eq!(mask(&[Btn::Y], Platform::Ps1), ButtonMask::Y);
+    }
+
+    #[test]
+    fn the_lower_shoulders_are_l2_and_r2_and_the_upper_are_l1_and_r1() {
+        assert_eq!(mask(&[Btn::L2], Platform::Ps1), ButtonMask::L2);
+        assert_eq!(mask(&[Btn::R2], Platform::Ps1), ButtonMask::R2);
+        assert_eq!(mask(&[Btn::L1], Platform::Ps1), ButtonMask::L);
+        assert_eq!(mask(&[Btn::R1], Platform::Ps1), ButtonMask::R);
+    }
+
+    #[test]
+    fn a_game_boy_pad_is_exactly_what_it_was() {
+        for platform in [Platform::Gba, Platform::Gb, Platform::Gbc] {
+            // X and Y are still the turbo keys, and the shoulders still do nothing extra.
+            assert_eq!(mask(&[Btn::X], platform), ButtonMask::X);
+            assert_eq!(mask(&[Btn::Y], platform), ButtonMask::Y);
+            assert_eq!(mask(&[Btn::L2], platform), 0);
+            assert_eq!(mask(&[Btn::R2], platform), 0);
+        }
+        let all = [
+            Btn::A,
+            Btn::B,
+            Btn::X,
+            Btn::Y,
+            Btn::L1,
+            Btn::R1,
+            Btn::L2,
+            Btn::R2,
+        ];
+        assert_eq!(
+            held(&all).mask(&Controls::default()).0,
+            held(&all).mask_for(&Controls::default(), Platform::Gba).0
+        );
+    }
+
+    #[test]
+    fn a_disc_reaches_the_core_unchanged_where_a_cart_gets_turbo() {
+        // The emulator turns X into a pulsing A for a cart; for a disc it must not.
+        let pad = mask(&[Btn::X], Platform::Ps1);
+        assert_eq!(
+            ButtonMask(pad).turbo(3).0,
+            0,
+            "what turbo would have done to Triangle"
+        );
+        assert_eq!(pad, ButtonMask::X);
+    }
+
+    #[test]
+    fn every_button_at_once_is_every_playstation_button() {
+        let all = [
+            Btn::Up,
+            Btn::Down,
+            Btn::Left,
+            Btn::Right,
+            Btn::A,
+            Btn::B,
+            Btn::X,
+            Btn::Y,
+            Btn::L1,
+            Btn::R1,
+            Btn::L2,
+            Btn::R2,
+            Btn::Start,
+            Btn::Select,
+        ];
+        let m = mask(&all, Platform::Ps1);
+        for bit in [
+            ButtonMask::UP,
+            ButtonMask::DOWN,
+            ButtonMask::LEFT,
+            ButtonMask::RIGHT,
+            ButtonMask::A,
+            ButtonMask::B,
+            ButtonMask::X,
+            ButtonMask::Y,
+            ButtonMask::L,
+            ButtonMask::R,
+            ButtonMask::L2,
+            ButtonMask::R2,
+            ButtonMask::START,
+            ButtonMask::SELECT,
+        ] {
+            assert_ne!(m & bit, 0, "{bit:#06x} is missing from {m:#06x}");
+        }
+    }
+
+    fn entries(platform: Platform) -> Vec<slot_input::Entry> {
+        slot::input::Table::for_platform(
+            &Controls::default(),
+            &ShortcutKeys::default(),
+            &CarouselKeys::default(),
+            true,
+            platform,
+        )
+        .entries()
+    }
+
+    fn fires(entries: &[slot_input::Entry], held: &[Btn], press: Btn, want: Action) -> bool {
+        let mut g = Gestures::new();
+        g.set_entries(entries.to_vec());
+        g.set_context(Context::Game);
+        let mut out = Vec::new();
+        for b in held {
+            out.extend(g.feed(RawEvent::Down(*b), 0));
+        }
+        out.extend(g.feed(RawEvent::Down(press), 10));
+        out.extend(g.tick(400));
+        out.contains(&want)
+    }
+
+    #[test]
+    fn on_a_cart_plain_r2_is_fast_forward_as_ever() {
+        assert!(fires(
+            &entries(Platform::Gba),
+            &[],
+            Btn::R2,
+            Action::FfStart
+        ));
+        assert!(fires(
+            &entries(Platform::Gba),
+            &[],
+            Btn::L2,
+            Action::RewindStart
+        ));
+    }
+
+    #[test]
+    fn on_a_disc_plain_r2_and_l2_are_left_to_the_game() {
+        let e = entries(Platform::Ps1);
+        assert!(
+            !fires(&e, &[], Btn::R2, Action::FfStart),
+            "R2 still fast-forwards"
+        );
+        assert!(
+            !fires(&e, &[], Btn::L2, Action::RewindStart),
+            "L2 still rewinds"
+        );
+    }
+
+    #[test]
+    fn on_a_disc_fast_forward_is_select_and_r2() {
+        let e = entries(Platform::Ps1);
+        assert!(fires(&e, &[Btn::Select], Btn::R2, Action::FfStart));
+        assert!(!fires(&e, &[Btn::Select], Btn::L2, Action::RewindStart));
+    }
+
+    #[test]
+    fn no_shortcut_on_a_disc_takes_a_plain_pad_button() {
+        for e in entries(Platform::Ps1) {
+            // Shelf-only keys (Favorite) are not on the pad while a game is up.
+            if e.contexts.meets(slot_input::Contexts::GAME) && e.chord.modifier.is_none() {
+                assert!(
+                    ![Btn::X, Btn::Y, Btn::L2, Btn::R2].contains(&e.chord.button),
+                    "{:?} sits on a PlayStation button",
+                    e.action
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_shortcut_the_user_put_elsewhere_is_left_alone_on_a_disc() {
+        let mut keys = ShortcutKeys::default();
+        keys.set(
+            Shortcut::FastForward,
+            slot_store::Binding::plain(Device::Down),
+        );
+        let e = slot::input::Table::for_platform(
+            &Controls::default(),
+            &keys,
+            &CarouselKeys::default(),
+            true,
+            Platform::Ps1,
+        )
+        .entries();
+        assert!(fires(&e, &[], Btn::Down, Action::FfStart));
+    }
+}
