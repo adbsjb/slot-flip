@@ -12,7 +12,10 @@ fn fields() -> StickerFields<'static> {
 #[test]
 fn the_headline_rows_read_as_a_device_plate() {
     let all = sticker_lines(&fields()).join("\n");
-    assert!(all.contains("AGS-102"), "{all}");
+    assert!(
+        all.contains("MY355"),
+        "the plate names another device: {all}"
+    );
     assert!(all.contains("5V"), "{all}");
     assert!(all.contains("1.5A"), "{all}");
     assert!(all.contains("87"), "the gauge reading is missing: {all}");
@@ -71,34 +74,36 @@ fn every_line_is_already_upper_case() {
 }
 
 #[test]
-fn the_wordmarks_top_edge_is_antialiased_not_a_hard_step() {
+fn the_device_wordmark_is_drawn_in_its_band_and_antialiased() {
     use slot_ui::sticker_face;
-    const INK: [u8; 3] = [0xff, 0xff, 0xff];
     let face = sticker_face(&fields());
-    let get = |x: u32, y: u32| -> [u8; 3] {
+    let at = |x: u32, y: u32| -> u32 {
         let i = ((y * face.w + x) * 4) as usize;
-        [face.rgba[i], face.rgba[i + 1], face.rgba[i + 2]]
+        face.rgba[i] as u32 + face.rgba[i + 1] as u32 + face.rgba[i + 2] as u32
     };
-    let dark = |c: [u8; 3]| (c[0] as u32 + c[1] as u32 + c[2] as u32) < 120;
-    let edges: Vec<[u8; 3]> = (400..413)
-        .filter_map(|x| {
-            (129..142).find_map(|y| {
-                let above = get(x, y - 1);
-                let here = get(x, y);
-                (dark(above) && !dark(here)).then_some(here)
-            })
-        })
+    // The band between the panel and the version line, on the right where the
+    // wordmark is right-aligned.
+    let band: Vec<u32> = (400..face.w - 12)
+        .flat_map(|x| (128..190).map(move |y| (x, y)))
+        .map(|(x, y)| at(x, y))
         .collect();
     assert!(
-        edges.iter().any(|&e| e != INK),
-        "every sampled column's top edge jumps straight from the ground to the ink: {edges:?}"
+        band.iter().any(|&v| v > 600),
+        "nothing was drawn where the wordmark belongs"
+    );
+    assert!(
+        band.iter().any(|&v| (150..600).contains(&v)),
+        "the wordmark has no partly lit pixels: its edges are a hard step"
     );
 }
 
 #[test]
-fn the_version_rides_above_the_readme_line() {
+fn the_version_rides_above_the_where_to_look_line() {
     let lines = sticker_lines(&fields());
-    let home = lines.iter().position(|l| l == "SEE README.").unwrap();
+    let home = lines
+        .iter()
+        .position(|l| l == "GITHUB.COM/BOOMCHU-123/SLOT-FLIP")
+        .unwrap();
     assert_eq!(
         lines[home - 1],
         "VERSION 0.1.0 (SLOT 1.8.0)",
