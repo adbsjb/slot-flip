@@ -92,6 +92,8 @@ devices):
   release it follows, on a plate marked **MY355** with this fork's repo on it,
   plus a one-time "Updated to ..." word the first time a newer build runs on a
   card that has run an older one.
+- **PlayStation discs** — a PS1 shelf where each game is a disc that spins into
+  a slot drawn as a console. See [PlayStation discs](#playstation-discs).
 - **Lid-close sleep + auto power-off** — shut the lid and it sleeps instantly,
   then powers off after the time you choose under **General > Lid Power Off**
   (1–30 min).
@@ -104,7 +106,8 @@ devices):
 ## Compatibility
 
 - **Device:** Miyoo Flip (`my355`), running **MinUI**.
-- **Systems:** GBA (`.gba`), GB (`.gb`), GBC (`.gbc`).
+- **Systems:** GBA (`.gba`), GB (`.gb`), GBC (`.gbc`), and PlayStation
+  (`.cue`, `.chd`, `.m3u`, `.pbp`; see [PlayStation discs](#playstation-discs)).
 - Other MinUI devices can be supported with small changes — see
   [INSTALL.md](INSTALL.md).
 
@@ -169,10 +172,10 @@ Everything Slot owns lives under `<SD CARD>/Slot`:
 
 ```
 Slot/
-  Games/   GBA GB GBC      your ROMs, one folder per system
+  Games/   GBA GB GBC PS1  your ROMs and discs, one folder per system
   Saves/   GBA GB GBC      battery saves
-  States/  GBA GB GBC      save states
-  Labels/  (GBA GB GBC)    cart artwork, <game-name>.png, any of these folders
+  States/  GBA GB GBC PS1  save states
+  Labels/  (GBA GB GBC PS1) cart and disc artwork, <game-name>.png, any of these folders
   Wallpapers/              background images (PNG)
   Config/                  slot.ini, buttons.ini, and other settings
   System/                  emulator cores
@@ -208,6 +211,45 @@ is not a PNG, it is in a folder with another name (`Labels/gba` is fine,
 a ROM renamed to `Emerald` will not pick up `Pokemon Emerald.png`.
 
 ---
+
+## PlayStation discs
+
+Put PlayStation games in `Slot/Games/PS1`. Slot reads `.cue` (with its `.bin`
+files), `.chd`, `.m3u` and `.pbp`. They show on their own **PS1** shelf as discs,
+and a disc spins into a slot drawn as a console when you start it. A multi-disc
+game is shown once if you give it an `.m3u` playlist. Emulation is by
+PCSX-ReARMed (GPL-2.0).
+
+**Disc art.** Drop the front cover as `Slot/Labels/PS1/<game name>.png` (or flat
+in `Labels/`, named after the game). It is printed across the disc. If it is a
+PlayStation jewel-case cover, the black "PlayStation" spine down its left edge is
+trimmed off first. A disc with no art gets a colour and its title.
+
+**Buttons.** The face buttons sit where a PlayStation pad's do:
+
+| PlayStation | On the Flip |
+| --- | --- |
+| ✕ Cross | bottom face button (B) |
+| ○ Circle | right face button (A) |
+| △ Triangle | top face button (X) |
+| □ Square | left face button (Y) |
+| L1 | left shoulder |
+| L2 | left trigger |
+| R1 | right trigger (the Flip port reads it as R1, see Notes for the Flip) |
+| R2 | right analog stick pushed right |
+| D-pad, Start, Select | the same |
+
+R2 is a click of the right stick because the Flip port already gives the physical
+right shoulder to R1. L2 and R2 are game buttons on a disc, so **fast-forward there
+is SELECT + R2** (hold SELECT, push the right stick right) instead of the stick
+alone, and there is no rewind. Turbo does not apply to discs. The Controls pages
+still call the two main face buttons "A Button" and "B Button".
+
+**What is not there yet.** Passing the analog sticks to a game (the sticks only do
+what they do for the Game Boy systems), swapping discs in a multi-disc game, and
+a screen shader, colour correction or bezel (they do nothing for a disc, so those
+rows are hidden). Games run without a BIOS file on the card. How fast heavy 3D
+games run has not been measured; the one game timed ran at full speed.
 
 ## Settings
 

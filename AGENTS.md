@@ -46,6 +46,7 @@ one-for-one patch cadence the fork does not have.
 | `v0.4.0` | v1.7.0 (skeuomorphic redesign; Buttons rebuilt as menu pages) |
 | `v0.5.0` | v1.8.0 (Controls; the remap moved to Controls > Key Map; rebuilt mGBA core) |
 | `v0.6.0` | v1.8.0 (fork work only: About names the device, update word, forgiving cart labels) |
+| `v0.7.0` | v1.8.0 (fork work only: PlayStation discs, console-style slot, PS1 pad, PCSX-ReARMed bundled) |
 | `exp-v0.3.0` | v1.6.0 |
 
 ---
@@ -151,7 +152,7 @@ silently delete. Section 5 turns this into a post-merge checklist.
 | About + update word | The About sticker is repainted for this device: `MODEL NO. MY355`, the wordmark `MIYOO FLIP`, and the repo URL where upstream's "SEE README" points at a file the pak does not ship. It prints `VERSION <fork> (SLOT <upstream>)`, so `build_info::UPSTREAM` must be bumped with every sync (section 5). The first boot of a build newer than the card's `Config/slot.state` `seen_version` shows `Updated to <version>` once; a card with no `seen_version` (new install, or from before the key) is marked silently, which is also why tests that boot a card with a state file still see no banner. | `slot/src/build_info.rs`, `slot/src/app.rs` (`note_build`), `slot-ui/src/sticker.rs` |
 | Frame size | Frames carry their own `(w, h)` instead of assuming the 240x160 GBA canvas, so a bigger picture is not cropped. `LibretroCore::set_native_video` is **off by default** (the Game Boy family is still centred in the canvas, byte-identical; a real-core test proves a GBA frame is the same in both modes) and on for PlayStation. The size travels `video_size` -> `Frames::publish_sized` -> `upload_game_sized`, and `GamePass` re-creates its texture when it changes. | `slot-retro/src/libretro.rs` (`copy_native`), `slot/src/frames.rs`, `slot/src/emu.rs` (`publish`), `slot-gfx/src/pipeline.rs` (`upload_sized`) |
 | Path-only cores | `load()` asks the core (`retro_get_system_info`) whether it needs a path and, if so, does not read the file into RAM (a disc image is hundreds of MB). | `slot-retro/src/libretro.rs` (`content_bytes`) |
-| PlayStation (in progress, not shipped) | `Platform::Ps1` (`Games/PS1`: `.cue .chd .m3u .pbp`) runs on `Core::Pcsx`. A multi-disc game is shelved once, as its `.m3u`. No bezel, shader or colour correction. The cart art is a **placeholder** (the Game Boy Color pak). The core is built by `cores/pcsx` but not bundled in the pak yet. `Core::ALL` is the picker's two cores; `Core::EVERY` is all three. | `slot-store/src/{platform,core,scan}.rs`, `slot/src/core.rs`, `slot-ui/src/cart.rs` |
+| PlayStation (v0.7.0) | `Platform::Ps1` (`Games/PS1`: `.cue .chd .m3u .pbp`) runs on `Core::Pcsx` (bundled). A multi-disc game is shelved once, as its `.m3u`. No bezel, shader or colour correction, and the in-game menu hides those rows plus Turbo. The cart is a **disc**, drawn (`slot-ui/src/disc.rs`), not a bitmap: it spins one turn into the slot (`Draw::Turned`), the glare is a separate non-rotating layer, cover art is fitted to the circle with a jewel-case spine trimmed (`art::disc_cover`) and shows through a frosted hub. The slot is drawn as a console (`slot-ui/src/ps1_slot.rs`, built on first use by `ensure_console_slot`, chosen by `App::console_slot_wanted`). **Pad:** `Pad::mask_for(.., Platform::Ps1)` adds X/Y (Triangle/Square) and L2/R2, `EmuHandle::set_native_pad` skips the turbo transform, and `Table::for_platform` moves fast-forward to SELECT+R2 and drops rewind and the palette keys (plain L2/R2/X/Y are game buttons). Mind the Flip's input quirks (`input/evdev.rs`): the physical right trigger arrives as `Btn::R1` and `Btn::R2` is the right stick pushed right, so PS R1 is the trigger and PS R2 is the stick. Analog values are not passed to the core yet. **PAL:** `emu::frame_period` paces a core that really runs at ~50 Hz at its own rate; 59.73 (GBA) and 60 are left exactly as they were. `Core::ALL` is the picker's two cores; `Core::EVERY` is all three. | `slot-store/src/{platform,core,scan}.rs`, `slot/src/core.rs`, `slot-ui/src/{cart,disc,ps1_slot,art}.rs`, `slot/src/input/{mask,table}.rs`, `slot/src/emu.rs` |
 | Core delivery | `launch.sh` refreshes `Slot/System` cores whenever the pak's differ (`cmp -s`), so core fixes reach existing installs. | `Slot.pak/launch.sh` |
 | GBA core | gpSP by default (ARM64 dynarec); mGBA has none. Per-game override in `selected_core.txt`. | `slot-store/src/core.rs` |
 | Crash handler | Adds a 32-bit ARM register reader (upstream covers aarch64 and x86_64 only). | `slot/src/crash.rs` (experimental) |
@@ -478,9 +479,12 @@ Notes are for people who own the device, not for developers.
 - `cores/pcsx` builds PCSX-ReARMed (GPL-2.0) with no patches. Build it in the
   device's bullseye box: that gives GLIBC_2.17 (the Flip's own libc is 2.36, so
   the libretro buildbot's prebuilt, which needs 2.34, would also load; building
-  it ourselves is for the pinned, patchable, GPL-corresponding source). It is **not bundled in the
-  pak yet**; when it is, add its `.meta` and source archive to the licence
-  bundle like gpSP's, and note that it adds ~2 MB to every install.
+  it ourselves is for the pinned, patchable, GPL-corresponding source). It is
+  bundled in the pak since v0.7.0: the stripped `.so` (~1.8 MB), its `.meta`,
+  `pcsx-GPL-2.0.txt` (the source's `COPYING`) and `pcsx-src.tar.gz` (~5.6 MB, the
+  pinned source) in `System/licenses/`. That is ~7.5 MB on every install, mostly
+  the source archive the GPL asks for; do not drop it without replacing it with a
+  written offer. Re-strip with `strip --strip-unneeded` after every rebuild.
 - Because `launch.sh` refreshes cores by comparison, shipping a new core in a
   release is enough for it to reach existing installs.
 
