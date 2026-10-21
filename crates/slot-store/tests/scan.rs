@@ -268,3 +268,87 @@ fn an_image_that_is_not_a_png_is_left_alone() {
         "a file the decoder cannot read was taken as a label"
     );
 }
+
+fn write_file(d: &TempDir, rel: &str, body: &str) {
+    let path = d.path().join("Games").join(rel);
+    std::fs::create_dir_all(path.parent().expect("a parent")).expect("create dir");
+    std::fs::write(path, body).expect("write file");
+}
+
+fn stems(carts: &[slot_store::Cart]) -> Vec<&str> {
+    carts.iter().map(|c| c.stem.as_str()).collect()
+}
+
+#[test]
+fn a_playstation_game_is_shelved_by_its_disc_image_and_not_its_track_files() {
+    let d = tmp_root();
+    write_file(&d, "PS1/Crash.cue", "FILE \"Crash.bin\" BINARY\n");
+    write_file(&d, "PS1/Crash.bin", "not a cart");
+    write_file(&d, "PS1/Spyro.chd", "chd");
+    let carts = scan(d.path()).unwrap();
+    assert_eq!(stems(&carts), ["Crash", "Spyro"]);
+    assert!(carts.iter().all(|c| c.platform == Platform::Ps1));
+}
+
+#[test]
+fn a_multi_disc_game_is_one_cart_its_playlist_not_one_per_disc() {
+    let d = tmp_root();
+    write_file(&d, "PS1/FF7 (Disc 1).cue", "");
+    write_file(&d, "PS1/FF7 (Disc 2).cue", "");
+    write_file(&d, "PS1/FF7 (Disc 3).chd", "");
+    write_file(
+        &d,
+        "PS1/FF7.m3u",
+        "# three discs\nFF7 (Disc 1).cue\n\nFF7 (Disc 2).cue\r\nFF7 (Disc 3).chd\n",
+    );
+    write_file(&d, "PS1/Crash.cue", "");
+    let carts = scan(d.path()).unwrap();
+    assert_eq!(stems(&carts), ["Crash", "FF7"]);
+    assert!(carts[1].rom.to_string_lossy().ends_with("FF7.m3u"));
+}
+
+#[test]
+fn a_playlist_matches_its_discs_whatever_the_case_or_path_style() {
+    let d = tmp_root();
+    write_file(&d, "PS1/Game (Disc 1).CUE", "");
+    write_file(&d, "PS1/Game (Disc 2).cue", "");
+    write_file(
+        &d,
+        "PS1/Game.m3u",
+        "discs\\game (disc 1).cue\n./Game (Disc 2).cue\n",
+    );
+    let carts = scan(d.path()).unwrap();
+    assert_eq!(stems(&carts), ["Game"]);
+}
+
+#[test]
+fn a_disc_no_playlist_names_stays_on_the_shelf() {
+    let d = tmp_root();
+    write_file(&d, "PS1/A (Disc 1).cue", "");
+    write_file(&d, "PS1/A.m3u", "A (Disc 1).cue\n");
+    write_file(&d, "PS1/B.cue", "");
+    let carts = scan(d.path()).unwrap();
+    assert_eq!(stems(&carts), ["A", "B"]);
+}
+
+#[test]
+fn a_playlist_in_another_systems_folder_hides_nothing() {
+    let d = tmp_root();
+    write_file(&d, "GBA/Emerald.gba", "x");
+    write_file(&d, "GB/Tetris.gb", "x");
+    write_file(&d, "GB/Tetris.m3u", "Emerald.gba\n");
+    let carts = scan(d.path()).unwrap();
+    assert_eq!(stems(&carts), ["Emerald", "Tetris"]);
+}
+
+#[test]
+fn a_disc_image_is_not_read_as_a_game_boy_rom() {
+    let d = tmp_root();
+    // Bytes at the Game Boy title offset that would read as a title if misread.
+    let mut body = vec![b' '; 0x200];
+    body[0x134..0x13d].copy_from_slice(b"NOT A GB!");
+    write_file(&d, "PS1/Crash.cue", &String::from_utf8(body).unwrap());
+    let mut cart = scan(d.path()).unwrap().remove(0);
+    cart.read_header();
+    assert_eq!(cart.title, "", "a disc image has no header to read");
+}

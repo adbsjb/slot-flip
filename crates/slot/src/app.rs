@@ -1131,7 +1131,13 @@ impl App {
         dim: (TexId, u32, u32),
         lit: (TexId, u32, u32),
     ) {
-        self.quick_bezel_faces[bezel_slot(platform)] = Some([dim, lit]);
+        if let Some(slot) = bezel_slot(platform) {
+            self.quick_bezel_faces[slot] = Some([dim, lit]);
+        }
+    }
+
+    fn quick_bezel_face(&self, platform: Platform) -> Option<[(TexId, u32, u32); 2]> {
+        bezel_slot(platform).and_then(|slot| self.quick_bezel_faces[slot])
     }
 
     pub fn bezel_files(&self, platform: Platform) -> Vec<String> {
@@ -1156,11 +1162,12 @@ impl App {
         choices
     }
 
-    fn bezel_pick(&mut self, platform: Platform) -> &mut BezelPick {
+    fn bezel_pick(&mut self, platform: Platform) -> Option<&mut BezelPick> {
         match platform {
-            Platform::Gba => &mut self.state.bezel_gba,
-            Platform::Gb => &mut self.state.bezel_gb,
-            Platform::Gbc => &mut self.state.bezel_gbc,
+            Platform::Gba => Some(&mut self.state.bezel_gba),
+            Platform::Gb => Some(&mut self.state.bezel_gb),
+            Platform::Gbc => Some(&mut self.state.bezel_gbc),
+            Platform::Ps1 => None,
         }
     }
 
@@ -1169,6 +1176,7 @@ impl App {
             Platform::Gba => &self.state.bezel_gba,
             Platform::Gb => &self.state.bezel_gb,
             Platform::Gbc => &self.state.bezel_gbc,
+            Platform::Ps1 => return BezelPick::None,
         };
         match self.bezel_choices(platform).contains(pick) {
             true => pick.clone(),
@@ -1181,7 +1189,10 @@ impl App {
         let key = self.resolved_bezel(platform).key();
         let at = choices.iter().position(|c| c.key() == key).unwrap_or(0);
         let n = choices.len();
-        *self.bezel_pick(platform) = choices[if right {
+        let Some(pick) = self.bezel_pick(platform) else {
+            return;
+        };
+        *pick = choices[if right {
             (at + 1) % n
         } else {
             (at + n - 1) % n
@@ -2153,6 +2164,7 @@ impl App {
             Platform::Gba => self.state.shader_gba,
             Platform::Gb => self.state.shader_gb,
             Platform::Gbc => self.state.shader_gbc,
+            Platform::Ps1 => Shader::Off,
         }
     }
 
@@ -2169,6 +2181,7 @@ impl App {
             Platform::Gba => self.state.colour_correction_gba,
             Platform::Gb => self.state.colour_correction_gb,
             Platform::Gbc => self.state.colour_correction_gbc,
+            Platform::Ps1 => false,
         }
     }
 
@@ -3000,6 +3013,8 @@ impl App {
             Platform::Gba => (&mut self.state.shader_gba, &Shader::GBA[..]),
             Platform::Gb => (&mut self.state.shader_gb, &Shader::GB[..]),
             Platform::Gbc => (&mut self.state.shader_gbc, &Shader::GB[..]),
+            // The shaders imitate a handheld's LCD; a console picture has none to offer.
+            Platform::Ps1 => return,
         };
         *shader = shader.step(choices, right);
         let said = match *shader {
@@ -3052,6 +3067,7 @@ impl App {
                 Platform::Gba => QuickRow::GbaColourCorrection,
                 Platform::Gb => QuickRow::GbColourCorrection,
                 Platform::Gbc => QuickRow::GbcColourCorrection,
+                Platform::Ps1 => return true,
             };
             self.change_setting(row, true);
             let said = match self.colour_correction() {
@@ -3890,9 +3906,9 @@ impl App {
                 bind_waiting: self.keymap_waiting_face,
                 bind_armed: self.keymap_waiting(),
                 palette: self.quick_palette_faces,
-                gba_bezel: self.quick_bezel_faces[bezel_slot(Platform::Gba)],
-                gb_bezel: self.quick_bezel_faces[bezel_slot(Platform::Gb)],
-                gbc_bezel: self.quick_bezel_faces[bezel_slot(Platform::Gbc)],
+                gba_bezel: self.quick_bezel_face(Platform::Gba),
+                gb_bezel: self.quick_bezel_face(Platform::Gb),
+                gbc_bezel: self.quick_bezel_face(Platform::Gbc),
                 bezel: None,
                 over_game: false,
                 footer_legends: true,
@@ -4032,7 +4048,7 @@ impl App {
                 gba_bezel: None,
                 gb_bezel: None,
                 gbc_bezel: None,
-                bezel: self.quick_bezel_faces[bezel_slot(self.playing_platform())],
+                bezel: self.quick_bezel_face(self.playing_platform()),
                 bindings: None,
                 bind_waiting: None,
                 bind_armed: None,
@@ -5715,11 +5731,13 @@ fn free_stamp(ring: &StateRing, now: i64) -> String {
     stamp
 }
 
-fn bezel_slot(platform: Platform) -> usize {
+/// Where a platform's bezel thumbnails live; a PlayStation has no bezel to pick.
+fn bezel_slot(platform: Platform) -> Option<usize> {
     match platform {
-        Platform::Gba => 0,
-        Platform::Gb => 1,
-        Platform::Gbc => 2,
+        Platform::Gba => Some(0),
+        Platform::Gb => Some(1),
+        Platform::Gbc => Some(2),
+        Platform::Ps1 => None,
     }
 }
 

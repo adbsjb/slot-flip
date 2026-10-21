@@ -90,6 +90,8 @@ pub fn shell_for(cart: &Cart) -> Shell {
     match cart.platform {
         Platform::Gba => gba_shell_for(&gba_code(cart)),
         Platform::Gb | Platform::Gbc => gb_shell_for(&cart.rom),
+        // A neutral dark shell: there is no cart header to colour it from.
+        Platform::Ps1 => shell([0x2e, 0x2f, 0x34], Finish::Solid),
     }
 }
 
