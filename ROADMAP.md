@@ -45,6 +45,13 @@ a time; the fork's own work is the Flip port itself and a few small additions.
   [#17](https://github.com/boomchu-123/slot-flip/issues/17)
 - 💡 Cartridge-label artwork: fetch real label images automatically (blocked
   on a ScreenScraper developer ID; currently you supply your own labels)
+- 🚧 **More systems, PlayStation first** ([#20](https://github.com/boomchu-123/slot-flip/issues/20)).
+  Done on a feature branch, not released: the video path no longer crops a picture
+  bigger than the GBA's, the PlayStation core builds from pinned source, and a PS1
+  folder shelves discs (multi-disc games once). Still to do: measure speed on the
+  Flip, the controls (the pad has L2/R2 and sticks; the Flip's R1 is dead on one
+  unit), a real disc-case shape for the shelf, then bundle the core. Nothing here
+  is promised until it runs on hardware
 
 **Housekeeping that has bitten before**
 - Rebuild the mGBA and gpSP cores whenever a sync changes `cores/` (v0.4.0

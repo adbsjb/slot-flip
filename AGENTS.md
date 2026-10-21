@@ -99,7 +99,7 @@ crates/
   slot-input/    gesture detection and actions
   slot-retro/    libretro host and core loading
   slot-sfxcut/   dev tool for cutting sound effects (not shipped)
-cores/           patches + build.sh for mGBA and gpSP (see section 9)
+cores/           patches + build.sh for mGBA, gpSP and PCSX-ReARMed (see section 9)
 flip/Tools/<platform>/Slot.pak/   the shippable pak: launch.sh + System/ cores
                  (platform = my355 | my282 | miyoomini)
 card/, taskfile.yml, site/, CNAME   inherited from upstream (RG SP workflow,
@@ -149,6 +149,9 @@ silently delete. Section 5 turns this into a post-merge checklist.
 | Paths | Data lives in `<SD>/Slot`, never MinUI's `Roms`/`Saves`. | `launch.sh` |
 | Cart labels | A PNG in `Labels/<platform>/` **or** flat in `Labels/` pairs with a cart by name: the exact stem first, then case-insensitive, with region/revision tags in brackets and punctuation ignored (`tidy`). The platform folder wins, and a name that only looks similar never pairs. People add these by hand on a computer, so this lookup is deliberately forgiving; do not make it a fuzzy search. PNG only. | `slot-store/src/scan.rs` (`Labels`, `tidy`) |
 | About + update word | The About sticker is repainted for this device: `MODEL NO. MY355`, the wordmark `MIYOO FLIP`, and the repo URL where upstream's "SEE README" points at a file the pak does not ship. It prints `VERSION <fork> (SLOT <upstream>)`, so `build_info::UPSTREAM` must be bumped with every sync (section 5). The first boot of a build newer than the card's `Config/slot.state` `seen_version` shows `Updated to <version>` once; a card with no `seen_version` (new install, or from before the key) is marked silently, which is also why tests that boot a card with a state file still see no banner. | `slot/src/build_info.rs`, `slot/src/app.rs` (`note_build`), `slot-ui/src/sticker.rs` |
+| Frame size | Frames carry their own `(w, h)` instead of assuming the 240x160 GBA canvas, so a bigger picture is not cropped. `LibretroCore::set_native_video` is **off by default** (the Game Boy family is still centred in the canvas, byte-identical; a real-core test proves a GBA frame is the same in both modes) and on for PlayStation. The size travels `video_size` -> `Frames::publish_sized` -> `upload_game_sized`, and `GamePass` re-creates its texture when it changes. | `slot-retro/src/libretro.rs` (`copy_native`), `slot/src/frames.rs`, `slot/src/emu.rs` (`publish`), `slot-gfx/src/pipeline.rs` (`upload_sized`) |
+| Path-only cores | `load()` asks the core (`retro_get_system_info`) whether it needs a path and, if so, does not read the file into RAM (a disc image is hundreds of MB). | `slot-retro/src/libretro.rs` (`content_bytes`) |
+| PlayStation (in progress, not shipped) | `Platform::Ps1` (`Games/PS1`: `.cue .chd .m3u .pbp`) runs on `Core::Pcsx`. A multi-disc game is shelved once, as its `.m3u`. No bezel, shader or colour correction. The cart art is a **placeholder** (the Game Boy Color pak). The core is built by `cores/pcsx` but not bundled in the pak yet. `Core::ALL` is the picker's two cores; `Core::EVERY` is all three. | `slot-store/src/{platform,core,scan}.rs`, `slot/src/core.rs`, `slot-ui/src/cart.rs` |
 | Core delivery | `launch.sh` refreshes `Slot/System` cores whenever the pak's differ (`cmp -s`), so core fixes reach existing installs. | `Slot.pak/launch.sh` |
 | GBA core | gpSP by default (ARM64 dynarec); mGBA has none. Per-game override in `selected_core.txt`. | `slot-store/src/core.rs` |
 | Crash handler | Adds a 32-bit ARM register reader (upstream covers aarch64 and x86_64 only). | `slot/src/crash.rs` (experimental) |
@@ -251,6 +254,10 @@ grep -n 'canonicalize' crates/slot-power/src/device.rs            # read-only ch
 grep -n 'SdlSurface\|mod sdl' crates/slot-gfx/src/lib.rs          # Flip surface exported
 grep -n 'cmp -s' flip/Tools/my355/Slot.pak/launch.sh              # core refresh
 grep -n 'UPSTREAM' crates/slot/src/build_info.rs                  # About says which upstream
+grep -n 'fn copy_native' crates/slot-retro/src/libretro.rs        # native-size frames
+grep -n 'publish_sized' crates/slot/src/emu.rs                    # frames carry their size
+grep -n 'fn upload_sized' crates/slot-gfx/src/pipeline.rs         # texture follows the frame
+grep -n 'fn content_bytes' crates/slot-retro/src/libretro.rs      # path-only cores
 ```
 
 **Bump `build_info::UPSTREAM`** in the merge commit that takes the upstream
@@ -448,7 +455,7 @@ Notes are for people who own the device, not for developers.
 
 ## 9. Emulator cores
 
-- Pinned commits live in `taskfile.yml` (`MGBA_COMMIT`, `GPSP_COMMIT`).
+- Pinned commits live in `taskfile.yml` (`MGBA_COMMIT`, `GPSP_COMMIT`, `PCSX_COMMIT`).
 - `cores/<core>/build.sh` applies **every `*.patch` in that folder** to the
   pinned source and writes a `.meta` stamp listing commit, recipe and patch
   hashes. Adding a patch is just dropping the file in.
@@ -461,6 +468,11 @@ Notes are for people who own the device, not for developers.
   not housekeeping.
 - Cores are aarch64 for the Flip. The experimental armhf targets do not bundle
   cores yet.
+- `cores/pcsx` builds PCSX-ReARMed (GPL-2.0) with no patches. Build it in the
+  device's bullseye box: that gives GLIBC_2.17, where the libretro buildbot's
+  prebuilt needs 2.34 and may not load on the device. It is **not bundled in the
+  pak yet**; when it is, add its `.meta` and source archive to the licence
+  bundle like gpSP's, and note that it adds ~2 MB to every install.
 - Because `launch.sh` refreshes cores by comparison, shipping a new core in a
   release is enough for it to reach existing installs.
 
