@@ -6,6 +6,7 @@ vars:
   MGBA_COMMIT: e31759b24e7a4e3899285ff720d7b573ac328ae7
   GPSP_COMMIT: 7b2dd37394e2822110cacef321e9bb291a305b77
   PCSX_COMMIT: c8816799b50388e61cfe237fe2cdbb7d8175f20a
+  FCEUMM_COMMIT: ac0d00a7fc01166f84c7bac01d1084ebfd2b865e
   EXFATPROGS_VERSION: 1.4.3
   EXFATPROGS_SHA256: 4b5052cba6ff9f6dcb1c63eeeac328620472c5b0b3caf3d38e4ada50e75469d3
   SLOT_IN_PROCESS: >-
@@ -307,6 +308,35 @@ tasks:
       - echo "{{.PCSX_COMMIT}}" > vendor/pcsx-src.sha
       - cp vendor/pcsx_rearmed_libretro.so.meta vendor/pcsx-src.meta
       - 'echo "built vendor/pcsx_rearmed_libretro.so from vendor/pcsx-src.tar.gz @ {{.PCSX_COMMIT}}"'
+
+  core:fceumm:
+    desc: >-
+      Build the aarch64 linux fceumm (NES) core from its pinned source archive,
+      which ships beside it as its GPL-2.0 section 3(a) corresponding source
+    status:
+      - test -f vendor/fceumm_libretro.so
+      - test -f vendor/fceumm-src.tar.gz
+      - test "$(cat vendor/fceumm-src.sha 2>/dev/null)" = "{{.FCEUMM_COMMIT}}"
+      - test "$(cat vendor/fceumm_libretro.so.meta 2>/dev/null)" = "$(sh cores/fceumm/build.sh stamp {{.FCEUMM_COMMIT}})"
+      - test "$(cat vendor/fceumm-src.meta 2>/dev/null)" = "$(sh cores/fceumm/build.sh stamp {{.FCEUMM_COMMIT}})"
+    cmds:
+      - |
+        set -euo pipefail
+        mkdir -p vendor
+        rm -f vendor/fceumm_libretro.so vendor/fceumm_libretro.so.meta \
+              vendor/fceumm-src.tar.gz vendor/fceumm-src.sha vendor/fceumm-src.meta
+        curl -fsSL -o vendor/fceumm-src.tar.gz \
+          "https://github.com/libretro/libretro-fceumm/archive/{{.FCEUMM_COMMIT}}.tar.gz"
+        tar -tzf vendor/fceumm-src.tar.gz | grep "^libretro-fceumm-{{.FCEUMM_COMMIT}}/Makefile.libretro$" > /dev/null
+      - task: device:sh
+        vars:
+          CMD: >-
+            sh cores/fceumm/build.sh build {{.FCEUMM_COMMIT}} vendor/fceumm-src.tar.gz
+            target-device/fceumm vendor/fceumm_libretro.so
+      - file vendor/fceumm_libretro.so | grep -q aarch64
+      - echo "{{.FCEUMM_COMMIT}}" > vendor/fceumm-src.sha
+      - cp vendor/fceumm_libretro.so.meta vendor/fceumm-src.meta
+      - 'echo "built vendor/fceumm_libretro.so from vendor/fceumm-src.tar.gz @ {{.FCEUMM_COMMIT}}"'
 
   fsck:exfat:
     desc: >-
