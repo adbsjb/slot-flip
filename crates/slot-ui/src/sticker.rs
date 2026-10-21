@@ -1,14 +1,17 @@
 use slot_gfx::{Draw, TexId};
 
-use crate::art::render_svg;
 use crate::barcode::{code39, CODE39_NARROW, CODE39_WIDE};
 use crate::bitmaps;
 use crate::plate::UndoFace;
 use crate::text;
 
-const WORDMARK_SVG: &str = include_str!("../assets/wordmark.svg");
-
-const WORDMARK_W: u32 = 250;
+/// Upstream's sticker carries the wordmark of the handheld it was designed for.
+/// This fork runs on the Miyoo Flip, so the sticker says that instead: another
+/// maker's name on the device would be wrong, and the model number is the
+/// handset's own (the platform slug MinUI uses for it).
+const WORDMARK: &str = "MIYOO FLIP";
+const WORDMARK_PX: f32 = 25.0;
+const WORDMARK_MAX_W: f32 = 250.0;
 
 pub const STICKER_W: u32 = 660;
 pub const STICKER_H: u32 = 228;
@@ -56,11 +59,13 @@ pub const ORIGIN: [&str; 2] = ["S/LOT-USA", "MADE IN ITHACA"];
 
 pub const COPYRIGHT: &str = "\u{a9} 2026 BRANDON T. KOWALSKI";
 
-pub const HOME: &str = "SEE README.";
+/// Where an owner can read the notes for a build, and see whether a newer one
+/// exists. Upstream's "SEE README" points at a file this pak does not ship.
+pub const HOME: &str = "GITHUB.COM/BOOMCHU-123/SLOT-FLIP";
 
 pub fn head_rows(f: &StickerFields) -> [String; 3] {
     [
-        "MODEL NO. AGS-102".into(),
+        "MODEL NO. MY355".into(),
         format!("INPUT : 5V{DC}1.5A"),
         match f.battery {
             Some(p) => format!("BATTERY : LI-ION ({p}%)"),
@@ -298,17 +303,11 @@ pub fn sticker_face(f: &StickerFields) -> UndoFace {
 
     let mut ry = panel_y as f32 + panel_h as f32 + 10.0;
     let right_edge = (panel_x + panel_w) as f32;
-    if let Some(mark) = wordmark(WORDMARK_W) {
-        let (mw, mh) = mark.1;
-        c.blit(
-            (right_edge - mw as f32 - 10.0) as u32,
-            ry as u32,
-            &mark.0,
-            mw,
-            mh,
-        );
-        ry += mh as f32 + 4.0;
-    }
+    let wide = c.print_measure(WORDMARK, WORDMARK_PX).max(1.0);
+    let px = (WORDMARK_PX * WORDMARK_MAX_W / wide).min(WORDMARK_PX);
+    let mark_w = c.print_measure(WORDMARK, px);
+    ry = c.print(right_edge - mark_w - 10.0, ry, WORDMARK, px, WHITE);
+    ry += 1.0;
     let version = version_line(f);
     for line in [COPYRIGHT, version.as_str(), HOME] {
         let lw = c.print_measure(line, SMALL_PX);
@@ -320,13 +319,6 @@ pub fn sticker_face(f: &StickerFields) -> UndoFace {
         w: STICKER_W,
         h: STICKER_H,
     }
-}
-
-fn wordmark(w: u32) -> Option<(Vec<u8>, (u32, u32))> {
-    let tree = usvg::Tree::from_str(WORDMARK_SVG, &usvg::Options::default()).ok()?;
-    let size = tree.size();
-    let h = (w as f32 * size.height() / size.width()).round() as u32;
-    Some((render_svg(WORDMARK_SVG, w, h)?, (w, h)))
 }
 
 const STICKER_MARGIN: f32 = 16.0;

@@ -89,8 +89,9 @@ devices):
   page under them for the physical keys themselves, so a device whose keys
   report differently can be fixed without a rebuild.
 - **About shows both versions** — this build's version and the upstream slot
-  release it follows, and a one-time "Updated to ..." word the first time a
-  newer build runs on a card that has run an older one.
+  release it follows, on a plate marked **MY355** with this fork's repo on it,
+  plus a one-time "Updated to ..." word the first time a newer build runs on a
+  card that has run an older one.
 - **Lid-close sleep + auto power-off** — shut the lid and it sleeps instantly,
   then powers off after the time you choose under **General > Lid Power Off**
   (1–30 min).
