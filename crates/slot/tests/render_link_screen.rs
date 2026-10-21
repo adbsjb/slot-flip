@@ -409,7 +409,7 @@ fn the_connected_screen_shows_back_and_end_link() {
 }
 
 fn toast_faces() -> Vec<(TexId, Face)> {
-    Toast::all()
+    Toast::all("0.0.0")
         .into_iter()
         .map(|t| (TexId::from_raw(800 + t.index()), toast_face(t).into()))
         .collect()

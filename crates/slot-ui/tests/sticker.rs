@@ -5,6 +5,7 @@ fn fields() -> StickerFields<'static> {
         battery: Some(87),
         serial: "04738857",
         version: "0.1.0",
+        upstream: "1.8.0",
     }
 }
 
@@ -98,5 +99,9 @@ fn the_wordmarks_top_edge_is_antialiased_not_a_hard_step() {
 fn the_version_rides_above_the_readme_line() {
     let lines = sticker_lines(&fields());
     let home = lines.iter().position(|l| l == "SEE README.").unwrap();
-    assert_eq!(lines[home - 1], "VERSION 0.1.0");
+    assert_eq!(
+        lines[home - 1],
+        "VERSION 0.1.0 (SLOT 1.8.0)",
+        "the sticker must say which upstream slot this build follows"
+    );
 }

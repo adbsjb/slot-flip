@@ -17,6 +17,7 @@ fn render_sticker() {
         battery: Some(87),
         serial: "04738857",
         version: "0.1.0",
+        upstream: "1.8.0",
     });
     let (w, h) = (STICKER_W as usize, STICKER_H as usize);
     write(&out, &face.rgba, w, h);

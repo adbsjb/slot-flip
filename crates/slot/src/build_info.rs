@@ -1,3 +1,8 @@
+/// The upstream slot release this fork is based on. Set it in the same commit
+/// that merges that upstream tag (AGENTS section 5), because it is the only
+/// place an owner can see it: the About sticker prints it next to our version.
+pub const UPSTREAM: &str = "1.8.0";
+
 #[derive(Copy, Clone, Debug)]
 pub struct Build {
     pub version: &'static str,

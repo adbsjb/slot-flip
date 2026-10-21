@@ -146,6 +146,8 @@ silently delete. Section 5 turns this into a post-merge checklist.
 | Wallpaper | `background = <file>` in `Config/slot.ini` pins one image; `random` (default) uses upstream's shuffled deck. | `slot/src/wallpaper.rs` |
 | Read-only card alarm | Resolves symlinks before comparing against `/proc/mounts`; otherwise `/mnt/SDCARD` falls through to the read-only squashfs `/` and alarms on every boot. | `slot-power/src/device.rs` (`read_only`) |
 | Paths | Data lives in `<SD>/Slot`, never MinUI's `Roms`/`Saves`. | `launch.sh` |
+| Cart labels | A PNG in `Labels/<platform>/` **or** flat in `Labels/` pairs with a cart by name: the exact stem first, then case-insensitive, with region/revision tags in brackets and punctuation ignored (`tidy`). The platform folder wins, and a name that only looks similar never pairs. People add these by hand on a computer, so this lookup is deliberately forgiving; do not make it a fuzzy search. PNG only. | `slot-store/src/scan.rs` (`Labels`, `tidy`) |
+| About + update word | The About sticker prints `VERSION <fork> (SLOT <upstream>)`, so `build_info::UPSTREAM` must be bumped with every sync (section 5). The first boot of a build newer than the card's `Config/slot.state` `seen_version` shows `Updated to <version>` once; a card with no `seen_version` (new install, or from before the key) is marked silently, which is also why tests that boot a card with a state file still see no banner. | `slot/src/build_info.rs`, `slot/src/app.rs` (`note_build`), `slot-ui/src/sticker.rs` |
 | Core delivery | `launch.sh` refreshes `Slot/System` cores whenever the pak's differ (`cmp -s`), so core fixes reach existing installs. | `Slot.pak/launch.sh` |
 | GBA core | gpSP by default (ARM64 dynarec); mGBA has none. Per-game override in `selected_core.txt`. | `slot-store/src/core.rs` |
 | Crash handler | Adds a 32-bit ARM register reader (upstream covers aarch64 and x86_64 only). | `slot/src/crash.rs` (experimental) |
@@ -247,7 +249,11 @@ grep -n 'capture_offer' crates/slot/src/input/evdev.rs            # Buttons scre
 grep -n 'canonicalize' crates/slot-power/src/device.rs            # read-only check
 grep -n 'SdlSurface\|mod sdl' crates/slot-gfx/src/lib.rs          # Flip surface exported
 grep -n 'cmp -s' flip/Tools/my355/Slot.pak/launch.sh              # core refresh
+grep -n 'UPSTREAM' crates/slot/src/build_info.rs                  # About says which upstream
 ```
+
+**Bump `build_info::UPSTREAM`** in the merge commit that takes the upstream
+tag. It is what the About sticker prints, and nothing else records it.
 
 **Cores are part of every sync.** Upstream adds patches to `cores/*/` without
 saying so in the changelog, and the frontend can depend on them (v1.8's Palette

@@ -26,7 +26,7 @@ fn a_cart_gpsp_cannot_link_says_there_is_no_link() {
 
 #[test]
 fn the_banner_says_what_happened_and_never_what_is_on_screen() {
-    let all = Toast::all();
+    let all = Toast::all("1.2.3");
     assert_eq!(
         all[..21],
         [
@@ -54,15 +54,22 @@ fn the_banner_says_what_happened_and_never_what_is_on_screen() {
         ],
         "a banner was added or dropped: every face is uploaded by its place in this list"
     );
+    assert_eq!(
+        all[21],
+        Toast::Updated("1.2.3"),
+        "the updated banner follows the fixed ones"
+    );
+    assert_eq!(all[21].text(), "Updated to 1.2.3");
+    let fixed = 22;
     let palettes = GbColors::all().count();
     assert_eq!(palettes, 49);
     assert_eq!(
-        all[21..21 + palettes],
+        all[fixed..fixed + palettes],
         GbColors::all().map(Toast::Palette).collect::<Vec<_>>()[..],
         "the palette banners do not follow the fixed ones in palette order"
     );
     assert_eq!(
-        all[21 + palettes..],
+        all[fixed + palettes..],
         QuickRow::ALL
             .into_iter()
             .filter(|r| r.binds())
@@ -101,7 +108,7 @@ fn no_toast_is_shrunk_to_fit_its_box() {
         (first, last)
     };
     let (top, bottom) = rows(Toast::StateSaved);
-    for t in Toast::all().into_iter().filter(|t| !t.alarm()) {
+    for t in Toast::all("1.2.3").into_iter().filter(|t| !t.alarm()) {
         let (a, b) = rows(t);
         assert!(
             a.abs_diff(top) <= 1 && b.abs_diff(bottom) <= 1,
@@ -328,7 +335,9 @@ fn a_card_that_can_be_repaired_says_how() {
 
 #[test]
 fn the_alarm_band_carries_the_banner_it_was_given() {
-    let ids: Vec<TexId> = (0..Toast::all().len()).map(TexId::from_raw).collect();
+    let ids: Vec<TexId> = (0..Toast::all("1.2.3").len())
+        .map(TexId::from_raw)
+        .collect();
     let alarm_tex = |h: &Hud| {
         let mut out = Vec::new();
         h.draw(Canvas::FRAMED, 0, &mut out);

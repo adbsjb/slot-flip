@@ -68,7 +68,8 @@ the experience — all credit to the upstream author:
 - **Game Boy, Game Boy Color, and Game Boy Advance** in one cartridge-style
   carousel, one shelf per system.
 - **Plays with sound, battery saves, and save states**, all stored under `Slot`.
-- **Cartridge artwork** — a per-game label image on each cart.
+- **Cartridge artwork** — a per-game label image on each cart, dropped in one
+  folder and named after the game.
 - **Wallpapers** — drop PNGs in `Wallpapers/` and it shuffles one in on boot.
 - **Per-game core override** — pick mGBA or gpSP for a specific GBA title.
 - **Quick menu** — fast-forward, colour correction, rumble, date & time, and the
@@ -87,6 +88,9 @@ devices):
   does (in-game buttons, shortcuts, shelf keys). The fork adds a **Key Map**
   page under them for the physical keys themselves, so a device whose keys
   report differently can be fixed without a rebuild.
+- **About shows both versions** — this build's version and the upstream slot
+  release it follows, and a one-time "Updated to ..." word the first time a
+  newer build runs on a card that has run an older one.
 - **Lid-close sleep + auto power-off** — shut the lid and it sleeps instantly,
   then powers off after the time you choose under **General > Lid Power Off**
   (1–30 min).
@@ -167,7 +171,7 @@ Slot/
   Games/   GBA GB GBC      your ROMs, one folder per system
   Saves/   GBA GB GBC      battery saves
   States/  GBA GB GBC      save states
-  Labels/  GBA GB GBC      cart artwork, named <rom-name>.png
+  Labels/  (GBA GB GBC)    cart artwork, <game-name>.png, any of these folders
   Wallpapers/              background images (PNG)
   Config/                  slot.ini, buttons.ini, and other settings
   System/                  emulator cores
@@ -176,15 +180,31 @@ Slot/
 
 ### Cartridge artwork
 
-Slot shows a label on each cart. To set one, drop a PNG named exactly after the
-ROM (without the extension) into the matching `Labels` folder:
+Slot draws a label on every cart. Put a PNG anywhere in `Slot/Labels` and it
+pairs with the game of that name:
 
 ```
 Slot/Games/GBA/Pokemon Emerald.gba
-Slot/Labels/GBA/Pokemon Emerald.png
+Slot/Labels/Pokemon Emerald.png         one folder is enough
+Slot/Labels/GBA/Pokemon Emerald.png     or sorted by system, as you like
 ```
 
-Any image works — Slot scales it to fit the cart label.
+- **Name it after the game.** Case is ignored, and so are region and revision
+  tags in brackets: `Metroid Fusion (USA).gba` pairs with
+  `Metroid Fusion.png`, and `Zelda (USA, Europe) (Rev 2).png` pairs with
+  `Zelda.gbc`. Punctuation is ignored too, so a curly apostrophe from the web
+  matches a straight one.
+- **PNG only.** JPG and WebP images are not read; convert them first.
+- **Any size or shape.** Slot scales and centre-crops to the cart's label, so a
+  cartridge-label shot fills it best; box art loses its edges.
+- **The system's own folder wins**, so `Labels/GBA/<game>.png` overrides the
+  same name in the flat `Labels/`.
+- **New labels appear the next time Slot starts**, not while it is running.
+
+If a label does not show up, it is nearly always one of three things: the file
+is not a PNG, it is in a folder with another name (`Labels/gba` is fine,
+`Labels/Game Boy Advance` is not), or the file's name is not the game's name —
+a ROM renamed to `Emerald` will not pick up `Pokemon Emerald.png`.
 
 ---
 

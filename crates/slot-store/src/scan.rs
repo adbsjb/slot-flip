@@ -72,8 +72,7 @@ pub fn scan(root: &Path) -> Result<Vec<Cart>, StoreError> {
                 continue;
             }
         };
-        let labels_dir = root.join("Labels").join(platform.dir_name());
-        let labels = listing(&labels_dir);
+        let labels = Labels::read(root, platform);
         for entry in entries {
             let Ok(entry) = entry else {
                 continue;
@@ -85,9 +84,7 @@ pub fn scan(root: &Path) -> Result<Vec<Cart>, StoreError> {
             let Some(stem) = rom.file_stem().and_then(|s| s.to_str()) else {
                 continue;
             };
-            let label = labels
-                .get(&format!("{stem}.png").to_lowercase())
-                .map(|name| labels_dir.join(name));
+            let label = labels.find(stem);
             carts.push(Cart {
                 platform,
                 stem: stem.to_string(),
@@ -114,6 +111,95 @@ pub fn listing(dir: &Path) -> HashMap<String, String> {
         .filter(|name| !name.starts_with('.'))
         .map(|name| (name.to_lowercase(), name))
         .collect()
+}
+
+/// The PNGs a cart of one system may use for its label.
+///
+/// People add these by hand on a computer, so the lookup forgives the two slips
+/// that cost artwork with no explanation: dropping every image in one folder
+/// instead of the per-system one, and naming it after the game rather than
+/// after the ROM file. Nothing pairs on a guess beyond that; a label either
+/// names the game or it does not.
+struct Labels {
+    files: Vec<(String, PathBuf)>,
+}
+
+impl Labels {
+    fn read(root: &Path, platform: Platform) -> Labels {
+        let base = root.join("Labels");
+        // The system's own folder wins, so one image can be overridden.
+        let dirs = [find_dir(&base, platform.dir_name()), Some(base)];
+        let mut files: Vec<(String, PathBuf)> = Vec::new();
+        for dir in dirs.into_iter().flatten() {
+            let Ok(entries) = std::fs::read_dir(&dir) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let Ok(name) = entry.file_name().into_string() else {
+                    continue;
+                };
+                let name = name.to_lowercase();
+                if !name.ends_with(".png") || !is_file(&entry) {
+                    continue;
+                }
+                if files.iter().any(|(seen, _)| *seen == name) {
+                    continue;
+                }
+                files.push((name, entry.path()));
+            }
+        }
+        Labels { files }
+    }
+
+    /// The image for a ROM: its exact name first, then one named after the game.
+    fn find(&self, stem: &str) -> Option<PathBuf> {
+        let exact = format!("{}.png", stem.to_lowercase());
+        if let Some((_, path)) = self.files.iter().find(|(name, _)| *name == exact) {
+            return Some(path.clone());
+        }
+        let game = tidy(stem);
+        if game.is_empty() {
+            return None;
+        }
+        self.files
+            .iter()
+            .find(|(name, _)| tidy(name.trim_end_matches(".png")) == game)
+            .map(|(_, path)| path.clone())
+    }
+}
+
+/// `Labels/GBA` under whatever case the folder was made: a card written on
+/// Windows or by hand often has `gba`.
+fn find_dir(base: &Path, name: &str) -> Option<PathBuf> {
+    let want = base.join(name);
+    if want.is_dir() {
+        return Some(want);
+    }
+    std::fs::read_dir(base)
+        .ok()?
+        .flatten()
+        .find(|e| e.file_name().to_string_lossy().eq_ignore_ascii_case(name))
+        .map(|e| e.path())
+        .filter(|p| p.is_dir())
+}
+
+/// A name reduced to the game it is about: case, region and revision tags in
+/// brackets, and punctuation are dropped, so `Kirby's Dream Land (USA, Europe)`
+/// and `Kirbys Dream Land` are the same game. Curly quotes come along free,
+/// which matters because artwork copied from the web often has them.
+fn tidy(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    let mut depth = 0u32;
+    for c in name.chars() {
+        match c {
+            '(' | '[' => depth += 1,
+            ')' | ']' => depth = depth.saturating_sub(1),
+            _ if depth > 0 => {}
+            c if c.is_alphanumeric() => out.extend(c.to_lowercase()),
+            _ => {}
+        }
+    }
+    out
 }
 
 fn is_file(entry: &std::fs::DirEntry) -> bool {

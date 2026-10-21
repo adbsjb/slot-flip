@@ -242,6 +242,9 @@ pub struct SlotState {
     pub show_titles: bool,
     pub left_stick_dpad: bool,
     pub lid_off_min: Option<u8>,
+    /// The fork build that last started on this card, so a newer pak can say so
+    /// once. Empty on a card that predates the key, and on a fresh card.
+    pub seen_version: String,
     pub bezel_gba: BezelPick,
     pub bezel_gb: BezelPick,
     pub bezel_gbc: BezelPick,
@@ -382,6 +385,7 @@ impl Default for SlotState {
             show_titles: false,
             left_stick_dpad: true,
             lid_off_min: None,
+            seen_version: String::new(),
             bezel_gba: BezelPick::Ags102,
             bezel_gb: BezelPick::Ags102,
             bezel_gbc: BezelPick::Ags102,
@@ -479,6 +483,9 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
     if let Some(min) = s.lid_off_min {
         text.push_str(&format!("lid_off_min={min}\n"));
     }
+    if !s.seen_version.is_empty() {
+        text.push_str(&format!("seen_version={}\n", s.seen_version));
+    }
     text.push_str(&format!("bezel_gba={}\n", s.bezel_gba.key()));
     text.push_str(&format!("bezel_gb={}\n", s.bezel_gb.key()));
     text.push_str(&format!("bezel_gbc={}\n", s.bezel_gbc.key()));
@@ -529,6 +536,7 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut show_titles = None;
     let mut left_stick_dpad = None;
     let mut lid_off_min = None;
+    let mut seen_version = None;
     let mut bezel_gba = None;
     let mut bezel_gb = None;
     let mut bezel_gbc = None;
@@ -571,6 +579,7 @@ fn parse(text: &str) -> Option<SlotState> {
             "show_titles" => show_titles = flag(value),
             "left_stick_dpad" => left_stick_dpad = flag(value),
             "lid_off_min" => lid_off_min = value.parse().ok().filter(|m| LID_OFF_MIN.contains(m)),
+            "seen_version" => seen_version = version_value(value),
             "bezel_gba" => bezel_gba = Some(BezelPick::parse(value)),
             "bezel_gb" => bezel_gb = Some(BezelPick::parse(value)),
             "bezel_gbc" => bezel_gbc = Some(BezelPick::parse(value)),
@@ -623,6 +632,7 @@ fn parse(text: &str) -> Option<SlotState> {
         show_titles: show_titles.unwrap_or(fallback.show_titles),
         left_stick_dpad: left_stick_dpad.unwrap_or(fallback.left_stick_dpad),
         lid_off_min: lid_off_min.or(legacy_sleep_timeout),
+        seen_version: seen_version.unwrap_or_default(),
         bezel_gba: bezel_gba.unwrap_or(fallback.bezel_gba),
         bezel_gb: bezel_gb.unwrap_or(fallback.bezel_gb),
         bezel_gbc: bezel_gbc.unwrap_or(fallback.bezel_gbc),
@@ -631,6 +641,16 @@ fn parse(text: &str) -> Option<SlotState> {
         shelf,
         shelf_cart,
     })
+}
+
+/// A version the sticker can print: digits and dots, short enough for the line.
+fn version_value(value: &str) -> Option<String> {
+    let ok = !value.is_empty()
+        && value.len() <= 24
+        && value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+'));
+    ok.then(|| value.to_string())
 }
 
 fn platform_key(platform: Platform) -> String {
