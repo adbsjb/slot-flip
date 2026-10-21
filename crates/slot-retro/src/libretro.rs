@@ -449,6 +449,24 @@ pub struct LibretroCore {
     _lib: Library,
 }
 
+/// What a core says about itself before any content is loaded.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SystemInformation {
+    pub name: String,
+    pub version: String,
+    /// The file extensions the core opens, lower case and without the dot.
+    pub extensions: Vec<String>,
+    /// The core opens its content itself, by path, rather than from memory.
+    pub need_fullpath: bool,
+}
+
+unsafe fn text(p: *const c_char) -> String {
+    if p.is_null() {
+        return String::new();
+    }
+    std::ffi::CStr::from_ptr(p).to_string_lossy().into_owned()
+}
+
 /// The bytes to hand a core for `path`. A core that sets `need_fullpath`
 /// (disc images, in practice) opens the files itself and may ignore `data`, so
 /// reading a multi-hundred-megabyte image into RAM for it is waste and can
@@ -478,6 +496,28 @@ impl LibretroCore {
         }
         Self::open_inner(dylib, system_dir, save_dir)
             .inspect_err(|_| LIVE.store(false, Ordering::SeqCst))
+    }
+
+    pub fn system_info(&self) -> SystemInformation {
+        let mut sys = SystemInfo::default();
+        unsafe { (self.api.get_system_info)(&mut sys) };
+        let (name, version, extensions) = unsafe {
+            (
+                text(sys.library_name),
+                text(sys.library_version),
+                text(sys.valid_extensions),
+            )
+        };
+        SystemInformation {
+            name,
+            version,
+            extensions: extensions
+                .split('|')
+                .filter(|e| !e.is_empty())
+                .map(|e| e.to_ascii_lowercase())
+                .collect(),
+            need_fullpath: sys.need_fullpath,
+        }
     }
 
     pub fn reported_system_dir(&self) -> String {

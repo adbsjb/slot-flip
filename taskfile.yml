@@ -5,6 +5,7 @@ vars:
   GPSP_HOST: vendor/gpsp_libretro.dylib
   MGBA_COMMIT: e31759b24e7a4e3899285ff720d7b573ac328ae7
   GPSP_COMMIT: 7b2dd37394e2822110cacef321e9bb291a305b77
+  PCSX_COMMIT: c8816799b50388e61cfe237fe2cdbb7d8175f20a
   EXFATPROGS_VERSION: 1.4.3
   EXFATPROGS_SHA256: 4b5052cba6ff9f6dcb1c63eeeac328620472c5b0b3caf3d38e4ada50e75469d3
   SLOT_IN_PROCESS: >-
@@ -277,6 +278,35 @@ tasks:
     deps: [core:gpsp]
     cmds:
       - sh cores/gpsp/test/run.sh vendor/gpsp-src.tar.gz
+
+  core:pcsx:
+    desc: >-
+      Build the aarch64 linux PCSX-ReARMed (PlayStation) core from its pinned source archive,
+      which ships beside it as its GPL-2.0 section 3(a) corresponding source
+    status:
+      - test -f vendor/pcsx_rearmed_libretro.so
+      - test -f vendor/pcsx-src.tar.gz
+      - test "$(cat vendor/pcsx-src.sha 2>/dev/null)" = "{{.PCSX_COMMIT}}"
+      - test "$(cat vendor/pcsx_rearmed_libretro.so.meta 2>/dev/null)" = "$(sh cores/pcsx/build.sh stamp {{.PCSX_COMMIT}})"
+      - test "$(cat vendor/pcsx-src.meta 2>/dev/null)" = "$(sh cores/pcsx/build.sh stamp {{.PCSX_COMMIT}})"
+    cmds:
+      - |
+        set -euo pipefail
+        mkdir -p vendor
+        rm -f vendor/pcsx_rearmed_libretro.so vendor/pcsx_rearmed_libretro.so.meta \
+              vendor/pcsx-src.tar.gz vendor/pcsx-src.sha vendor/pcsx-src.meta
+        curl -fsSL -o vendor/pcsx-src.tar.gz \
+          "https://github.com/libretro/pcsx_rearmed/archive/{{.PCSX_COMMIT}}.tar.gz"
+        tar -tzf vendor/pcsx-src.tar.gz | grep "^pcsx_rearmed-{{.PCSX_COMMIT}}/Makefile.libretro$" > /dev/null
+      - task: device:sh
+        vars:
+          CMD: >-
+            sh cores/pcsx/build.sh build {{.PCSX_COMMIT}} vendor/pcsx-src.tar.gz
+            target-device/pcsx vendor/pcsx_rearmed_libretro.so
+      - file vendor/pcsx_rearmed_libretro.so | grep -q aarch64
+      - echo "{{.PCSX_COMMIT}}" > vendor/pcsx-src.sha
+      - cp vendor/pcsx_rearmed_libretro.so.meta vendor/pcsx-src.meta
+      - 'echo "built vendor/pcsx_rearmed_libretro.so from vendor/pcsx-src.tar.gz @ {{.PCSX_COMMIT}}"'
 
   fsck:exfat:
     desc: >-
