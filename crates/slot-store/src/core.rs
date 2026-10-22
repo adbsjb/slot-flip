@@ -55,12 +55,7 @@ impl Core {
     }
 
     pub fn runs(self, platform: Platform) -> bool {
-        match self {
-            Core::Mgba => matches!(platform, Platform::Gba | Platform::Gb | Platform::Gbc),
-            Core::Gpsp => platform == Platform::Gba,
-            Core::Pcsx => platform == Platform::Ps1,
-            Core::Fceumm => platform == Platform::Nes,
-        }
+        platform.spec().cores.contains(&self)
     }
 
     pub fn default_for(platform: Platform) -> Core {
@@ -71,11 +66,7 @@ impl Core {
         if platform == Platform::Gba {
             return Core::Gpsp;
         }
-        match platform {
-            Platform::Gba | Platform::Gb | Platform::Gbc => Core::Mgba,
-            Platform::Ps1 => Core::Pcsx,
-            Platform::Nes => Core::Fceumm,
-        }
+        platform.spec().cores[0]
     }
 }
 

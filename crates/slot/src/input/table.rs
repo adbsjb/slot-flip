@@ -38,7 +38,7 @@ impl Table {
         turbo: bool,
         platform: Platform,
     ) -> Table {
-        let disc = platform == Platform::Ps1;
+        let disc = platform.native_pad();
         let rows = QuickRow::ALL
             .into_iter()
             .filter_map(|row| {

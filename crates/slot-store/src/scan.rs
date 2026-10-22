@@ -3,7 +3,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::gba::header_title_code;
-use crate::platform::Platform;
+use crate::platform::{Header, Platform};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Cart {
@@ -18,20 +18,19 @@ pub struct Cart {
 
 impl Cart {
     pub fn read_header(&mut self) {
-        match self.platform {
-            Platform::Gba => {
+        match self.platform.spec().header {
+            Header::Gba => {
                 if let Some((title, code)) = header_title_code(&self.rom) {
                     self.title = title;
                     self.code = code;
                 }
             }
-            // A disc image has no header to read a title from; the shelf uses its name.
-            Platform::Ps1 | Platform::Nes => {}
-            Platform::Gb | Platform::Gbc => {
+            Header::GameBoy => {
                 if let Some(title) = crate::gb::title(&self.rom) {
                     self.title = title;
                 }
             }
+            Header::None => {}
         }
     }
 }
@@ -76,9 +75,9 @@ pub fn scan(root: &Path) -> Result<Vec<Cart>, StoreError> {
         };
         let labels = Labels::read(root, platform);
         let entries: Vec<_> = entries.flatten().collect();
-        let in_playlists = match platform {
-            Platform::Ps1 => playlist_members(&entries),
-            _ => HashSet::new(),
+        let in_playlists = match platform.spec().playlists {
+            true => playlist_members(&entries),
+            false => HashSet::new(),
         };
         for entry in entries {
             let rom = entry.path();
