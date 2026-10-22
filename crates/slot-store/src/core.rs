@@ -64,13 +64,6 @@ impl Core {
         }
     }
 
-    /// Whether the core is left out of the main download. Its licence does not allow
-    /// selling, so it ships as a separate add-on pack that the player installs, and
-    /// slot says so when it is not there instead of failing.
-    pub fn is_addon(self) -> bool {
-        matches!(self, Core::Snes9x)
-    }
-
     pub fn runs(self, platform: Platform) -> bool {
         platform.spec().cores.contains(&self)
     }

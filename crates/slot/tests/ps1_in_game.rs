@@ -43,15 +43,6 @@ fn playing(platform: Platform) -> (tempfile::TempDir, App) {
         },
     )
     .unwrap();
-    // A core from the add-on pack is only played if it is installed.
-    let core = slot_store::Core::default_for(platform);
-    if core.is_addon() {
-        std::fs::write(
-            d.path().join("System").join(slot::core::dylib_name(core)),
-            "",
-        )
-        .unwrap();
-    }
     let mut a = App::boot(d.path());
     a.set_snapshot(StubSnapshot::boxed());
     a.on_core_ready();

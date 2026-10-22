@@ -371,7 +371,6 @@ mod disc_pad {
 }
 
 mod snes_pad {
-    use super::*;
     use slot::input::Pad;
     use slot_input::{Action, Btn, Context, Gestures, RawEvent};
     use slot_retro::ButtonMask;

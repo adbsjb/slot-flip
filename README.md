@@ -109,7 +109,7 @@ devices):
 - **Systems:** GBA (`.gba`), GB (`.gb`), GBC (`.gbc`), PlayStation
   (`.cue`, `.chd`, `.m3u`, `.pbp`; see [PlayStation discs](#playstation-discs)),
   NES (`.nes`, `.fds`, `.unf`; see [NES games](#nes-games)), and Super Nintendo
-  (`.sfc`, `.smc`; needs a [separate add-on](#super-nintendo-add-on)).
+  (`.sfc`, `.smc`; see [Super Nintendo games](#super-nintendo-games)).
 - Other MinUI devices can be supported with small changes — see
   [INSTALL.md](INSTALL.md).
 
@@ -272,21 +272,12 @@ those menu rows are hidden for NES.
 for Famicom Disk System games, and cheats. The overscan edges of the picture are
 shown as the core draws them.
 
-## Super Nintendo add-on
+## Super Nintendo games
 
-Super Nintendo is a **separate download**, `Slot-addon-snes-my355.zip`, on the release
-page. Its emulator (snes9x2005, a Snes9x derivative) is licensed for non-commercial
-use only, so it is kept out of the main download, which has no such restriction. The
-add-on is free; do not sell it or bundle it with anything that is sold.
-
-1. Unzip it onto the root of your SD card, so its `Slot` folder merges with yours. You
-   should end up with `Slot/System/snes9x2005_plus_libretro.so`.
-2. Put games (`.sfc`, `.smc`, `.swc`, `.fig`) in `Slot/Games/SNES`.
-3. Open Slot: a **SNES** shelf appears. Games are a grey cartridge with a label; put
-   art in `Slot/Labels/SNES/` as for the other systems.
-
-Without the add-on, opening a SNES game says **Add-on pack needed** and the cart is
-handed back. Nothing else is affected.
+Put games (`.sfc`, `.smc`, `.swc`, `.fig`) in `Slot/Games/SNES`. A **SNES** shelf
+appears, and each game is a grey cartridge with a label; put art in
+`Slot/Labels/SNES/` as for the other systems. Emulation is by snes9x2005, which is
+licensed for non-commercial use only: see [Credits & licence](#credits--licence).
 
 **Buttons.** B, A, Y and X are the bottom, right, left and top buttons, L and R the
 shoulders, as on a Super Nintendo pad. Because X and Y are game buttons here, Turbo
@@ -294,8 +285,11 @@ is off for SNES. Fast-forward and rewind stay on the lower triggers. The picture
 fills the 4:3 screen; the shader, colour correction and bezel rows do not apply.
 
 **What is not there yet.** The Super Scope and mouse, enhancement chips that the
-core does not support, and cheats. Games that save to the cartridge keep a `.srm`
-in the usual place.
+core does not support, and cheats.
+
+**Saves.** A game's battery save is kept in `Slot/Saves/SNES/<game>.sav`, and save
+states in `Slot/States/SNES`. They are separate from MinUI's own `.srm` saves, so a
+save made in MinUI does not carry over.
 
 ## Settings
 
@@ -475,9 +469,20 @@ is **not** affiliated with or endorsed by the original author.
 - Licence: **GPL-3.0-or-later** (see [LICENSE](LICENSE)), same as upstream. As a
   GPL fork, source stays open.
 
-Emulation is by the **mGBA** and **gpSP** libretro cores. Game Boy is a
-trademark of Nintendo; this project is not affiliated with Nintendo. Use your
-own legally-dumped ROMs.
+Emulation is by libretro cores: **mGBA** (MPL-2.0), **gpSP**, **PCSX-ReARMed** and
+**fceumm** (GPL-2.0) and **snes9x2005**. Their licences, and the source of the
+ones that ask for it, are in `Slot.pak/System/licenses/`.
+
+**This download is free and has to stay free.** snes9x2005, the Super Nintendo
+core inside it, may be used, copied and shared for non-commercial purposes only.
+So you may use and share this download, but do not sell it, charge for it, or
+bundle it with anything that is sold. Donations to the project are fine, and
+never unlock anything. See `System/licenses/NOTICE-NONCOMMERCIAL.txt`. (A plain
+reading of the licences, not legal advice.)
+
+Game Boy, NES, Super Nintendo and PlayStation are trademarks of their owners;
+this project is not affiliated with Nintendo or Sony. Use your own
+legally-dumped ROMs.
 
 The upstream frontend was written with an AI assistant and reviewed by its
 author; this Flip port was likewise done with an AI coding assistant.

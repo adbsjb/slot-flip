@@ -4805,24 +4805,12 @@ impl App {
             return;
         }
         let at = self.shelf().index;
-        let Some((cart, platform)) = self.shelf_mut().carts.get_mut(at).map(|c| {
+        let Some(cart) = self.shelf_mut().carts.get_mut(at).map(|c| {
             c.read_header();
-            (c.stem.clone(), c.platform)
+            c.stem.clone()
         }) else {
             return;
         };
-        if let Some(root) = self.root.clone() {
-            let core = slot_store::core_for_platform(&root, &cart, platform);
-            if !crate::core::installed(&root, core) {
-                eprintln!(
-                    "slot: launch: {cart} needs the {} core from the add-on pack, which is not installed",
-                    core.as_str()
-                );
-                let now = self.now();
-                self.hud.toast(Toast::NeedsAddon, now);
-                return self.refuse();
-            }
-        }
         eprintln!(
             "slot: launch: insert {cart} at {:.1} ms",
             crate::boot_time::ms()

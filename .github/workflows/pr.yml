@@ -23,11 +23,6 @@ jobs:
       - name: Check the pak ships only cleared emulator cores
         run: sh tools/check-pak-licences.sh flip/Tools/my355/Slot.pak
 
-      - name: Check the add-on packs are complete
-        run: |
-          apt-get update -qq && apt-get install -y -qq --no-install-recommends file
-          sh tools/check-addon.sh
-
       - name: Install build deps
         run: |
           set -eu

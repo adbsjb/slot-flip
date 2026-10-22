@@ -48,6 +48,7 @@ one-for-one patch cadence the fork does not have.
 | `v0.6.0` | v1.8.0 (fork work only: About names the device, update word, forgiving cart labels) |
 | `v0.7.0` | v1.8.0 (fork work only: PlayStation discs, console-style slot, PS1 pad, PCSX-ReARMed bundled) |
 | `v0.8.0` | v1.8.0 (fork work only: NES games on a drawn Game Pak, fceumm bundled) |
+| `v0.9.0` | v1.8.0 (fork work only: Super Nintendo on a drawn cart, snes9x2005 bundled, the systems table; the download is free-only) |
 | `exp-v0.3.0` | v1.6.0 |
 
 ---
@@ -153,7 +154,7 @@ silently delete. Section 5 turns this into a post-merge checklist.
 | About + update word | The About sticker is repainted for this device: `MODEL NO. MY355`, the wordmark `MIYOO FLIP`, and the repo URL where upstream's "SEE README" points at a file the pak does not ship. It prints `VERSION <fork> (SLOT <upstream>)`, so `build_info::UPSTREAM` must be bumped with every sync (section 5). The first boot of a build newer than the card's `Config/slot.state` `seen_version` shows `Updated to <version>` once; a card with no `seen_version` (new install, or from before the key) is marked silently, which is also why tests that boot a card with a state file still see no banner. | `slot/src/build_info.rs`, `slot/src/app.rs` (`note_build`), `slot-ui/src/sticker.rs` |
 | Frame size | Frames carry their own `(w, h)` instead of assuming the 240x160 GBA canvas, so a bigger picture is not cropped. `LibretroCore::set_native_video` is **off by default** (the Game Boy family is still centred in the canvas, byte-identical; a real-core test proves a GBA frame is the same in both modes) and on for PlayStation. The size travels `video_size` -> `Frames::publish_sized` -> `upload_game_sized`, and `GamePass` re-creates its texture when it changes. | `slot-retro/src/libretro.rs` (`copy_native`), `slot/src/frames.rs`, `slot/src/emu.rs` (`publish`), `slot-gfx/src/pipeline.rs` (`upload_sized`) |
 | Path-only cores | `load()` asks the core (`retro_get_system_info`) whether it needs a path and, if so, does not read the file into RAM (a disc image is hundreds of MB). | `slot-retro/src/libretro.rs` (`content_bytes`) |
-| Super Nintendo (add-on, unreleased) | `Platform::Snes` (`Games/SNES`: `.smc .sfc .swc .fig`) runs on `Core::Snes9x` = snes9x2005_plus (non-commercial, so it ships only in the add-on pack; see section 9). Pad: `Spec.native_pad` with `SNES_EXTRAS` (X/Y; L/R are the GBA shoulders), so turbo is off; `input::table::on_native` only moves the shortcuts that sit on the pad's own buttons, so rewind and fast-forward stay on L2/R2. Cart: `slot-ui/src/pak.rs` draws both the NES Game Pak and the SNES cart from a `Design` (a new cartridge is a set of numbers); `GbShell::Pak(Pak)`. `slot-retro/tests/snes9x.rs` runs a hand-assembled 65816 program that paints the pad into the backdrop, so each of the 12 buttons is proven on the real core. The core accepts any junk file as a game, so there is no "not a SNES game" error. | `slot-store/src/{platform,core}.rs`, `slot/src/{core,input/mask,input/table}.rs`, `slot-ui/src/pak.rs`, `flip/Addons/Snes` |
+| Super Nintendo (v0.9.0) | `Platform::Snes` (`Games/SNES`: `.smc .sfc .swc .fig`) runs on `Core::Snes9x` = snes9x2005_plus (non-commercial, so the whole download is free-only; see section 9). Pad: `Spec.native_pad` with `SNES_EXTRAS` (X/Y; L/R are the GBA shoulders), so turbo is off; `input::table::on_native` only moves the shortcuts that sit on the pad's own buttons, so rewind and fast-forward stay on L2/R2. Cart: `slot-ui/src/pak.rs` draws both the NES Game Pak and the SNES cart from a `Design` (a new cartridge is a set of numbers); `GbShell::Pak(Pak)`. `slot-retro/tests/snes9x.rs` runs a hand-assembled 65816 program that paints the pad into the backdrop, so each of the 12 buttons is proven on the real core. The core accepts any junk file as a game, so there is no "not a SNES game" error. | `slot-store/src/{platform,core}.rs`, `slot/src/{core,input/mask,input/table}.rs`, `slot-ui/src/pak.rs` |
 | NES (v0.8.0) | `Platform::Nes` (`Games/NES`: `.nes .fds .unf .unif`) runs on `Core::Fceumm` (GPL-2.0, `cores/fceumm`, bundled with its source and the LGPL-2.1 licence of its NTSC filter). The Game Pak is drawn (`slot-ui/src/nes_cart.rs`, `GbShell::Nes`): portrait, no spin, no glare, no console slot yet. `Platform::native_video()` (PS1, NES) and `Platform::has_screen_options()` (the Game Boy family only) replace the PS1-only checks, so a new console system only has to answer those two. Turbo works as on a GBA (X/Y become pulsing A/B; no `native_pad`). `slot-retro/tests/fceumm.rs` drives a synthetic NES program that paints the controller port, so each button is proven on the real core. fceumm declares its options only after a game loads; slot sets none on it. | `slot-store/src/{platform,core}.rs`, `slot-ui/src/{nes_cart,cart,shelf,silhouette}.rs`, `slot/src/core.rs` |
 | PlayStation (v0.7.0) | `Platform::Ps1` (`Games/PS1`: `.cue .chd .m3u .pbp`) runs on `Core::Pcsx` (bundled). A multi-disc game is shelved once, as its `.m3u`. No bezel, shader or colour correction, and the in-game menu hides those rows plus Turbo. The cart is a **disc**, drawn (`slot-ui/src/disc.rs`), not a bitmap: it spins one turn into the slot (`Draw::Turned`), the glare is a separate non-rotating layer, cover art is fitted to the circle with a jewel-case spine trimmed (`art::disc_cover`) and shows through a frosted hub. The slot is drawn as a console (`slot-ui/src/ps1_slot.rs`, built on first use by `ensure_console_slot`, chosen by `App::console_slot_wanted`). **Pad:** `Pad::mask_for(.., Platform::Ps1)` adds X/Y (Triangle/Square) and L2/R2, `EmuHandle::set_native_pad` skips the turbo transform, and `Table::for_platform` moves fast-forward to SELECT+R2 and drops rewind and the palette keys (plain L2/R2/X/Y are game buttons). Mind the Flip's input quirks (`input/evdev.rs`): the physical right trigger arrives as `Btn::R1` and `Btn::R2` is the right stick pushed right, so PS R1 is the trigger and PS R2 is the stick. Analog values are not passed to the core yet. **PAL:** `emu::frame_period` paces a core that really runs at ~50 Hz at its own rate; 59.73 (GBA) and 60 are left exactly as they were. `Core::ALL` is the picker's two cores; `Core::EVERY` is all three. | `slot-store/src/{platform,core,scan}.rs`, `slot/src/core.rs`, `slot-ui/src/{cart,disc,ps1_slot,art}.rs`, `slot/src/input/{mask,table}.rs`, `slot/src/emu.rs` |
 | Core delivery | `launch.sh` refreshes `Slot/System` cores whenever the pak's differ (`cmp -s`), so core fixes reach existing installs. | `Slot.pak/launch.sh` |
@@ -498,36 +499,29 @@ Notes are for people who own the device, not for developers.
   pinned source) in `System/licenses/`. That is ~7.5 MB on every install, mostly
   the source archive the GPL asks for; do not drop it without replacing it with a
   written offer. Re-strip with `strip --strip-unneeded` after every rebuild.
-- **Monetisation guardrail.** Everything shipped through v0.7.0 allows selling or
-  monetising (frontend GPL-3.0-or-later, mGBA MPL-2.0, gpSP and PCSX-ReARMed
-  GPL-2.0, bezel CC-BY-SA-4.0, shaders public domain or GPL, fonts OFL). The owner
-  wants to keep that option, so **the main `Slot.pak` must never ship a
-  non-commercial core.** (The owner has since said he does not plan to sell it, and
-  to keep it open source; donations may be offered but never unlock anything. The
-  separation stays: it keeps the main download unrestricted and the rules simple.)
-  Genesis Plus GX, snes9x2005 (a Snes9x derivative) and
-  PicoDrive carry non-commercial terms ("may not be sold, nor used in a
-  commercial product or activity"). Those go in a **separate, free add-on pack**
-  (its own zip and release asset, licence text and source inside), and the
-  frontend must cope with a core that is not installed (never a crash).
-  **Built:** `Core::is_addon()` marks such a core; `App::insert` checks
-  `core::installed` and, if the pack is missing, shows the `NeedsAddon` banner
-  ("Add-on pack needed") and hands the cart back. The pack is a folder under
-  `flip/Addons/<Name>/` laid out as `Slot/System/<core>.so` plus
-  `Slot/System/licenses/{<licence>,<core>.so.meta,<source>.tar.gz}` and a
-  `README.txt`; it is zipped onto the SD card root. `tools/check-addon.sh` (in
-  `pr.yml` and `release.yml`) checks each pack is complete and aarch64 and says it
-  is non-commercial; `release.yml` publishes `Slot-addon-snes-my355.zip` beside the
-  main zip and fails if a snes9x file is inside `Slot.pak`. To add a pack: build the
-  core (`cores/<name>/`, a pinned commit, `task core:<name>`), strip it, add its
-  row to `KNOWN` in `tools/check-addon.sh`, add the `Core` variant with
-  `is_addon`. `tools/check-pak-licences.sh` enforces
-  this in `pr.yml` and `release.yml`: a core not on its allowlist, or an allowed
-  core missing its licence text, `.meta` or source archive, fails the build. To
-  clear a new core, read its licence first, then add its line to the script.
-  This is a practical reading of the licences, not legal advice; a trademark
-  review (the "slot." name, "Game Boy", "PlayStation") is still open before any
-  sale.
+- **Licensing policy: free and open source, never for sale.** The owner does not
+  plan to sell this, wants it to stay open source, and may offer donations that never
+  unlock anything. On that basis non-commercial cores may be bundled in the one
+  `Slot.pak`, **knowingly**: snes9x2005 (a Snes9x derivative) is, and its licence
+  allows use, copying and distribution "for non-commercial purposes" with the notice
+  kept, and excludes "charging money" and "commercial game bundles". So the download
+  as a whole is free-only, and `System/licenses/NOTICE-NONCOMMERCIAL.txt` says so
+  (and says which files to remove for a build that could be sold). Genesis Plus GX is
+  stricter ("may not be sold, nor used in a commercial product or activity"), so
+  before bundling it, reread that wording against any donation link. The rest ships
+  under GPL-3.0-or-later (frontend), MPL-2.0 (mGBA), GPL-2.0 (gpSP, PCSX-ReARMed,
+  fceumm), CC-BY-SA-4.0 (bezel), and OFL (fonts). The cores are separate programs
+  the frontend loads at run time. This is a practical reading, not legal advice; a
+  trademark review (the "slot." name, "Game Boy", "PlayStation") is still open.
+  `tools/check-pak-licences.sh` (in `pr.yml` and `release.yml`) enforces it: a core
+  not on its allowlist, an allowed core missing its licence text, `.meta` or source
+  archive, or a `free-only` core without the notice, fails the build. To clear a new
+  core, read its licence first, then add its line (marking it `free-only` if it
+  forbids commercial use). History: v0.9.0 first built SNES as a separate add-on pack
+  (`Core::is_addon`, an "Add-on pack needed" banner, `tools/check-addon.sh`) to
+  keep the option to sell; that was removed in the same release once the owner chose
+  to bundle everything. It is in git history (PR #26) if a core ever cannot be
+  bundled.
 - Because `launch.sh` refreshes cores by comparison, shipping a new core in a
   release is enough for it to reach existing installs.
 

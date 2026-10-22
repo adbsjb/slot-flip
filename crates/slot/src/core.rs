@@ -34,13 +34,6 @@ fn candidates(root: &Path, core: Core) -> Vec<PathBuf> {
     paths
 }
 
-/// Whether the core's library can be found. The cores in the main download are
-/// taken to be there; one from the add-on pack is only there if the player has
-/// installed the pack, and slot has to ask rather than assume.
-pub fn installed(root: &Path, core: Core) -> bool {
-    !core.is_addon() || candidates(root, core).iter().any(|p| p.exists())
-}
-
 pub struct Opened {
     pub core: Box<dyn RetroCore>,
     pub named: bool,
