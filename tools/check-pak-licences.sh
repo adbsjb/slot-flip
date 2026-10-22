@@ -33,10 +33,10 @@ for so in "$sys"/*_libretro.so; do
 	fi
 	licence="$(echo "$row" | cut -d'|' -f2)"
 	source="$(echo "$row" | cut -d'|' -f3)"
-	[ -f "$lic/$licence" ] || { echo "MISSING: $lic/$licence for $name" >&2; fail=1; }
-	[ -f "$lic/$name.meta" ] || { echo "MISSING: $lic/$name.meta for $name" >&2; fail=1; }
+	{ [ -s "$lic/$licence" ] || { echo "MISSING OR EMPTY: $lic/$licence for $name" >&2; fail=1; }; }
+	[ -s "$lic/$name.meta" ] || { echo "MISSING: $lic/$name.meta for $name" >&2; fail=1; }
 	if [ "$source" != "-" ]; then
-		[ -f "$lic/$source" ] || { echo "MISSING: $lic/$source for $name" >&2; fail=1; }
+		[ -s "$lic/$source" ] || { echo "MISSING: $lic/$source for $name" >&2; fail=1; }
 	fi
 done
 exit "$fail"

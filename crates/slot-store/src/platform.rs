@@ -7,10 +7,17 @@ pub enum Platform {
     Gb,
     Gbc,
     Ps1,
+    Nes,
 }
 
 impl Platform {
-    pub const ALL: [Platform; 4] = [Platform::Gba, Platform::Gb, Platform::Gbc, Platform::Ps1];
+    pub const ALL: [Platform; 5] = [
+        Platform::Gba,
+        Platform::Gb,
+        Platform::Gbc,
+        Platform::Ps1,
+        Platform::Nes,
+    ];
 
     pub fn name(self) -> &'static str {
         match self {
@@ -18,6 +25,7 @@ impl Platform {
             Platform::Gb => "Game Boy",
             Platform::Gbc => "Game Boy Color",
             Platform::Ps1 => "PlayStation",
+            Platform::Nes => "Nintendo Entertainment System",
         }
     }
 
@@ -27,6 +35,7 @@ impl Platform {
             Platform::Gb => "GB",
             Platform::Gbc => "GBC",
             Platform::Ps1 => "PS1",
+            Platform::Nes => "NES",
         }
     }
 
@@ -35,6 +44,7 @@ impl Platform {
             Platform::Gba => &["gba"],
             Platform::Gb | Platform::Gbc => &["gb", "gbc"],
             Platform::Ps1 => &["cue", "chd", "m3u", "pbp"],
+            Platform::Nes => &["nes", "fds", "unf", "unif"],
         }
     }
 
@@ -43,7 +53,21 @@ impl Platform {
             Platform::Gba => (240, 160),
             Platform::Gb | Platform::Gbc => (160, 144),
             Platform::Ps1 => (320, 240),
+            Platform::Nes => (256, 240),
         }
+    }
+
+    /// Whether the picture is handed over at the size the core made it, rather than
+    /// centred on the GBA-sized canvas the Game Boy family is drawn on.
+    pub fn native_video(self) -> bool {
+        matches!(self, Platform::Ps1 | Platform::Nes)
+    }
+
+    /// Whether the screen shader, colour correction and bezel mean anything for
+    /// this system. They are built around a Game Boy's LCD; a disc or a NES picture
+    /// has none of that to change.
+    pub fn has_screen_options(self) -> bool {
+        !self.native_video()
     }
 
     pub fn accepts(self, path: &Path) -> bool {

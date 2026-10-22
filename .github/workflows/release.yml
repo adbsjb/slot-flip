@@ -43,6 +43,7 @@ jobs:
           file "$pak/System/mgba_libretro.so" | grep -q aarch64
           file "$pak/System/gpsp_libretro.so" | grep -q aarch64
           file "$pak/System/pcsx_rearmed_libretro.so" | grep -q aarch64
+          file "$pak/System/fceumm_libretro.so" | grep -q aarch64
           test -x "$pak/launch.sh"
           sh tools/check-pak-licences.sh "$pak"
           test -f "$pak/System/licenses/gpsp-GPL-2.0.txt"

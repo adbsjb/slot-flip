@@ -26,7 +26,7 @@ impl Cart {
                 }
             }
             // A disc image has no header to read a title from; the shelf uses its name.
-            Platform::Ps1 => {}
+            Platform::Ps1 | Platform::Nes => {}
             Platform::Gb | Platform::Gbc => {
                 if let Some(title) = crate::gb::title(&self.rom) {
                     self.title = title;

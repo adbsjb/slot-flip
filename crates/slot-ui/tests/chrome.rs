@@ -45,6 +45,8 @@ fn label_band(c: &Cart) -> (f32, f32) {
         Platform::Gb | Platform::Gbc => (GB_LABEL_Y as f32, GB_LABEL_H as f32),
         // Borrows the Game Boy Color pak until a disc has a case of its own.
         Platform::Ps1 => (GBC_LABEL_Y as f32, GBC_LABEL_H as f32),
+        // The Game Pak's label recess, in pixels of its own 300x332.
+        Platform::Nes => (40.0, 170.0),
     };
     let k = seated_box(c.platform).1 as f32 / cart_box(c.platform).1 as f32;
     (y * k, h * k)

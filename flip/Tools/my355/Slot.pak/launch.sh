@@ -35,7 +35,7 @@ fi
 # pak: seeded on first run, and refreshed whenever an update changes a core, so
 # core fixes actually reach people who already have Slot installed.
 mkdir -p "$SLOT_ROOT/System"
-for c in mgba_libretro.so gpsp_libretro.so pcsx_rearmed_libretro.so; do
+for c in mgba_libretro.so gpsp_libretro.so pcsx_rearmed_libretro.so fceumm_libretro.so; do
 	if [ -f "$DIR/System/$c" ] && ! cmp -s "$DIR/System/$c" "$SLOT_ROOT/System/$c"; then
 		cp "$DIR/System/$c" "$SLOT_ROOT/System/$c"
 	fi

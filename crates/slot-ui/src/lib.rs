@@ -12,6 +12,7 @@ mod board;
 mod cart;
 mod clock;
 mod disc;
+mod nes_cart;
 mod draw;
 mod footer;
 mod hud;
