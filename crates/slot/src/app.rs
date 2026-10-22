@@ -1187,7 +1187,7 @@ impl App {
             Platform::Gba => Some(&mut self.state.bezel_gba),
             Platform::Gb => Some(&mut self.state.bezel_gb),
             Platform::Gbc => Some(&mut self.state.bezel_gbc),
-            Platform::Ps1 | Platform::Nes => None,
+            _ => None,
         }
     }
 
@@ -1196,7 +1196,7 @@ impl App {
             Platform::Gba => &self.state.bezel_gba,
             Platform::Gb => &self.state.bezel_gb,
             Platform::Gbc => &self.state.bezel_gbc,
-            Platform::Ps1 | Platform::Nes => return BezelPick::None,
+            _ => return BezelPick::None,
         };
         match self.bezel_choices(platform).contains(pick) {
             true => pick.clone(),
@@ -2242,7 +2242,7 @@ impl App {
             Platform::Gba => self.state.shader_gba,
             Platform::Gb => self.state.shader_gb,
             Platform::Gbc => self.state.shader_gbc,
-            Platform::Ps1 | Platform::Nes => Shader::Off,
+            _ => Shader::Off,
         }
     }
 
@@ -2259,7 +2259,7 @@ impl App {
             Platform::Gba => self.state.colour_correction_gba,
             Platform::Gb => self.state.colour_correction_gb,
             Platform::Gbc => self.state.colour_correction_gbc,
-            Platform::Ps1 | Platform::Nes => false,
+            _ => false,
         }
     }
 
@@ -3092,7 +3092,7 @@ impl App {
             Platform::Gb => (&mut self.state.shader_gb, &Shader::GB[..]),
             Platform::Gbc => (&mut self.state.shader_gbc, &Shader::GB[..]),
             // The shaders imitate a handheld's LCD; a console picture has none to offer.
-            Platform::Ps1 | Platform::Nes => return,
+            _ => return,
         };
         *shader = shader.step(choices, right);
         let said = match *shader {
@@ -3145,7 +3145,7 @@ impl App {
                 Platform::Gba => QuickRow::GbaColourCorrection,
                 Platform::Gb => QuickRow::GbColourCorrection,
                 Platform::Gbc => QuickRow::GbcColourCorrection,
-                Platform::Ps1 | Platform::Nes => return true,
+                _ => return true,
             };
             self.change_setting(row, true);
             let said = match self.colour_correction() {
@@ -5817,7 +5817,7 @@ fn bezel_slot(platform: Platform) -> Option<usize> {
         Platform::Gba => Some(0),
         Platform::Gb => Some(1),
         Platform::Gbc => Some(2),
-        Platform::Ps1 | Platform::Nes => None,
+        _ => None,
     }
 }
 

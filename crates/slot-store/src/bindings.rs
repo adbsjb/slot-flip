@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::atomic::atomic_write;
-use crate::platform::Platform;
+use crate::platform::{Pad, Platform};
 
 const CONTROLS_FILE: &str = "controls.txt";
 const CAROUSEL_FILE: &str = "carousel.txt";
@@ -244,14 +244,9 @@ impl GameButton {
     ];
 
     pub fn of(platform: Platform) -> &'static [GameButton] {
-        match platform {
-            // The PlayStation pad has more buttons than this list names (X/Y, L2/R2,
-            // the stick clicks); until the in-game controls grow them it shares
-            // the GBA set, which is the widest the controls page knows.
-            Platform::Gba | Platform::Ps1 => &GameButton::ALL,
-            // A NES pad is a Game Boy's: a D-pad, A, B, Select and Start (and the
-            // turbo keys, which pulse A and B just the same).
-            Platform::Gb | Platform::Gbc | Platform::Nes => &GameButton::GAME_BOY,
+        match platform.spec().pad {
+            Pad::Full => &GameButton::ALL,
+            Pad::Compact => &GameButton::GAME_BOY,
         }
     }
 

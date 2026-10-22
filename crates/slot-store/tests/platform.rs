@@ -98,3 +98,54 @@ fn only_the_game_boy_family_has_a_screen_to_shade_and_a_gba_canvas_to_sit_on() {
         assert!(p.native_video(), "{p:?}");
     }
 }
+
+#[test]
+fn every_systems_table_entry_is_consistent() {
+    use slot_store::Core;
+    let mut dirs = Vec::new();
+    for p in Platform::ALL {
+        let s = p.spec();
+        assert!(!s.name.is_empty() && !s.dir.is_empty(), "{p:?}");
+        assert!(
+            !dirs.contains(&s.dir),
+            "{p:?} shares a folder with another system"
+        );
+        dirs.push(s.dir);
+        assert!(!s.extensions.is_empty(), "{p:?} takes no files");
+        assert!(
+            s.extensions.iter().all(|e| e
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())),
+            "{p:?}: extensions are matched case-insensitively and written lower case"
+        );
+        assert!(s.picture.0 > 0 && s.picture.1 > 0, "{p:?}");
+        assert!(!s.cores.is_empty(), "{p:?} has no core");
+        for core in s.cores {
+            assert!(core.runs(p), "{p:?} lists {core:?}, which then refuses it");
+            assert!(Core::EVERY.contains(core), "{core:?} is not in Core::EVERY");
+        }
+        assert!(
+            s.cores.contains(&Core::default_for(p)),
+            "{p:?} defaults to a core it does not list"
+        );
+        assert_eq!(p.has_screen_options(), !s.native_video);
+    }
+}
+
+#[test]
+fn every_core_runs_something_and_nothing_runs_on_a_core_that_does_not_list_it() {
+    use slot_store::Core;
+    for core in Core::EVERY {
+        assert!(
+            Platform::ALL.iter().any(|p| core.runs(*p)),
+            "{core:?} runs no system"
+        );
+        for p in Platform::ALL {
+            assert_eq!(
+                core.runs(p),
+                p.spec().cores.contains(&core),
+                "{core:?} on {p:?}"
+            );
+        }
+    }
+}
