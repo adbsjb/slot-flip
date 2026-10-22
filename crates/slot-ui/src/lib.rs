@@ -12,7 +12,7 @@ mod board;
 mod cart;
 mod clock;
 mod disc;
-mod nes_cart;
+mod pak;
 mod draw;
 mod footer;
 mod hud;
@@ -92,6 +92,7 @@ pub use shell::{
     lookup_order_is_exact_then_family_then_default, shell_for, shell_presets, table_keys, Finish,
     Shell, DEFAULT_SHELL, DMG_SHELL, DUAL_MODE_SHELL, GB_CLEAR_SHELL,
 };
+pub use pak::Pak;
 pub use silhouette::{gb_silhouette, silhouette, GbShell};
 pub use slot_chrome::{
     draw_empty_slot, draw_plugged_slot, draw_slot_name, draw_slot_title, ease, edge, housing,

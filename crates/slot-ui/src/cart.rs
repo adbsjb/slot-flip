@@ -5,7 +5,7 @@ use crate::art;
 use crate::bitmaps::{self, Mould};
 use crate::board::{BOARD_H, BOARD_W};
 use crate::disc;
-use crate::nes_cart;
+use crate::pak::Pak;
 use crate::shell::{shell_for, Finish, Shell};
 use crate::silhouette::{cart_mask, gb_cart_mask, GbShell};
 use crate::text;
@@ -81,14 +81,15 @@ enum Shape {
     Gba,
     Gb(GbShell),
     Disc,
-    Nes,
+    Pak(Pak),
 }
 
 pub fn gb_shell_of(cart: &Cart) -> Option<GbShell> {
     match cart.platform {
         Platform::Gba => None,
         Platform::Ps1 => Some(GbShell::Disc),
-        Platform::Nes => Some(GbShell::Nes),
+        Platform::Nes => Some(GbShell::Pak(Pak::Nes)),
+        Platform::Snes => Some(GbShell::Pak(Pak::Snes)),
         Platform::Gb | Platform::Gbc => Some(match cart.shell.map(|c| c.outline) {
             Some(Outline::Notched) => GbShell::Notched,
             Some(Outline::Rounded) => GbShell::Rounded,
@@ -103,7 +104,7 @@ pub fn gb_shell_of(cart: &Cart) -> Option<GbShell> {
 pub fn label_rect(shell: Option<GbShell>) -> (f32, f32, f32, f32) {
     match shell {
         Some(GbShell::Disc) => return disc::LABEL,
-        Some(GbShell::Nes) => return nes_cart::LABEL,
+        Some(GbShell::Pak(pak)) => return pak.label_fraction(),
         _ => {}
     }
     let s = spec(match shell {
@@ -123,7 +124,7 @@ fn shape_of(cart: &Cart) -> Shape {
     match gb_shell_of(cart) {
         None => Shape::Gba,
         Some(GbShell::Disc) => Shape::Disc,
-        Some(GbShell::Nes) => Shape::Nes,
+        Some(GbShell::Pak(pak)) => Shape::Pak(pak),
         Some(shell) => Shape::Gb(shell),
     }
 }
@@ -143,7 +144,7 @@ fn spec(shape: Shape) -> Spec {
             h: GB_CART_H,
             label: match shell {
                 GbShell::Notched => (GB_LABEL_X, GB_LABEL_Y, GB_LABEL_W, GB_LABEL_H),
-                GbShell::Rounded | GbShell::Disc | GbShell::Nes => {
+                GbShell::Rounded | GbShell::Disc | GbShell::Pak(_) => {
                     (GBC_LABEL_X, GBC_LABEL_Y, GBC_LABEL_W, GBC_LABEL_H)
                 }
             },
@@ -151,19 +152,19 @@ fn spec(shape: Shape) -> Spec {
             mould: match shell {
                 GbShell::Notched => Some(Mould::Notched),
                 GbShell::Rounded => Some(Mould::Rounded),
-                GbShell::Disc | GbShell::Nes => None,
+                GbShell::Disc | GbShell::Pak(_) => None,
             },
             paint: match shell {
                 GbShell::Notched => bitmaps::gb_cart(),
                 GbShell::Rounded => bitmaps::gbc_cart(),
-                GbShell::Disc | GbShell::Nes => &[],
+                GbShell::Disc | GbShell::Pak(_) => &[],
             },
         },
-        Shape::Nes => Spec {
-            w: nes_cart::NES_W,
-            h: nes_cart::NES_H,
-            label: nes_cart::LABEL_PX,
-            mask: nes_cart::mask(),
+        Shape::Pak(pak) => Spec {
+            w: pak.design().w,
+            h: pak.design().h,
+            label: pak.design().label,
+            mask: pak.mask(),
             mould: None,
             paint: &[],
         },
@@ -182,7 +183,6 @@ fn spec(shape: Shape) -> Spec {
 pub const SEATED_W: u32 = 240;
 const SEATED_H: u32 = 141;
 const GB_SEATED_H: u32 = 259;
-const NES_SEATED_H: u32 = (SEATED_W * nes_cart::NES_H + nes_cart::NES_W / 2) / nes_cart::NES_W;
 
 pub fn seated_box(platform: Platform) -> (u32, u32) {
     match platform {
@@ -190,7 +190,18 @@ pub fn seated_box(platform: Platform) -> (u32, u32) {
         Platform::Gb | Platform::Gbc => (SEATED_W, GB_SEATED_H),
         // The disc is round, and goes in no wider than the slot is.
         Platform::Ps1 => (SEATED_W, SEATED_W),
-        Platform::Nes => (SEATED_W, NES_SEATED_H),
+        Platform::Nes | Platform::Snes => {
+            let d = pak_of(platform).design();
+            (SEATED_W, (SEATED_W * d.h + d.w / 2) / d.w)
+        }
+    }
+}
+
+/// The cartridge a system is drawn as. Only called for the systems that have one.
+fn pak_of(platform: Platform) -> Pak {
+    match platform {
+        Platform::Snes => Pak::Snes,
+        _ => Pak::Nes,
     }
 }
 
@@ -199,7 +210,7 @@ pub fn cart_box(platform: Platform) -> (u32, u32) {
         Platform::Gba => Shape::Gba,
         Platform::Gb | Platform::Gbc => Shape::Gb(GbShell::Notched),
         Platform::Ps1 => Shape::Disc,
-        Platform::Nes => Shape::Nes,
+        Platform::Nes | Platform::Snes => Shape::Pak(pak_of(platform)),
     });
     (s.w, s.h)
 }
@@ -211,7 +222,7 @@ pub fn cart_shadow() -> CartFace {
 pub fn gb_cart_shadow(shell: GbShell) -> CartFace {
     match shell {
         GbShell::Disc => shadow(disc::DISC_D, disc::DISC_D, disc::mask()),
-        GbShell::Nes => shadow(nes_cart::NES_W, nes_cart::NES_H, nes_cart::mask()),
+        GbShell::Pak(pak) => shadow(pak.design().w, pak.design().h, pak.mask()),
         _ => shadow(GB_CART_W, GB_CART_H, gb_cart_mask(shell)),
     }
 }
@@ -248,7 +259,7 @@ pub fn shows_interior(cart: &Cart) -> bool {
 pub fn cart_interior(cart: &Cart) -> CartFace {
     match gb_shell_of(cart) {
         Some(GbShell::Disc) => return blank(disc::DISC_D, disc::DISC_D),
-        Some(GbShell::Nes) => return blank(nes_cart::NES_W, nes_cart::NES_H),
+        Some(GbShell::Pak(pak)) => return blank(pak.design().w, pak.design().h),
         _ => {}
     }
     let colour = shell_for(cart).colour;
@@ -258,7 +269,7 @@ pub fn cart_interior(cart: &Cart) -> CartFace {
             let s = spec(Shape::Gb(shell));
             let src = match shell {
                 GbShell::Notched => bitmaps::gb_interior(),
-                GbShell::Rounded | GbShell::Disc | GbShell::Nes => bitmaps::gbc_interior(),
+                GbShell::Rounded | GbShell::Disc | GbShell::Pak(_) => bitmaps::gbc_interior(),
             };
             (src, s.w, s.h, Some(s.mask))
         }
@@ -284,7 +295,7 @@ pub fn cart_interior(cart: &Cart) -> CartFace {
 pub fn cart_backing(shell: Option<GbShell>) -> CartFace {
     match shell {
         Some(GbShell::Disc) => return blank(disc::DISC_D, disc::DISC_D),
-        Some(GbShell::Nes) => return blank(nes_cart::NES_W, nes_cart::NES_H),
+        Some(GbShell::Pak(pak)) => return blank(pak.design().w, pak.design().h),
         _ => {}
     }
     let Some(shell) = shell else {
@@ -331,7 +342,7 @@ pub fn label_size(cart: &Cart) -> (u32, u32) {
 pub fn cart_face_with(cart: &Cart, art: Option<Vec<u8>>) -> CartFace {
     match shape_of(cart) {
         Shape::Disc => return disc::face(&label_text(cart), art),
-        Shape::Nes => return nes_cart::face(&label_text(cart), art),
+        Shape::Pak(pak) => return pak.face(&label_text(cart), art),
         _ => {}
     }
     let s = spec(shape_of(cart));

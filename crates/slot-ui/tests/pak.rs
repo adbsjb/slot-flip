@@ -1,7 +1,7 @@
 use slot_store::{scan, Cart, Platform};
 use slot_ui::{
     cart_box, cart_face, gb_cart_shadow, gb_shell_of, is_clear, label_rect, label_size, seated_box,
-    CartFace, GbShell, MOUTH_W,
+    CartFace, GbShell, Pak, MOUTH_W,
 };
 use tempfile::TempDir;
 
@@ -45,7 +45,7 @@ fn a_nes_game_is_a_drawn_pak_and_never_a_gba_or_game_boy_cart() {
     let d = tmp_root();
     let c = pak(&d, "Contra");
     assert_eq!(c.platform, Platform::Nes);
-    assert_eq!(gb_shell_of(&c), Some(GbShell::Nes));
+    assert_eq!(gb_shell_of(&c), Some(GbShell::Pak(Pak::Nes)));
     assert!(!is_clear(&c), "a Pak is solid plastic, never see-through");
 }
 
@@ -110,7 +110,7 @@ fn the_label_recess_holds_the_art_edge_to_edge() {
     let c = pak(&d, "Contra");
     let (lw, lh) = label_size(&c);
     let f = cart_face(&c);
-    let (x, y, w, h) = label_rect(Some(GbShell::Nes));
+    let (x, y, w, h) = label_rect(Some(GbShell::Pak(Pak::Nes)));
     let (px, py) = ((x * f.w as f32) as u32, (y * f.h as f32) as u32);
     for (dx, dy) in [(2, 2), (lw / 2, lh / 2), (lw - 3, lh - 3)] {
         let [r, g, b, a] = at(&f, px + dx, py + dy);
@@ -148,7 +148,7 @@ fn art_that_is_the_wrong_size_for_the_label_is_refitted_not_smeared() {
     let d = tmp_root();
     write_art(&d, "Tall", 359, 512, [30, 160, 30]);
     let f = cart_face(&pak(&d, "Tall"));
-    let (x, y, _, _) = label_rect(Some(GbShell::Nes));
+    let (x, y, _, _) = label_rect(Some(GbShell::Pak(Pak::Nes)));
     let [r, g, b, a] = at(
         &f,
         (x * f.w as f32) as u32 + 100,
@@ -159,7 +159,7 @@ fn art_that_is_the_wrong_size_for_the_label_is_refitted_not_smeared() {
 
 #[test]
 fn the_shadow_is_the_paks_outline() {
-    let s = gb_cart_shadow(GbShell::Nes);
+    let s = gb_cart_shadow(GbShell::Pak(Pak::Nes));
     let (w, h) = cart_box(Platform::Nes);
     assert_eq!((s.w, s.h), (w, h));
     let alpha = |x: u32, y: u32| s.rgba[((y * s.w + x) * 4 + 3) as usize];
@@ -180,6 +180,106 @@ fn the_other_systems_are_unchanged_by_it() {
             shell: None,
             title: String::new(),
         }),
-        Some(GbShell::Nes)
+        Some(GbShell::Pak(Pak::Nes))
     );
+}
+
+fn snes_pak(d: &TempDir, name: &str) -> Cart {
+    std::fs::create_dir_all(d.path().join("Games/SNES")).unwrap();
+    std::fs::write(d.path().join("Games/SNES").join(format!("{name}.sfc")), "").unwrap();
+    scan(d.path())
+        .unwrap()
+        .into_iter()
+        .find(|c| c.stem == name)
+        .expect("the snes cart")
+}
+
+#[test]
+fn a_super_nintendo_game_is_its_own_drawn_cart_not_a_game_pak() {
+    let d = tmp_root();
+    let c = snes_pak(&d, "Chrono");
+    assert_eq!(c.platform, Platform::Snes);
+    assert_eq!(gb_shell_of(&c), Some(GbShell::Pak(Pak::Snes)));
+    assert!(!is_clear(&c));
+    assert_ne!(cart_box(Platform::Snes), cart_box(Platform::Nes));
+    let (w, h) = cart_box(Platform::Snes);
+    assert!(w > h, "a SNES cart is wider than it is tall: {w}x{h}");
+}
+
+#[test]
+fn every_pak_design_fits_the_slot_and_draws_to_its_own_box() {
+    for (platform, pak) in [(Platform::Nes, Pak::Nes), (Platform::Snes, Pak::Snes)] {
+        let d = pak.design();
+        assert_eq!(cart_box(platform), (d.w, d.h), "{platform:?}");
+        let (sw, sh) = seated_box(platform);
+        assert!(
+            (sw as f32) < MOUTH_W,
+            "{platform:?}: {sw} is wider than the slot"
+        );
+        assert!(
+            (sw as f32 / sh as f32 - d.w as f32 / d.h as f32).abs() < 0.01,
+            "{platform:?} is squashed on the way in"
+        );
+        // The label sits inside the slab and the art fits it exactly.
+        let (x, y, w, h) = d.label;
+        assert!(
+            x + w <= d.w && y + h <= d.h,
+            "{platform:?}: label is off the cart"
+        );
+        assert_eq!(pak.mask().len(), (d.w * d.h) as usize);
+        let frac = pak.label_fraction();
+        assert!((frac.2 * d.w as f32 - w as f32).abs() < 0.5, "{platform:?}");
+    }
+}
+
+#[test]
+fn a_snes_cart_has_a_label_a_narrower_foot_and_square_free_corners() {
+    let d = tmp_root();
+    write_art_in(&d, "SNES", "Chrono", 128, 112, [20, 20, 200]);
+    let c = snes_pak(&d, "Chrono");
+    let (lw, lh) = label_size(&c);
+    let f = cart_face(&c);
+    assert_eq!((f.w, f.h), cart_box(Platform::Snes));
+    assert_eq!(at(&f, 0, 0)[3], 0, "the top corner is square");
+    assert_eq!(at(&f, 2, f.h - 3)[3], 0, "the foot is as wide as the slab");
+    assert_eq!(at(&f, f.w / 2, f.h / 2)[3], 255);
+    assert_eq!(at(&f, f.w / 2, f.h - 4)[3], 255, "the connector is missing");
+    let (x, y, _, _) = label_rect(Some(GbShell::Pak(Pak::Snes)));
+    let (px, py) = ((x * f.w as f32) as u32, (y * f.h as f32) as u32);
+    for (dx, dy) in [(2, 2), (lw / 2, lh / 2), (lw - 3, lh - 3)] {
+        let [r, g, b, a] = at(&f, px + dx, py + dy);
+        assert!(
+            b > 150 && r < 60 && g < 60 && a == 255,
+            "({dx},{dy}) is {r},{g},{b}"
+        );
+    }
+    let [r, g, b, _] = at(&f, f.w / 2, 220);
+    assert!(
+        r.abs_diff(g) < 12 && g.abs_diff(b) < 12 && (110..230).contains(&r),
+        "{r},{g},{b}"
+    );
+}
+
+#[test]
+fn the_snes_cart_is_not_the_same_picture_as_the_nes_one() {
+    let nes = Pak::Nes.design();
+    let snes = Pak::Snes.design();
+    assert_ne!((nes.w, nes.h), (snes.w, snes.h));
+    assert_ne!(Pak::Nes.mask(), Pak::Snes.mask());
+}
+
+fn write_art_in(d: &TempDir, system: &str, name: &str, w: u32, h: u32, rgb: [u8; 3]) {
+    std::fs::create_dir_all(d.path().join("Labels").join(system)).unwrap();
+    let f = std::fs::File::create(
+        d.path()
+            .join("Labels")
+            .join(system)
+            .join(format!("{name}.png")),
+    )
+    .unwrap();
+    let mut enc = png::Encoder::new(std::io::BufWriter::new(f), w, h);
+    enc.set_color(png::ColorType::Rgb);
+    enc.set_depth(png::BitDepth::Eight);
+    let px: Vec<u8> = (0..w * h).flat_map(|_| rgb).collect();
+    enc.write_header().unwrap().write_image_data(&px).unwrap();
 }

@@ -369,3 +369,130 @@ mod disc_pad {
         assert!(fires(&e, &[], Btn::Down, Action::FfStart));
     }
 }
+
+mod snes_pad {
+    use super::*;
+    use slot::input::Pad;
+    use slot_input::{Action, Btn, Context, Gestures, RawEvent};
+    use slot_retro::ButtonMask;
+    use slot_store::{CarouselKeys, Controls, Platform, ShortcutKeys};
+
+    fn mask(btns: &[Btn], platform: Platform) -> u16 {
+        let mut pad = Pad::default();
+        for b in btns {
+            pad.apply(Action::GbaDown(*b));
+        }
+        pad.mask_for(&Controls::default(), platform).0
+    }
+
+    fn entries(platform: Platform) -> Vec<slot_input::Entry> {
+        slot::input::Table::for_platform(
+            &Controls::default(),
+            &ShortcutKeys::default(),
+            &CarouselKeys::default(),
+            true,
+            platform,
+        )
+        .entries()
+    }
+
+    fn fires(entries: &[slot_input::Entry], held: &[Btn], press: Btn, want: Action) -> bool {
+        let mut g = Gestures::new();
+        g.set_entries(entries.to_vec());
+        g.set_context(Context::Game);
+        let mut out = Vec::new();
+        for b in held {
+            out.extend(g.feed(RawEvent::Down(*b), 0));
+        }
+        out.extend(g.feed(RawEvent::Down(press), 10));
+        out.extend(g.tick(400));
+        out.contains(&want)
+    }
+
+    #[test]
+    fn the_four_face_buttons_and_both_shoulders_are_where_a_super_nintendo_pad_has_them() {
+        // libretro's SNES pad: B bottom, A right, Y left, X top.
+        assert_eq!(mask(&[Btn::B], Platform::Snes), ButtonMask::B);
+        assert_eq!(mask(&[Btn::A], Platform::Snes), ButtonMask::A);
+        assert_eq!(mask(&[Btn::X], Platform::Snes), ButtonMask::X);
+        assert_eq!(mask(&[Btn::Y], Platform::Snes), ButtonMask::Y);
+        assert_eq!(mask(&[Btn::L1], Platform::Snes), ButtonMask::L);
+        assert_eq!(mask(&[Btn::R1], Platform::Snes), ButtonMask::R);
+    }
+
+    #[test]
+    fn the_lower_shoulders_are_not_game_buttons_on_a_super_nintendo() {
+        assert_eq!(mask(&[Btn::L2], Platform::Snes), 0);
+        assert_eq!(mask(&[Btn::R2], Platform::Snes), 0);
+    }
+
+    #[test]
+    fn x_and_y_reach_the_core_as_buttons_and_never_become_turbo() {
+        let pad = mask(&[Btn::X, Btn::Y], Platform::Snes);
+        assert_eq!(pad, ButtonMask::X | ButtonMask::Y);
+        assert_eq!(ButtonMask(pad).turbo(3).0, 0, "turbo would have eaten them");
+    }
+
+    #[test]
+    fn every_super_nintendo_button_at_once() {
+        let all = [
+            Btn::Up,
+            Btn::Down,
+            Btn::Left,
+            Btn::Right,
+            Btn::A,
+            Btn::B,
+            Btn::X,
+            Btn::Y,
+            Btn::L1,
+            Btn::R1,
+            Btn::Start,
+            Btn::Select,
+        ];
+        let m = mask(&all, Platform::Snes);
+        for bit in [
+            ButtonMask::UP,
+            ButtonMask::DOWN,
+            ButtonMask::LEFT,
+            ButtonMask::RIGHT,
+            ButtonMask::A,
+            ButtonMask::B,
+            ButtonMask::X,
+            ButtonMask::Y,
+            ButtonMask::L,
+            ButtonMask::R,
+            ButtonMask::START,
+            ButtonMask::SELECT,
+        ] {
+            assert_ne!(m & bit, 0, "{bit:#06x} is missing from {m:#06x}");
+        }
+    }
+
+    #[test]
+    fn fast_forward_and_rewind_keep_their_keys_because_the_triggers_are_free() {
+        let e = entries(Platform::Snes);
+        assert!(fires(&e, &[], Btn::R2, Action::FfStart), "R2 lost fast-forward");
+        assert!(fires(&e, &[], Btn::L2, Action::RewindStart), "L2 lost rewind");
+    }
+
+    #[test]
+    fn no_shortcut_takes_x_or_y_while_a_super_nintendo_game_is_up() {
+        for e in entries(Platform::Snes) {
+            if e.contexts.meets(slot_input::Contexts::GAME) && e.chord.modifier.is_none() {
+                assert!(
+                    ![Btn::X, Btn::Y].contains(&e.chord.button),
+                    "{:?} sits on X or Y",
+                    e.action
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_game_boy_family_and_nes_are_untouched() {
+        for platform in [Platform::Gba, Platform::Gb, Platform::Gbc, Platform::Nes] {
+            assert_eq!(mask(&[Btn::L2], platform), 0, "{platform:?}");
+            assert_eq!(mask(&[Btn::X], platform), ButtonMask::X, "{platform:?}");
+        }
+    }
+}

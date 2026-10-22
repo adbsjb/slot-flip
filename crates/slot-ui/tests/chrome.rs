@@ -47,6 +47,7 @@ fn label_band(c: &Cart) -> (f32, f32) {
         Platform::Ps1 => (GBC_LABEL_Y as f32, GBC_LABEL_H as f32),
         // The Game Pak's label recess, in pixels of its own 300x332.
         Platform::Nes => (40.0, 170.0),
+        Platform::Snes => (30.0, 168.0),
     };
     let k = seated_box(c.platform).1 as f32 / cart_box(c.platform).1 as f32;
     (y * k, h * k)

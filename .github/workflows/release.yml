@@ -53,6 +53,12 @@ jobs:
           test -f "$pak/System/licenses/pcsx-src.tar.gz"
           test -f "$pak/System/licenses/pcsx_rearmed_libretro.so.meta"
 
+      - name: Check the add-on packs
+        run: |
+          set -eu
+          apt-get install -y --no-install-recommends file
+          sh tools/check-addon.sh
+
       - name: Package
         id: package
         run: |
@@ -60,12 +66,18 @@ jobs:
           stage="$(mktemp -d)"
           cp -R flip/Tools/my355/Slot.pak "$stage/Slot.pak"
           ( cd "$stage" && zip -qry "$GITHUB_WORKSPACE/Slot.pak-my355.zip" Slot.pak )
-          echo "zip=Slot.pak-my355.zip" >> "$GITHUB_OUTPUT"
+          # The add-on packs are separate downloads: their cores carry
+          # non-commercial licences, so they are never inside Slot.pak.
+          ( cd flip/Addons/Snes && zip -qry "$GITHUB_WORKSPACE/Slot-addon-snes-my355.zip" Slot README.txt )
+          unzip -l Slot.pak-my355.zip | grep -qi snes9x && { echo "a non-commercial core is in the main pak" >&2; exit 1; }
+          unzip -l Slot-addon-snes-my355.zip | grep -q snes9x2005_plus_libretro.so
 
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.package.outputs.zip }}
-          path: ${{ steps.package.outputs.zip }}
+          name: release-zips
+          path: |
+            Slot.pak-my355.zip
+            Slot-addon-snes-my355.zip
           if-no-files-found: error
 
   publish:
@@ -78,7 +90,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: Slot.pak-my355.zip
+          name: release-zips
 
       - name: Create the release
         env:
@@ -100,7 +112,7 @@ jobs:
           affiliated with the upstream author or Nintendo. Use your own
           legally-dumped ROMs.
           NOTES
-          gh release create "$GITHUB_REF_NAME" Slot.pak-my355.zip \
+          gh release create "$GITHUB_REF_NAME" Slot.pak-my355.zip Slot-addon-snes-my355.zip \
             --repo "$GITHUB_REPOSITORY" \
             --title "slot-flip $GITHUB_REF_NAME (Miyoo Flip)" \
             --notes-file notes.md

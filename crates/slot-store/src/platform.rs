@@ -8,6 +8,7 @@ pub enum Platform {
     Gbc,
     Ps1,
     Nes,
+    Snes,
 }
 
 /// Which buttons the in-game Controls page offers for a system.
@@ -51,6 +52,9 @@ pub struct Spec {
     /// are game buttons, not the Game Boy family's turbo keys and rewind/fast-forward
     /// shortcuts, which then move off them.
     pub native_pad: bool,
+    /// Rewind can be offered: it keeps a state every few frames, which a system that
+    /// is already slow on the Flip cannot spare.
+    pub rewind: bool,
 }
 
 const GBA: Spec = Spec {
@@ -64,6 +68,7 @@ const GBA: Spec = Spec {
     header: Header::Gba,
     playlists: false,
     native_pad: false,
+    rewind: true,
 };
 
 const GB: Spec = Spec {
@@ -77,6 +82,7 @@ const GB: Spec = Spec {
     header: Header::GameBoy,
     playlists: false,
     native_pad: false,
+    rewind: true,
 };
 
 const GBC: Spec = Spec {
@@ -99,6 +105,7 @@ const PS1: Spec = Spec {
     header: Header::None,
     playlists: true,
     native_pad: true,
+    rewind: false,
 };
 
 const NES: Spec = Spec {
@@ -113,15 +120,32 @@ const NES: Spec = Spec {
     header: Header::None,
     playlists: false,
     native_pad: false,
+    rewind: true,
+};
+
+const SNES: Spec = Spec {
+    name: "Super Nintendo",
+    dir: "SNES",
+    extensions: &["smc", "sfc", "swc", "fig"],
+    picture: (256, 224),
+    native_video: true,
+    cores: &[crate::Core::Snes9x],
+    // X and Y are game buttons here, so the turbo keys that share them give way.
+    pad: Pad::Full,
+    header: Header::None,
+    playlists: false,
+    native_pad: true,
+    rewind: true,
 };
 
 impl Platform {
-    pub const ALL: [Platform; 5] = [
+    pub const ALL: [Platform; 6] = [
         Platform::Gba,
         Platform::Gb,
         Platform::Gbc,
         Platform::Ps1,
         Platform::Nes,
+        Platform::Snes,
     ];
 
     pub fn spec(self) -> &'static Spec {
@@ -131,6 +155,7 @@ impl Platform {
             Platform::Gbc => &GBC,
             Platform::Ps1 => &PS1,
             Platform::Nes => &NES,
+            Platform::Snes => &SNES,
         }
     }
 
@@ -152,6 +177,10 @@ impl Platform {
 
     pub fn native_video(self) -> bool {
         self.spec().native_video
+    }
+
+    pub fn can_rewind(self) -> bool {
+        self.spec().rewind
     }
 
     pub fn native_pad(self) -> bool {

@@ -12,6 +12,7 @@ pub enum Core {
     Gpsp,
     Pcsx,
     Fceumm,
+    Snes9x,
 }
 
 impl Core {
@@ -20,7 +21,13 @@ impl Core {
     pub const ALL: [Core; 2] = [Core::Mgba, Core::Gpsp];
 
     /// Every core slot can run, pickable or not.
-    pub const EVERY: [Core; 4] = [Core::Mgba, Core::Gpsp, Core::Pcsx, Core::Fceumm];
+    pub const EVERY: [Core; 5] = [
+        Core::Mgba,
+        Core::Gpsp,
+        Core::Pcsx,
+        Core::Fceumm,
+        Core::Snes9x,
+    ];
 
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -28,6 +35,7 @@ impl Core {
             Core::Gpsp => "gpsp",
             Core::Pcsx => "pcsx",
             Core::Fceumm => "fceumm",
+            Core::Snes9x => "snes9x",
         }
     }
 
@@ -41,6 +49,7 @@ impl Core {
             Core::Gpsp => "gpSP",
             Core::Pcsx => "PCSX-ReARMed",
             Core::Fceumm => "fceumm",
+            Core::Snes9x => "Snes9x 2005 Plus",
         }
     }
 
@@ -50,8 +59,16 @@ impl Core {
             "gpsp" => Some(Core::Gpsp),
             "pcsx" => Some(Core::Pcsx),
             "fceumm" => Some(Core::Fceumm),
+            "snes9x" => Some(Core::Snes9x),
             _ => None,
         }
+    }
+
+    /// Whether the core is left out of the main download. Its licence does not allow
+    /// selling, so it ships as a separate add-on pack that the player installs, and
+    /// slot says so when it is not there instead of failing.
+    pub fn is_addon(self) -> bool {
+        matches!(self, Core::Snes9x)
     }
 
     pub fn runs(self, platform: Platform) -> bool {

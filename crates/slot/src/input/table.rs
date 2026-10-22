@@ -30,7 +30,7 @@ impl Table {
     }
 
     /// The table for the system being played. A disc's pad uses X, Y, L2 and R2 as
-    /// game buttons, so no shortcut may also claim them plain (see `on_disc`).
+    /// game buttons, so no shortcut may also claim them plain (see `on_native`).
     pub fn for_platform(
         controls: &Controls,
         shortcuts: &ShortcutKeys,
@@ -57,7 +57,7 @@ impl Table {
                 if let Some(s) = row.shortcut() {
                     let action = shortcut_action(s);
                     let bound = match disc {
-                        true => shortcuts.get(s).and_then(|b| on_disc(s, b)),
+                        true => shortcuts.get(s).and_then(|b| on_native(s, b, platform)),
                         false => shortcuts.get(s),
                     };
                     return bound.map(|binding| Row {
@@ -112,18 +112,25 @@ impl Table {
     }
 }
 
-/// What a shortcut becomes while a disc is playing. Plain L2 and R2 are rewind and
-/// fast-forward everywhere else, but on a PlayStation pad they are game buttons, as
-/// are X and Y: fast-forward moves to SELECT+R2 and rewind is off, and the
-/// palette shortcuts, which only colour a Game Boy, give up SELECT+R2 for it. A binding the user chose is only
-/// moved if it would take a pad button.
-fn on_disc(shortcut: Shortcut, binding: Binding) -> Option<Binding> {
-    let pad = [Device::X, Device::Y, Device::L2, Device::R2];
+/// What a shortcut becomes while a system with a native pad is playing. A pad's own
+/// buttons are the game's: on a PlayStation that is X, Y, L2 and R2, on a Super
+/// Nintendo X and Y. Plain L2 and R2 are rewind and fast-forward everywhere else, so
+/// where they are game buttons fast-forward moves to SELECT+R2 and rewind is off. The
+/// palette shortcuts only colour a Game Boy, so they give up SELECT+R2 for it. A
+/// binding the user chose is only moved if it would take a pad button.
+fn on_native(shortcut: Shortcut, binding: Binding, platform: Platform) -> Option<Binding> {
+    let pad: Vec<Device> = crate::input::mask::extras(platform)
+        .iter()
+        .map(|(device, _)| *device)
+        .collect();
     match shortcut {
-        Shortcut::FastForward if Some(binding) == Binding::plain(Device::R2) => {
+        Shortcut::FastForward
+            if pad.contains(&Device::R2) && Some(binding) == Binding::plain(Device::R2) =>
+        {
             Binding::with(Modifier::Select, Device::R2)
         }
-        Shortcut::Rewind | Shortcut::PaletteBack | Shortcut::PaletteNext => None,
+        Shortcut::Rewind if pad.contains(&Device::L2) => None,
+        Shortcut::PaletteBack | Shortcut::PaletteNext => None,
         _ if binding.modifier.is_none() && pad.contains(&binding.button) => None,
         _ => Some(binding),
     }

@@ -108,7 +108,8 @@ devices):
 - **Device:** Miyoo Flip (`my355`), running **MinUI**.
 - **Systems:** GBA (`.gba`), GB (`.gb`), GBC (`.gbc`), PlayStation
   (`.cue`, `.chd`, `.m3u`, `.pbp`; see [PlayStation discs](#playstation-discs)),
-  and NES (`.nes`, `.fds`, `.unf`; see [NES games](#nes-games)).
+  NES (`.nes`, `.fds`, `.unf`; see [NES games](#nes-games)), and Super Nintendo
+  (`.sfc`, `.smc`; needs a [separate add-on](#super-nintendo-add-on)).
 - Other MinUI devices can be supported with small changes — see
   [INSTALL.md](INSTALL.md).
 
@@ -173,10 +174,10 @@ Everything Slot owns lives under `<SD CARD>/Slot`:
 
 ```
 Slot/
-  Games/   GBA GB GBC PS1 NES   your ROMs and discs, one folder per system
+  Games/   GBA GB GBC PS1 NES SNES   your ROMs and discs, one folder per system
   Saves/   GBA GB GBC           battery saves
-  States/  GBA GB GBC PS1 NES   save states
-  Labels/  (GBA GB GBC PS1 NES) cart and disc artwork, <game-name>.png, any of these folders
+  States/  GBA GB GBC PS1 NES SNES   save states
+  Labels/  (GBA GB GBC PS1 NES SNES) cart and disc artwork, <game-name>.png, any of these folders
   Wallpapers/              background images (PNG)
   Config/                  slot.ini, buttons.ini, and other settings
   System/                  emulator cores
@@ -270,6 +271,31 @@ those menu rows are hidden for NES.
 **What is not there yet.** Zapper and other special controllers, disk-side swapping
 for Famicom Disk System games, and cheats. The overscan edges of the picture are
 shown as the core draws them.
+
+## Super Nintendo add-on
+
+Super Nintendo is a **separate download**, `Slot-addon-snes-my355.zip`, on the release
+page. Its emulator (snes9x2005, a Snes9x derivative) is licensed for non-commercial
+use only, so it is kept out of the main download, which has no such restriction. The
+add-on is free; do not sell it or bundle it with anything that is sold.
+
+1. Unzip it onto the root of your SD card, so its `Slot` folder merges with yours. You
+   should end up with `Slot/System/snes9x2005_plus_libretro.so`.
+2. Put games (`.sfc`, `.smc`, `.swc`, `.fig`) in `Slot/Games/SNES`.
+3. Open Slot: a **SNES** shelf appears. Games are a grey cartridge with a label; put
+   art in `Slot/Labels/SNES/` as for the other systems.
+
+Without the add-on, opening a SNES game says **Add-on pack needed** and the cart is
+handed back. Nothing else is affected.
+
+**Buttons.** B, A, Y and X are the bottom, right, left and top buttons, L and R the
+shoulders, as on a Super Nintendo pad. Because X and Y are game buttons here, Turbo
+is off for SNES. Fast-forward and rewind stay on the lower triggers. The picture
+fills the 4:3 screen; the shader, colour correction and bezel rows do not apply.
+
+**What is not there yet.** The Super Scope and mouse, enhancement chips that the
+core does not support, and cheats. Games that save to the cartridge keep a `.srm`
+in the usual place.
 
 ## Settings
 

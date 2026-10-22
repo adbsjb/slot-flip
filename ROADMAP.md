@@ -76,9 +76,11 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 - 🚧 **More systems** ([#20](https://github.com/boomchu-123/slot-flip/issues/20)).
   PlayStation is out in v0.7.0 and NES in v0.8.0. Still to do for PlayStation: disc
   swapping for multi-disc games, passing the analog sticks to games, memory-card
-  handling, and timing heavy 3D games. Next: SNES and the Sega consoles, each needing
-  a core, a shelf and a cartridge shape of its own. Their cores carry non-commercial
-  licences, so they ship as a separate free add-on pack, never in the main pak (see
+  handling, and timing heavy 3D games. Super Nintendo is built on `feat/snes` as the
+  first **add-on pack** (a separate free download, since its core is licensed for
+  non-commercial use only); it runs on the Flip and is waiting on a hands-on check.
+  Next: the Sega consoles, each needing a core, a shelf and a cartridge design. Cores
+  with non-commercial licences ship as add-on packs, never in the main pak (see
   `AGENTS.md`, section 9). Nothing here is promised until it runs on hardware
 
 **Housekeeping that has bitten before**

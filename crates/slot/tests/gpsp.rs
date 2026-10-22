@@ -223,7 +223,7 @@ fn both_cores_are_told_about_colour_correction_in_their_own_words() {
         let theirs = match which {
             Core::Mgba => "gpsp_color_correction",
             Core::Gpsp => "mgba_color_correction",
-            Core::Pcsx | Core::Fceumm => {
+            Core::Pcsx | Core::Fceumm | Core::Snes9x => {
                 unreachable!("a console core has no colour correction to spell")
             }
         };

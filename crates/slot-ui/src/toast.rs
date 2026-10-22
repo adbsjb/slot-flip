@@ -29,6 +29,8 @@ pub enum Toast {
     CardRepairFailed,
     ButtonsReset,
     BindCancelled,
+    /// A system whose core is in the separate add-on pack, which is not installed.
+    NeedsAddon,
     /// Names the build that just started, which is the only in-app word an
     /// owner gets when they copy a newer pak onto the card.
     Updated(&'static str),
@@ -37,7 +39,7 @@ pub enum Toast {
 }
 
 impl Toast {
-    const FIXED: [Toast; 21] = [
+    const FIXED: [Toast; 22] = [
         Toast::StateSaved,
         Toast::StateLoaded,
         Toast::NeedsGpsp,
@@ -59,6 +61,7 @@ impl Toast {
         Toast::CardRepairFailed,
         Toast::ButtonsReset,
         Toast::BindCancelled,
+        Toast::NeedsAddon,
     ];
 
     pub fn all(version: &'static str) -> Vec<Toast> {
@@ -152,6 +155,7 @@ impl Toast {
             Toast::CardRepairFailed => "Card repair failed",
             Toast::ButtonsReset => "Key Map reset",
             Toast::BindCancelled => "No key pressed",
+            Toast::NeedsAddon => "Add-on pack needed",
             Toast::Palette(p) => p.label(),
             Toast::Duplicate(_) | Toast::Updated(_) => "",
         }

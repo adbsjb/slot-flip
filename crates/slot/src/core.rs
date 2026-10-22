@@ -11,6 +11,7 @@ pub fn dylib_name(core: Core) -> String {
     let library = match core {
         // The core's short name is `pcsx`; the library keeps its upstream name.
         Core::Pcsx => "pcsx_rearmed",
+        Core::Snes9x => "snes9x2005_plus",
         other => other.as_str(),
     };
     format!("{library}_libretro.{}", std::env::consts::DLL_EXTENSION)
@@ -31,6 +32,13 @@ fn candidates(root: &Path, core: Core) -> Vec<PathBuf> {
     }
     paths.push(Path::new("vendor").join(&name));
     paths
+}
+
+/// Whether the core's library can be found. The cores in the main download are
+/// taken to be there; one from the add-on pack is only there if the player has
+/// installed the pack, and slot has to ask rather than assume.
+pub fn installed(root: &Path, core: Core) -> bool {
+    !core.is_addon() || candidates(root, core).iter().any(|p| p.exists())
 }
 
 pub struct Opened {
@@ -180,7 +188,7 @@ pub fn colour_option(
             if on { "enabled" } else { "disabled" },
         )),
         // A console picture has no handheld-LCD colour to correct.
-        Core::Pcsx | Core::Fceumm => None,
+        Core::Pcsx | Core::Fceumm | Core::Snes9x => None,
     }
 }
 
@@ -204,7 +212,7 @@ pub fn apply_core_options(
 ) {
     // PCSX-ReARMed names and values this differently, and fceumm has no such option;
     // a console runs at full speed on the Flip, so each keeps its own defaults.
-    if !matches!(which, Core::Pcsx | Core::Fceumm) {
+    if !matches!(which, Core::Pcsx | Core::Fceumm | Core::Snes9x) {
         core.set_option(&format!("{}_frameskip", which.as_str()), "auto");
     }
     if which == Core::Mgba {

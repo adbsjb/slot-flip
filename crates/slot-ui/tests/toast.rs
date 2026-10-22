@@ -28,7 +28,7 @@ fn a_cart_gpsp_cannot_link_says_there_is_no_link() {
 fn the_banner_says_what_happened_and_never_what_is_on_screen() {
     let all = Toast::all("1.2.3");
     assert_eq!(
-        all[..21],
+        all[..22],
         [
             Toast::StateSaved,
             Toast::StateLoaded,
@@ -51,16 +51,17 @@ fn the_banner_says_what_happened_and_never_what_is_on_screen() {
             Toast::CardRepairFailed,
             Toast::ButtonsReset,
             Toast::BindCancelled,
+            Toast::NeedsAddon,
         ],
         "a banner was added or dropped: every face is uploaded by its place in this list"
     );
     assert_eq!(
-        all[21],
+        all[22],
         Toast::Updated("1.2.3"),
         "the updated banner follows the fixed ones"
     );
-    assert_eq!(all[21].text(), "Updated to 1.2.3");
-    let fixed = 22;
+    assert_eq!(all[22].text(), "Updated to 1.2.3");
+    let fixed = 23;
     let palettes = GbColors::all().count();
     assert_eq!(palettes, 49);
     assert_eq!(

@@ -1,7 +1,7 @@
-//! Renders NES Game Paks for a designer's eye: with no art (a generated label)
+//! Renders the NES and SNES cartridges for a designer's eye: with no art (a generated label)
 //! and with whatever PNGs are in the folders given, one Pak per file.
 //!
-//!     cargo run -p slot-ui --example nes_preview -- out.png [art_dir ...]
+//!     cargo run -p slot-ui --example pak_preview -- out.png [art_dir ...]
 //!
 //! Nothing copyrighted is needed: with no folder it shows generated labels only.
 
@@ -11,9 +11,13 @@ use slot_ui::{cart_face, CartFace};
 const HOUSING: [u8; 3] = [0x24, 0x24, 0x29];
 
 fn face_of(root: &std::path::Path, name: &str) -> CartFace {
-    let games = root.join("Games/NES");
+    let (dir, ext) = match name.starts_with("snes-") {
+        true => ("SNES", "sfc"),
+        false => ("NES", "nes"),
+    };
+    let games = root.join("Games").join(dir);
     std::fs::create_dir_all(&games).unwrap();
-    std::fs::write(games.join(format!("{name}.nes")), "").unwrap();
+    std::fs::write(games.join(format!("{name}.{ext}")), "").unwrap();
     let carts = scan(root).unwrap();
     cart_face(carts.iter().find(|c| c.stem == name).unwrap())
 }
@@ -30,12 +34,14 @@ fn main() {
     let mut args = std::env::args().skip(1);
     let out = args
         .next()
-        .expect("usage: nes_preview <out.png> [art_dir ...]");
+        .expect("usage: pak_preview <out.png> [art_dir ...]");
     let dirs: Vec<String> = args.collect();
     let root = tempfile::tempdir().unwrap();
     let mut faces = vec![
         face_of(root.path(), "Sky Racer"),
         face_of(root.path(), "Midnight Garden Adventures Part Two"),
+        face_of(root.path(), "snes-Sky Racer"),
+        face_of(root.path(), "snes-Midnight Garden Adventures Part Two"),
     ];
     for (n, dir) in dirs.iter().enumerate() {
         let sub = format!("Labels/NES");
@@ -53,7 +59,7 @@ fn main() {
             faces.push(face_of(root.path(), &stem));
         }
     }
-    let (pad, cell_w, cell_h) = (14u32, 300u32, 332u32);
+    let (pad, cell_w, cell_h) = (14u32, 340u32, 332u32);
     let w = faces.len() as u32 * (cell_w + pad) + pad;
     let h = cell_h + 2 * pad;
     let mut sheet = HOUSING.repeat((w * h) as usize);

@@ -944,7 +944,11 @@ impl App {
         let mut hidden = Vec::new();
         // A disc has no bezel, shader or colour correction of its own to change.
         if !self.playing_platform().has_screen_options() {
-            hidden.extend([QuickRow::Shader, QuickRow::ColourCorrection, QuickRow::Bezel]);
+            hidden.extend([
+                QuickRow::Shader,
+                QuickRow::ColourCorrection,
+                QuickRow::Bezel,
+            ]);
             hidden.extend([QuickRow::GameTurboA, QuickRow::GameTurboB]);
         }
         if !self.palette_live {
@@ -1462,9 +1466,9 @@ impl App {
         }
     }
 
-    pub fn set_nes_shadow(&mut self, face: TexId) {
+    pub fn set_pak_shadow(&mut self, pak: slot_ui::Pak, face: TexId) {
         for (_, shelf) in &mut self.shelves {
-            shelf.set_gb_shadow(GbShell::Nes, face);
+            shelf.set_gb_shadow(GbShell::Pak(pak), face);
         }
     }
 
@@ -2068,7 +2072,7 @@ impl App {
     pub fn records_rewind(&self) -> bool {
         // A disc has no rewind button (L2 is a game button there), so nothing would
         // ever use what was recorded.
-        self.state.rewind && self.playing_platform() != Platform::Ps1
+        self.state.rewind && self.playing_platform().can_rewind()
     }
 
     pub fn picture_rect(&self) -> [f32; 4] {
@@ -4801,12 +4805,24 @@ impl App {
             return;
         }
         let at = self.shelf().index;
-        let Some(cart) = self.shelf_mut().carts.get_mut(at).map(|c| {
+        let Some((cart, platform)) = self.shelf_mut().carts.get_mut(at).map(|c| {
             c.read_header();
-            c.stem.clone()
+            (c.stem.clone(), c.platform)
         }) else {
             return;
         };
+        if let Some(root) = self.root.clone() {
+            let core = slot_store::core_for_platform(&root, &cart, platform);
+            if !crate::core::installed(&root, core) {
+                eprintln!(
+                    "slot: launch: {cart} needs the {} core from the add-on pack, which is not installed",
+                    core.as_str()
+                );
+                let now = self.now();
+                self.hud.toast(Toast::NeedsAddon, now);
+                return self.refuse();
+            }
+        }
         eprintln!(
             "slot: launch: insert {cart} at {:.1} ms",
             crate::boot_time::ms()

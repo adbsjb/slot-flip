@@ -451,13 +451,14 @@ fn an_unreadable_platform_reads_as_a_card_that_never_said() {
     let known = "cart=Tetris\nbrightness=3\nblue_light=1\nvolume=40\nmuted=0\nclock_set=1\nutc_offset_min=0\n";
     for (line, want) in [
         ("cart_platform=\n", None),
-        ("cart_platform=snes\n", None),
+        ("cart_platform=genesis\n", None),
         ("cart_platform=gameboy\n", None),
         ("cart_platform=0\n", None),
         ("cart_platform=nds\n", None),
         ("cart_platform=GBA\n", Some(Platform::Gba)),
         ("cart_platform=Gbc\n", Some(Platform::Gbc)),
         ("cart_platform=nes\n", Some(Platform::Nes)),
+        ("cart_platform=snes\n", Some(Platform::Snes)),
     ] {
         std::fs::write(d.path().join("Config/slot.state"), format!("{known}{line}")).unwrap();
         let s = read_slot_state(d.path());
