@@ -590,7 +590,7 @@ fn a_card_from_before_the_gbc_split_starts_gbc_from_the_gb_c_settings() {
 #[test]
 fn lid_power_off_minutes_round_trip_and_drop_a_value_the_menu_does_not_offer() {
     let d = tmp_root();
-    for min in [1, 3, 5, 10, 15, 30] {
+    for min in [0, 1, 3, 5, 10, 15, 30] {
         let s = SlotState {
             lid_off_min: Some(min),
             ..Default::default()
@@ -631,8 +631,8 @@ fn an_old_sleep_timeout_carries_over_to_lid_power_off() {
         ("30", Some(30)),
         // 3 was the fork's default, never a choice: follow upstream's default.
         ("3", None),
-        // "Off" (stay asleep forever) has no equivalent: the longest wait.
-        ("0", Some(30)),
+        // "Off" (stay asleep forever) is Never again.
+        ("0", Some(0)),
         // Not something the menu ever offered.
         ("2", None),
         ("abc", None),

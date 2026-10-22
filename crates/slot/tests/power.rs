@@ -433,3 +433,56 @@ fn a_shut_lid_powers_off_after_the_minutes_set_in_the_menu() {
     }
     assert!(a.powering_off());
 }
+
+#[test]
+fn a_shut_lid_never_powers_off_when_the_menu_says_never() {
+    let d = tmp_root_with_carts(&["Emerald"]);
+    write_slot_state(
+        d.path(),
+        &SlotState {
+            clock_set: true,
+            lid_off_min: Some(0),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let mut a = boot(d.path());
+    a.set_power(panel(d.path(), Duration::from_secs(300)).0);
+    a.apply(Action::LidClose);
+    // Two hours is past every other choice, including the longest of them.
+    for _ in 0..(2 * 60 * 60 * 60) {
+        a.update(1.0 / 60.0);
+        assert!(!a.powering_off(), "it powered off with Never chosen");
+    }
+    // And it is still a normal sleep: opening the lid wakes it.
+    a.apply(Action::LidOpen);
+    for _ in 0..120 {
+        a.update(1.0 / 60.0);
+    }
+    assert!(!a.powering_off());
+}
+
+#[test]
+fn the_longest_timed_choice_still_powers_off() {
+    let d = tmp_root_with_carts(&["Emerald"]);
+    write_slot_state(
+        d.path(),
+        &SlotState {
+            clock_set: true,
+            lid_off_min: Some(30),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let mut a = boot(d.path());
+    a.set_power(panel(d.path(), Duration::from_secs(300)).0);
+    a.apply(Action::LidClose);
+    for _ in 0..(29 * 60 * 60) {
+        a.update(1.0 / 60.0);
+    }
+    assert!(!a.powering_off());
+    for _ in 0..(2 * 60 * 60) {
+        a.update(1.0 / 60.0);
+    }
+    assert!(a.powering_off());
+}
