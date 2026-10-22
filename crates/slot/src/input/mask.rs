@@ -75,12 +75,17 @@ const PS1_EXTRAS: [(Device, u16); 4] = [
 
 /// The buttons a native pad adds to the shared ones, and which physical key stands in
 /// for each.
-fn extras(platform: Platform) -> &'static [(Device, u16)] {
+pub(crate) fn extras(platform: Platform) -> &'static [(Device, u16)] {
     match platform {
         Platform::Ps1 => &PS1_EXTRAS,
+        Platform::Snes => &SNES_EXTRAS,
         _ => &[],
     }
 }
+
+/// A Super Nintendo pad has X and Y where a Game Boy has none: the top and left face
+/// buttons. L and R are the shoulders the GBA already has, so they need nothing here.
+const SNES_EXTRAS: [(Device, u16); 2] = [(Device::X, ButtonMask::X), (Device::Y, ButtonMask::Y)];
 
 fn bit(g: GameButton) -> u16 {
     match g {

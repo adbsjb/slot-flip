@@ -7,6 +7,7 @@ vars:
   GPSP_COMMIT: 7b2dd37394e2822110cacef321e9bb291a305b77
   PCSX_COMMIT: c8816799b50388e61cfe237fe2cdbb7d8175f20a
   FCEUMM_COMMIT: ac0d00a7fc01166f84c7bac01d1084ebfd2b865e
+  SNES9X_COMMIT: a79dfe9047e7fec58808aefe48ad2bf499c7af11
   EXFATPROGS_VERSION: 1.4.3
   EXFATPROGS_SHA256: 4b5052cba6ff9f6dcb1c63eeeac328620472c5b0b3caf3d38e4ada50e75469d3
   SLOT_IN_PROCESS: >-
@@ -337,6 +338,35 @@ tasks:
       - echo "{{.FCEUMM_COMMIT}}" > vendor/fceumm-src.sha
       - cp vendor/fceumm_libretro.so.meta vendor/fceumm-src.meta
       - 'echo "built vendor/fceumm_libretro.so from vendor/fceumm-src.tar.gz @ {{.FCEUMM_COMMIT}}"'
+
+  core:snes9x2005:
+    desc: >-
+      Build the aarch64 linux snes9x2005_plus (Super Nintendo) core from its pinned source archive,
+      which ships beside it as its source; it is non-commercial, so it ships only in the add-on pack
+    status:
+      - test -f vendor/snes9x2005_plus_libretro.so
+      - test -f vendor/snes9x2005-src.tar.gz
+      - test "$(cat vendor/snes9x2005-src.sha 2>/dev/null)" = "{{.SNES9X_COMMIT}}"
+      - test "$(cat vendor/snes9x2005_plus_libretro.so.meta 2>/dev/null)" = "$(sh cores/snes9x2005/build.sh stamp {{.SNES9X_COMMIT}})"
+      - test "$(cat vendor/snes9x2005-src.meta 2>/dev/null)" = "$(sh cores/snes9x2005/build.sh stamp {{.SNES9X_COMMIT}})"
+    cmds:
+      - |
+        set -euo pipefail
+        mkdir -p vendor
+        rm -f vendor/snes9x2005_plus_libretro.so vendor/snes9x2005_plus_libretro.so.meta \
+              vendor/snes9x2005-src.tar.gz vendor/snes9x2005-src.sha vendor/snes9x2005-src.meta
+        curl -fsSL -o vendor/snes9x2005-src.tar.gz \
+          "https://github.com/libretro/snes9x2005/archive/{{.SNES9X_COMMIT}}.tar.gz"
+        tar -tzf vendor/snes9x2005-src.tar.gz | grep "^snes9x2005-{{.SNES9X_COMMIT}}/Makefile$" > /dev/null
+      - task: device:sh
+        vars:
+          CMD: >-
+            sh cores/snes9x2005/build.sh build {{.SNES9X_COMMIT}} vendor/snes9x2005-src.tar.gz
+            target-device/snes9x2005 vendor/snes9x2005_plus_libretro.so
+      - file vendor/snes9x2005_plus_libretro.so | grep -q aarch64
+      - echo "{{.SNES9X_COMMIT}}" > vendor/snes9x2005-src.sha
+      - cp vendor/snes9x2005_plus_libretro.so.meta vendor/snes9x2005-src.meta
+      - 'echo "built vendor/snes9x2005_plus_libretro.so from vendor/snes9x2005-src.tar.gz @ {{.SNES9X_COMMIT}}"'
 
   fsck:exfat:
     desc: >-

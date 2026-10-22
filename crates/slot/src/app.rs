@@ -944,7 +944,11 @@ impl App {
         let mut hidden = Vec::new();
         // A disc has no bezel, shader or colour correction of its own to change.
         if !self.playing_platform().has_screen_options() {
-            hidden.extend([QuickRow::Shader, QuickRow::ColourCorrection, QuickRow::Bezel]);
+            hidden.extend([
+                QuickRow::Shader,
+                QuickRow::ColourCorrection,
+                QuickRow::Bezel,
+            ]);
             hidden.extend([QuickRow::GameTurboA, QuickRow::GameTurboB]);
         }
         if !self.palette_live {
@@ -1462,9 +1466,9 @@ impl App {
         }
     }
 
-    pub fn set_nes_shadow(&mut self, face: TexId) {
+    pub fn set_pak_shadow(&mut self, pak: slot_ui::Pak, face: TexId) {
         for (_, shelf) in &mut self.shelves {
-            shelf.set_gb_shadow(GbShell::Nes, face);
+            shelf.set_gb_shadow(GbShell::Pak(pak), face);
         }
     }
 
@@ -2068,7 +2072,7 @@ impl App {
     pub fn records_rewind(&self) -> bool {
         // A disc has no rewind button (L2 is a game button there), so nothing would
         // ever use what was recorded.
-        self.state.rewind && self.playing_platform() != Platform::Ps1
+        self.state.rewind && self.playing_platform().can_rewind()
     }
 
     pub fn picture_rect(&self) -> [f32; 4] {

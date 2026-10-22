@@ -44,6 +44,7 @@ jobs:
           file "$pak/System/gpsp_libretro.so" | grep -q aarch64
           file "$pak/System/pcsx_rearmed_libretro.so" | grep -q aarch64
           file "$pak/System/fceumm_libretro.so" | grep -q aarch64
+          file "$pak/System/snes9x2005_plus_libretro.so" | grep -q aarch64
           test -x "$pak/launch.sh"
           sh tools/check-pak-licences.sh "$pak"
           test -f "$pak/System/licenses/gpsp-GPL-2.0.txt"
@@ -60,6 +61,8 @@ jobs:
           stage="$(mktemp -d)"
           cp -R flip/Tools/my355/Slot.pak "$stage/Slot.pak"
           ( cd "$stage" && zip -qry "$GITHUB_WORKSPACE/Slot.pak-my355.zip" Slot.pak )
+          unzip -l Slot.pak-my355.zip | grep -q snes9x2005_plus_libretro.so
+          unzip -l Slot.pak-my355.zip | grep -q NOTICE-NONCOMMERCIAL.txt
           echo "zip=Slot.pak-my355.zip" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v7
@@ -92,9 +95,10 @@ jobs:
           `<SD CARD>/Tools/my355/Slot.pak`, then boot MinUI and open
           **Tools -> Slot**. Full guide in the README.
 
-          Emulation by mGBA (MPL-2.0), gpSP (GPL-2.0) and PCSX-ReARMed
-          (GPL-2.0). Their licences, patches and the gpSP and PCSX-ReARMed
-          source are in `System/licenses/`.
+          Emulation by mGBA (MPL-2.0), gpSP, PCSX-ReARMed and fceumm (GPL-2.0)
+          and snes9x2005 (non-commercial: this download is free and must not
+          be sold). Their licences, patches and source are in
+          `System/licenses/`.
 
           A fork of slot by Brandon T. Kowalski (https://slot-cfw.fyi). Not
           affiliated with the upstream author or Nintendo. Use your own

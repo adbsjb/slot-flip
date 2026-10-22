@@ -283,9 +283,11 @@ impl Frontend {
         let disc = gb_cart_shadow(GbShell::Disc);
         let disc = compositor.create_texture(disc.w, disc.h, &disc.rgba);
         self.session.app_mut().set_disc_shadow(disc);
-        let nes = gb_cart_shadow(GbShell::Nes);
-        let nes = compositor.create_texture(nes.w, nes.h, &nes.rgba);
-        self.session.app_mut().set_nes_shadow(nes);
+        for pak in slot_ui::Pak::ALL {
+            let shadow = gb_cart_shadow(GbShell::Pak(pak));
+            let shadow = compositor.create_texture(shadow.w, shadow.h, &shadow.rgba);
+            self.session.app_mut().set_pak_shadow(pak, shadow);
+        }
         let glare = slot_ui::disc_glare();
         let glare = compositor.create_texture(glare.w, glare.h, &glare.rgba);
         self.session.app_mut().set_disc_glare(glare);

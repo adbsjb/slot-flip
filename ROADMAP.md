@@ -23,8 +23,10 @@ The direction for a 1.0 release, set by the maintainer:
   for each CPU. Each new device needs someone with that device to test it; until then
   it is "builds, untested".
 - **Stay free and open source.** There are no plans to sell it. Donations may be
-  offered, but they never unlock anything. Cores with non-commercial licences stay in
-  the separate add-on pack.
+  offered, but they never unlock anything. Because of that, cores with non-commercial
+  licences (snes9x2005, and later perhaps Genesis Plus GX) are bundled in the one
+  download, which is then free-only. A core is only added after its licence has been
+  read.
 - **Not a goal:** a desktop app. The `host` build exists for development and for the
   render tests, not as a release.
 
@@ -76,10 +78,10 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 - 🚧 **More systems** ([#20](https://github.com/boomchu-123/slot-flip/issues/20)).
   PlayStation is out in v0.7.0 and NES in v0.8.0. Still to do for PlayStation: disc
   swapping for multi-disc games, passing the analog sticks to games, memory-card
-  handling, and timing heavy 3D games. Next: SNES and the Sega consoles, each needing
-  a core, a shelf and a cartridge shape of its own. Their cores carry non-commercial
-  licences, so they ship as a separate free add-on pack, never in the main pak (see
-  `AGENTS.md`, section 9). Nothing here is promised until it runs on hardware
+  handling, and timing heavy 3D games. Super Nintendo is built (v0.9.0), with a core
+  whose licence is non-commercial, so the download as a whole is free-only (see
+  `AGENTS.md`, section 9). Next: the Sega consoles, each needing a core, a shelf and
+  a cartridge design. Nothing here is promised until it runs on hardware
 
 **Housekeeping that has bitten before**
 - Rebuild the mGBA and gpSP cores whenever a sync changes `cores/` (v0.4.0
