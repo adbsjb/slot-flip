@@ -49,6 +49,7 @@ one-for-one patch cadence the fork does not have.
 | `v0.7.0` | v1.8.0 (fork work only: PlayStation discs, console-style slot, PS1 pad, PCSX-ReARMed bundled) |
 | `v0.8.0` | v1.8.0 (fork work only: NES games on a drawn Game Pak, fceumm bundled) |
 | `v0.9.0` | v1.8.0 (fork work only: Super Nintendo on a drawn cart, snes9x2005 bundled, the systems table; the download is free-only) |
+| `v0.9.1` | v1.8.0 (fork work only: a slot drawn as each console, Lid Power Off gains Never) |
 | `exp-v0.3.0` | v1.6.0 |
 
 ---
