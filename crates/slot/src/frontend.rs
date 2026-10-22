@@ -140,7 +140,7 @@ struct Clocks {
     ink: [u8; 3],
 }
 
-/// The PlayStation slot's strips, per theme: back and front, and the plugged one.
+/// A console's slot strips, per theme: back and front, and the plugged one.
 struct ConsoleSlot {
     slot: [(TexId, TexId); 2],
     plugged: [TexId; 2],
@@ -149,7 +149,7 @@ struct ConsoleSlot {
 struct ShelfLook {
     slot: [[TexId; 2]; 2],
     plugged: [TexId; 2],
-    console: Option<ConsoleSlot>,
+    console: [Option<ConsoleSlot>; slot_ui::Console::ALL.len()],
     bolt: [TexId; 2],
     port: [Option<TexId>; 2],
     legend: [Vec<(TexId, u32)>; 2],
@@ -326,7 +326,7 @@ impl Frontend {
         self.look = Some(ShelfLook {
             slot,
             plugged,
-            console: None,
+            console: [None, None, None, None, None],
             bolt,
             port: [None, None],
             legend: [Vec::new(), Vec::new()],
@@ -349,23 +349,23 @@ impl Frontend {
         }
     }
 
-    /// Draws the PlayStation slot the first time a PlayStation shelf or disc needs it,
-    /// so a card with no discs never pays for it.
+    /// Draws a console's slot the first time one of its shelves or games needs it, so
+    /// a card with no games for a system never pays for it.
     fn ensure_console_slot(&mut self, compositor: &mut Compositor) {
-        if !self.session.app().console_slot_wanted() {
+        let Some(console) = self.session.app().console_wanted() else {
             return;
-        }
+        };
         let Some(look) = &mut self.look else {
             return;
         };
-        if look.console.is_some() {
+        if look.console[console.index()].is_some() {
             return;
         }
         let mut up =
             |bytes: &[u8]| compositor.create_texture(slot_ui::SLOT_W, slot_ui::SLOT_H, bytes);
-        let dark = slot_ui::ps1_slot(false);
-        let light = slot_ui::ps1_slot(true);
-        look.console = Some(ConsoleSlot {
+        let dark = slot_ui::console_slot(console, false);
+        let light = slot_ui::console_slot(console, true);
+        look.console[console.index()] = Some(ConsoleSlot {
             slot: [
                 (up(&dark.back), up(&dark.front)),
                 (up(&light.back), up(&light.front)),
@@ -385,7 +385,9 @@ impl Frontend {
                 look.applied == Some((light, legend_ready, port_ready)),
                 look.slot[i],
                 look.plugged[i],
-                look.console.as_ref().map(|c| (c.slot[i], c.plugged[i])),
+                look.console
+                    .each_ref()
+                    .map(|c| c.as_ref().map(|c| (c.slot[i], c.plugged[i]))),
                 look.bolt[i],
                 look.bolt[0],
                 look.port[i],
@@ -414,10 +416,12 @@ impl Frontend {
         }
         self.session.app_mut().set_slot_faces(slot[0], slot[1]);
         self.session.app_mut().set_plugged_face(plugged);
-        if let Some(((back, front), plugged)) = console {
-            self.session
-                .app_mut()
-                .set_console_faces(back, front, plugged);
+        for (made, which) in console.into_iter().zip(slot_ui::Console::ALL) {
+            if let Some(((back, front), plugged)) = made {
+                self.session
+                    .app_mut()
+                    .set_console_faces(which, back, front, plugged);
+            }
         }
         self.session.app_mut().set_bolt_face(bolt);
         self.session.app_mut().set_hud_bolt_face(hud_bolt);

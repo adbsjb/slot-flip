@@ -11,6 +11,7 @@ mod battery;
 mod board;
 mod cart;
 mod clock;
+mod console_slot;
 mod disc;
 mod pak;
 mod draw;
@@ -21,7 +22,6 @@ mod link_art;
 mod plate;
 mod polaroids;
 mod power_menu;
-mod ps1_slot;
 mod quick_menu;
 mod rebuild;
 mod refusal;
@@ -76,7 +76,9 @@ pub use plate::{
 };
 pub use polaroids::{photo_face, PhotoFace, Polaroids, DOT, LEGEND, PHOTO_H, PHOTO_W};
 pub use power_menu::{menu_detail_face, menu_face, PowerChoice, MENU_PAD};
-pub use ps1_slot::{opening_depth as ps1_opening_depth, ps1_slot, Ps1Slot};
+pub use console_slot::{
+    console_slot, opening_depth as console_opening_depth, Console, ConsoleStrips,
+};
 pub use quick_menu::{
     core_button_legends, delete_legends, draw_menu_ground, link_button_legends, prompt_legends,
     quick_caret_face, quick_description_face, quick_label_face, quick_legend_faces,

@@ -67,6 +67,10 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 
 - ✅ **Released v0.8.0**: NES games on a drawn Game Pak, with fceumm bundled
 
+- ✅ **Released v0.9.0**: Super Nintendo on a drawn cart, snes9x2005 bundled (the download is now free-only)
+
+- ✅ **Released v0.9.1**: the slot is drawn as each console ([#27](https://github.com/boomchu-123/slot-flip/issues/27)), and Lid Power Off gains **Never**
+
 **Next**
 - 💡 **Card repair on MinUI.** Upstream's SELECT + START repair is switched off
   on the Flip (its script is written for upstream's own devices and unmounts the

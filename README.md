@@ -94,9 +94,13 @@ devices):
   card that has run an older one.
 - **PlayStation discs** — a PS1 shelf where each game is a disc that spins into
   a slot drawn as a console. See [PlayStation discs](#playstation-discs).
+- **A slot for each console** — the slot a game slides into is drawn as the console
+  it is for: a PlayStation, a NES, a Super Nintendo, a Game Boy, a Game Boy Color.
+  GBA keeps upstream's slot. The slot changes as you move between shelves, in both
+  the dark and light themes.
 - **Lid-close sleep + auto power-off** — shut the lid and it sleeps instantly,
   then powers off after the time you choose under **General > Lid Power Off**
-  (1–30 min).
+  (1–30 min, or **Never**).
 - **Right power LED behaviour** — green while running, red at low battery, both
   while charging.
 - **Portable config** — the button map and settings are data-driven, so the port

@@ -2304,6 +2304,7 @@ fn the_slot_is_a_playstation_on_the_disc_shelf_and_a_cart_slot_elsewhere() {
     let mut a = app_with_platforms(&[(Platform::Gba, "Emerald"), (Platform::Ps1, "Sky Racer")]);
     a.set_slot_faces(TexId::from_raw(77), TexId::from_raw(78));
     a.set_console_faces(
+        slot_ui::Console::Ps1,
         TexId::from_raw(177),
         TexId::from_raw(178),
         TexId::from_raw(179),
@@ -2334,4 +2335,82 @@ fn before_the_console_slot_is_drawn_a_disc_shelf_falls_back_to_the_cart_slot() {
     a.set_slot_faces(TexId::from_raw(77), TexId::from_raw(78));
     assert!(a.console_slot_wanted());
     assert!(uses_tex(&a, 78), "a disc shelf drew no slot at all");
+}
+
+#[test]
+fn every_shelf_draws_the_slot_of_its_own_console_and_gba_keeps_the_cart_slot() {
+    use slot_ui::Console;
+    let games = [
+        (Platform::Gba, "Emerald"),
+        (Platform::Gb, "Tetris"),
+        (Platform::Gbc, "Crystal"),
+        (Platform::Ps1, "Sky Racer"),
+        (Platform::Nes, "Contra"),
+        (Platform::Snes, "Chrono"),
+    ];
+    let mut a = app_with_platforms(&games);
+    a.set_slot_faces(TexId::from_raw(77), TexId::from_raw(78));
+    // Three textures per console, numbered so each can be told apart on screen.
+    let ids = |c: Console| 100 + 10 * c.index();
+    for console in Console::ALL {
+        let n = ids(console);
+        a.set_console_faces(
+            console,
+            TexId::from_raw(n),
+            TexId::from_raw(n + 1),
+            TexId::from_raw(n + 2),
+        );
+    }
+    let mut seen = Vec::new();
+    for _ in 0..games.len() {
+        let stem = a.selected_stem().expect("a game is selected").to_string();
+        let platform = games.iter().find(|(_, s)| *s == stem).unwrap().0;
+        match Console::of(platform) {
+            None => {
+                assert!(!a.console_slot_wanted(), "{platform:?}");
+                assert!(uses_tex(&a, 78), "{platform:?} lost the cart slot");
+                for console in Console::ALL {
+                    assert!(
+                        !uses_tex(&a, ids(console) + 1),
+                        "{platform:?} drew the {console:?} slot"
+                    );
+                }
+            }
+            Some(own) => {
+                assert_eq!(a.console_wanted(), Some(own), "{platform:?}");
+                assert!(
+                    uses_tex(&a, ids(own) + 1),
+                    "{platform:?} has no {own:?} slot"
+                );
+                assert!(
+                    uses_tex(&a, ids(own)),
+                    "{platform:?} has no {own:?} interior"
+                );
+                assert!(!uses_tex(&a, 78), "{platform:?} still draws the cart slot");
+                for other in Console::ALL.into_iter().filter(|c| *c != own) {
+                    assert!(
+                        !uses_tex(&a, ids(other) + 1),
+                        "{platform:?} drew the {other:?} slot"
+                    );
+                }
+            }
+        }
+        seen.push(platform);
+        tap(&mut a, Btn::R1);
+    }
+    seen.sort_by_key(|p| p.dir_name());
+    seen.dedup();
+    assert_eq!(
+        seen.len(),
+        games.len(),
+        "a shelf was never reached: {seen:?}"
+    );
+}
+
+#[test]
+fn a_console_that_has_not_been_drawn_yet_falls_back_to_the_cart_slot_for_every_system() {
+    let mut a = app_with_platforms(&[(Platform::Nes, "Contra")]);
+    a.set_slot_faces(TexId::from_raw(77), TexId::from_raw(78));
+    assert!(a.console_slot_wanted());
+    assert!(uses_tex(&a, 78), "a NES shelf drew no slot at all");
 }
