@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Check the pak ships only cleared emulator cores
+        run: sh tools/check-pak-licences.sh flip/Tools/my355/Slot.pak
+
       - name: Install build deps
         run: |
           set -eu

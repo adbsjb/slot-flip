@@ -485,6 +485,22 @@ Notes are for people who own the device, not for developers.
   pinned source) in `System/licenses/`. That is ~7.5 MB on every install, mostly
   the source archive the GPL asks for; do not drop it without replacing it with a
   written offer. Re-strip with `strip --strip-unneeded` after every rebuild.
+- **Monetisation guardrail.** Everything shipped through v0.7.0 allows selling or
+  monetising (frontend GPL-3.0-or-later, mGBA MPL-2.0, gpSP and PCSX-ReARMed
+  GPL-2.0, bezel CC-BY-SA-4.0, shaders public domain or GPL, fonts OFL). The owner
+  wants to keep that option, so **the main `Slot.pak` must never ship a
+  non-commercial core.** Genesis Plus GX, snes9x2005 (a Snes9x derivative) and
+  PicoDrive carry non-commercial terms ("may not be sold, nor used in a
+  commercial product or activity"). Those go in a **separate, free add-on pack**
+  (its own zip and release asset, licence text and source inside), and the
+  frontend must cope with a core that is not installed (the system's shelf is not
+  offered, or says so; never a crash). `tools/check-pak-licences.sh` enforces
+  this in `pr.yml` and `release.yml`: a core not on its allowlist, or an allowed
+  core missing its licence text, `.meta` or source archive, fails the build. To
+  clear a new core, read its licence first, then add its line to the script.
+  This is a practical reading of the licences, not legal advice; a trademark
+  review (the "slot." name, "Game Boy", "PlayStation") is still open before any
+  sale.
 - Because `launch.sh` refreshes cores by comparison, shipping a new core in a
   release is enough for it to reach existing installs.
 
