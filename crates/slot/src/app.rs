@@ -379,8 +379,8 @@ pub struct App {
     controls: Controls,
     capture: Option<BindCapture>,
     plugged_face: Option<TexId>,
-    console_plugged: Option<TexId>,
-    console_slot: Option<(TexId, TexId)>,
+    /// Each console's slot strips (back, front, plugged), once drawn.
+    console_slots: [Option<(TexId, TexId, TexId)>; slot_ui::Console::ALL.len()],
     binding_faces: HashMap<String, [(TexId, u32, u32); 2]>,
     carousel: CarouselKeys,
     shortcuts: ShortcutKeys,
@@ -566,8 +566,7 @@ impl App {
             controls: Controls::default(),
             capture: None,
             plugged_face: None,
-            console_plugged: None,
-            console_slot: None,
+            console_slots: [None; slot_ui::Console::ALL.len()],
             binding_faces: HashMap::new(),
             carousel: CarouselKeys::default(),
             shortcuts: ShortcutKeys::default(),
@@ -1726,39 +1725,53 @@ impl App {
         self.plugged_face = Some(tex);
     }
 
-    /// The slot a disc goes into: drawn as a PlayStation rather than the cart slot.
-    pub fn set_console_faces(&mut self, back: TexId, front: TexId, plugged: TexId) {
-        self.console_slot = Some((back, front));
-        self.console_plugged = Some(plugged);
+    /// The slot a console's games go into, drawn as that console rather than the
+    /// cart slot.
+    pub fn set_console_faces(
+        &mut self,
+        console: slot_ui::Console,
+        back: TexId,
+        front: TexId,
+        plugged: TexId,
+    ) {
+        self.console_slots[console.index()] = Some((back, front, plugged));
     }
 
-    /// Whether the slot on screen is a PlayStation: while a disc is in, or when the
-    /// shelf in view is the PS1 one.
+    /// The console the slot on screen is drawn as: the one for the game that is in,
+    /// or for the shelf in view. GBA, and the mixed shelves, keep the cart slot.
+    pub fn console_wanted(&self) -> Option<slot_ui::Console> {
+        let platform = match self.seated_cart() {
+            Some(cart) => Some(cart.platform),
+            None => self
+                .shelves
+                .get(self.shelf_at)
+                .and_then(|(rack, _)| rack.platform()),
+        };
+        platform.and_then(slot_ui::Console::of)
+    }
+
+    /// Whether the slot on screen is a console's rather than the cart slot.
     pub fn console_slot_wanted(&self) -> bool {
-        match self.seated_cart() {
-            Some(cart) => cart.platform == Platform::Ps1,
-            None => self.shelf_is(Platform::Ps1),
-        }
+        self.console_wanted().is_some()
     }
 
-    fn shelf_is(&self, platform: Platform) -> bool {
-        self.shelves
-            .get(self.shelf_at)
-            .is_some_and(|(rack, _)| rack.platform() == Some(platform))
+    fn drawn_console(&self) -> Option<(TexId, TexId, TexId)> {
+        self.console_wanted()
+            .and_then(|console| self.console_slots[console.index()])
     }
 
     /// The back and front strips to draw the slot with right now.
     fn slot_pair(&self) -> Option<(TexId, TexId)> {
-        match (self.console_slot_wanted(), self.console_slot) {
-            (true, Some(pair)) => Some(pair),
-            _ => self.slot_faces,
+        match self.drawn_console() {
+            Some((back, front, _)) => Some((back, front)),
+            None => self.slot_faces,
         }
     }
 
     fn plugged_pair(&self) -> Option<TexId> {
-        match (self.console_slot_wanted(), self.console_plugged) {
-            (true, Some(tex)) => Some(tex),
-            _ => self.plugged_face,
+        match self.drawn_console() {
+            Some((_, _, plugged)) => Some(plugged),
+            None => self.plugged_face,
         }
     }
 
