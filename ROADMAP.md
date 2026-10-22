@@ -50,7 +50,9 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 - 💡 Cartridge-label artwork: fetch real label images automatically (blocked
   on a ScreenScraper developer ID; currently you supply your own labels)
 - 🚧 **More systems** ([#20](https://github.com/boomchu-123/slot-flip/issues/20)).
-  PlayStation is out in v0.7.0. Still to do there: disc swapping for multi-disc
+  PlayStation is out in v0.7.0. NES is built on `feat/more-systems`: a drawn Game
+  Pak, fceumm bundled, and a real-core test of every button; it is waiting on a
+  look at it on the Flip. Still to do there: disc swapping for multi-disc
   games, passing the analog sticks to games, memory-card handling, and timing heavy 3D games. Next
   systems: NES, SNES and the Sega consoles, each needing a core, a shelf and a
   cartridge shape of its own. Nothing here is promised until it runs on hardware

@@ -106,8 +106,9 @@ devices):
 ## Compatibility
 
 - **Device:** Miyoo Flip (`my355`), running **MinUI**.
-- **Systems:** GBA (`.gba`), GB (`.gb`), GBC (`.gbc`), and PlayStation
-  (`.cue`, `.chd`, `.m3u`, `.pbp`; see [PlayStation discs](#playstation-discs)).
+- **Systems:** GBA (`.gba`), GB (`.gb`), GBC (`.gbc`), PlayStation
+  (`.cue`, `.chd`, `.m3u`, `.pbp`; see [PlayStation discs](#playstation-discs)),
+  and NES (`.nes`, `.fds`, `.unf`; see [NES games](#nes-games)).
 - Other MinUI devices can be supported with small changes — see
   [INSTALL.md](INSTALL.md).
 
@@ -172,10 +173,10 @@ Everything Slot owns lives under `<SD CARD>/Slot`:
 
 ```
 Slot/
-  Games/   GBA GB GBC PS1  your ROMs and discs, one folder per system
-  Saves/   GBA GB GBC      battery saves
-  States/  GBA GB GBC PS1  save states
-  Labels/  (GBA GB GBC PS1) cart and disc artwork, <game-name>.png, any of these folders
+  Games/   GBA GB GBC PS1 NES   your ROMs and discs, one folder per system
+  Saves/   GBA GB GBC           battery saves
+  States/  GBA GB GBC PS1 NES   save states
+  Labels/  (GBA GB GBC PS1 NES) cart and disc artwork, <game-name>.png, any of these folders
   Wallpapers/              background images (PNG)
   Config/                  slot.ini, buttons.ini, and other settings
   System/                  emulator cores
@@ -250,6 +251,25 @@ what they do for the Game Boy systems), swapping discs in a multi-disc game, and
 a screen shader, colour correction or bezel (they do nothing for a disc, so those
 rows are hidden). Games run without a BIOS file on the card. How fast heavy 3D
 games run has not been measured; the one game timed ran at full speed.
+
+## NES games
+
+Put NES games in `Slot/Games/NES` (`.nes`, `.fds`, `.unf`, `.unif`). They get their
+own **NES** shelf, and each game is a grey Game Pak with a label. Emulation is by
+fceumm (GPL-2.0).
+
+**Label art.** Drop a picture named after the game in `Slot/Labels/NES/` (or flat in
+`Labels/`). It fills the label, centre-cropped, so a title screen suits it better
+than a tall box front. A game with no art gets a colour and its title.
+
+**Buttons.** A, B, Select, Start and the D-pad, exactly as on a Game Boy. Turbo A
+and Turbo B (X and Y) work the same way too. The picture fills the 4:3 screen as a
+NES did on a TV. A screen shader, colour correction and bezel do not apply to it, so
+those menu rows are hidden for NES.
+
+**What is not there yet.** Zapper and other special controllers, disk-side swapping
+for Famicom Disk System games, and cheats. The overscan edges of the picture are
+shown as the core draws them.
 
 ## Settings
 
