@@ -11,6 +11,28 @@ Legend: ✅ done · 🚧 in progress · 📋 planned · 💡 wanted / needs disc
 
 ---
 
+## Toward 1.0
+
+The direction for a 1.0 release, set by the maintainer:
+
+- **Support as many systems as can be supported**, in batches: SNES and the Sega
+  family first, then the cheaper 2D systems. A system is only listed as supported
+  once it has run on hardware.
+- **Run on other Linux handhelds**, not just the Flip. This means a small platform
+  layer (input, audio, power, display) with one backend per device, and a core built
+  for each CPU. Each new device needs someone with that device to test it; until then
+  it is "builds, untested".
+- **Stay free and open source.** There are no plans to sell it. Donations may be
+  offered, but they never unlock anything. Cores with non-commercial licences stay in
+  the separate add-on pack.
+- **Not a goal:** a desktop app. The `host` build exists for development and for the
+  render tests, not as a release.
+
+First step: replace the per-system `match` blocks scattered through the code with one
+table per system, so adding a system is a data change. Nothing user-visible changes.
+
+---
+
 ## Stable — Miyoo Flip (`my355`)
 
 The Flip build is the supported release. It tracks upstream slot one release at
