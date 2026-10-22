@@ -259,6 +259,7 @@ fn the_values_read_as_the_menu_prints_them() {
             "10 min",
             "15 min",
             "30 min",
+            "Never",
             "0",
             "1",
             "2",

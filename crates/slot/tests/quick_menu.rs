@@ -1325,11 +1325,29 @@ fn lid_power_off_steps_through_its_minutes_wraps_and_saves() {
     });
     open_at(&mut a, QuickRow::LidOff);
     assert_eq!(a.lid_off_min(), 3);
-    for want in [5, 10, 15, 30, 1, 3] {
+    // 0 is Never, the last choice before it wraps back to 1 minute.
+    for want in [5, 10, 15, 30, 0, 1, 3] {
         press(&mut a, Btn::Right);
         assert_eq!(a.lid_off_min(), want);
         assert_eq!(read_slot_state(d.path()).lid_off_min, Some(want));
     }
     press(&mut a, Btn::Left);
     assert_eq!(a.lid_off_min(), 1);
+    press(&mut a, Btn::Left);
+    assert_eq!(a.lid_off_min(), 0, "left of 1 minute is Never");
+}
+
+#[test]
+fn lid_power_off_has_a_never_that_reads_as_never() {
+    use slot_ui::QuickValue;
+    assert_eq!(QuickValue::LID_OFF.last(), Some(&QuickValue::Never));
+    assert_eq!(QuickValue::Never.text(), "Never");
+    assert_eq!(QuickValue::Never.minutes(), Some(0));
+    let (_d, mut a, _) = on_carousel_with(SlotState {
+        lid_off_min: Some(0),
+        ..Default::default()
+    });
+    open_at(&mut a, QuickRow::LidOff);
+    assert_eq!(a.lid_off_min(), 0);
+    assert_eq!(a.quick_value(QuickRow::LidOff), Some(QuickValue::Never));
 }

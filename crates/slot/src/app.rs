@@ -32,6 +32,7 @@ use crate::video_mode::{self, VideoMode};
 use slot_store::{
     read_carousel, read_controls, read_shortcuts, write_carousel, write_controls, write_shortcuts,
     Binding, CarouselKeys, Controls, Device, GameButton, Modifier, ShortcutKeys, LID_OFF_MIN,
+    LID_OFF_NEVER,
 };
 
 pub const RECORDING: &str = "Recording";
@@ -5365,6 +5366,8 @@ impl App {
             return false;
         };
         let timeout = match self.state.lid_off_min {
+            // Never: asleep until the lid is opened or the battery gives out.
+            Some(LID_OFF_NEVER) => return false,
             Some(min) => min as Millis * 60_000,
             None => power.timeout().as_millis() as Millis,
         };

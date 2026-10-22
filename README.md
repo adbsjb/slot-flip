@@ -309,9 +309,10 @@ save made in MinUI does not carry over.
 
 - **Close the lid → sleeps immediately.**
 - While asleep, the device powers itself off after the time you pick in the
-  menu under **General > Lid Power Off**: `1 / 3 / 5 / 10 / 15 / 30` minutes. The
-  choice is saved across reboots. (Releases before v0.5.0 also had an `Off`
-  that stayed asleep forever; that now maps to 30 minutes.)
+  menu under **General > Lid Power Off**: `1 / 3 / 5 / 10 / 15 / 30` minutes, or
+  **Never**, which stays asleep until you open the lid (or the battery runs out).
+  The choice is saved across reboots. Never is this fork's addition; upstream has
+  no such choice.
 
 ### Button remapping
 

@@ -13,7 +13,14 @@ pub const UTC_OFFSET_MAX: i16 = 840;
 
 pub const FF_SPEEDS: [u8; 4] = [2, 3, 4, 6];
 
-pub const LID_OFF_MIN: [u8; 6] = [1, 3, 5, 10, 15, 30];
+/// The minutes the lid may stay shut before the device powers off, and `0` for
+/// never: stay asleep until the lid is opened or the battery runs out. Upstream has
+/// no such choice; the fork added it back because a handheld left asleep on a shelf
+/// is a fair thing to want.
+pub const LID_OFF_MIN: [u8; 7] = [1, 3, 5, 10, 15, 30, 0];
+
+/// What `lid_off_min` holds for "never".
+pub const LID_OFF_NEVER: u8 = 0;
 
 /// The Flip panel is happiest with the plain scaler: the fork's identity is a
 /// clean, shaderless picture. Other shaders are still offered in the menu.
@@ -685,12 +692,11 @@ fn ff_speed_value(value: &str) -> Option<u8> {
 
 /// An old `sleep_timeout_min` as a Lid Power Off choice. The fork's default (3)
 /// was never a decision, so it stays unset and follows upstream's default.
-/// "Off" (0, stay asleep forever) has no equivalent upstream, so it becomes the
-/// longest wait.
+/// "Off" (0, stay asleep forever) is the "never" choice again.
 fn legacy_lid_off(value: &str) -> Option<u8> {
     match value.parse::<u16>().ok()? {
         3 => None,
-        0 => LID_OFF_MIN.last().copied(),
+        0 => Some(LID_OFF_NEVER),
         n => u8::try_from(n).ok().filter(|m| LID_OFF_MIN.contains(m)),
     }
 }

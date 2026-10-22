@@ -779,6 +779,7 @@ pub enum QuickValue {
     Min10,
     Min15,
     Min30,
+    Never,
     Level0,
     Level1,
     Level2,
@@ -792,7 +793,7 @@ pub enum QuickValue {
 }
 
 impl QuickValue {
-    pub const ALL: [QuickValue; 33] = [
+    pub const ALL: [QuickValue; 34] = [
         QuickValue::Speed2,
         QuickValue::Speed3,
         QuickValue::Speed4,
@@ -816,6 +817,7 @@ impl QuickValue {
         QuickValue::Min10,
         QuickValue::Min15,
         QuickValue::Min30,
+        QuickValue::Never,
         QuickValue::Level0,
         QuickValue::Level1,
         QuickValue::Level2,
@@ -841,13 +843,14 @@ impl QuickValue {
         QuickValue::Level9,
     ];
 
-    pub const LID_OFF: [QuickValue; 6] = [
+    pub const LID_OFF: [QuickValue; 7] = [
         QuickValue::Min1,
         QuickValue::Min3,
         QuickValue::Min5,
         QuickValue::Min10,
         QuickValue::Min15,
         QuickValue::Min30,
+        QuickValue::Never,
     ];
 
     pub fn index(self) -> usize {
@@ -879,6 +882,7 @@ impl QuickValue {
             QuickValue::Min10 => "10 min",
             QuickValue::Min15 => "15 min",
             QuickValue::Min30 => "30 min",
+            QuickValue::Never => "Never",
             QuickValue::Level0 => "0",
             QuickValue::Level1 => "1",
             QuickValue::Level2 => "2",
@@ -914,6 +918,7 @@ impl QuickValue {
             QuickValue::Min10 => 10,
             QuickValue::Min15 => 15,
             QuickValue::Min30 => 30,
+            QuickValue::Never => 0,
             _ => return None,
         })
     }
