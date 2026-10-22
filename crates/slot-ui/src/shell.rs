@@ -92,6 +92,8 @@ pub fn shell_for(cart: &Cart) -> Shell {
         Platform::Gb | Platform::Gbc => gb_shell_for(&cart.rom),
         // A neutral dark shell: there is no cart header to colour it from.
         Platform::Ps1 => shell([0x2e, 0x2f, 0x34], Finish::Solid),
+        // The grey of the plastic; the Game Pak is drawn, and has no shell to colour.
+        Platform::Nes => shell([0x9a, 0x99, 0x95], Finish::Solid),
     }
 }
 

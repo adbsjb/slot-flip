@@ -11,6 +11,7 @@ pub enum Core {
     Mgba,
     Gpsp,
     Pcsx,
+    Fceumm,
 }
 
 impl Core {
@@ -19,13 +20,14 @@ impl Core {
     pub const ALL: [Core; 2] = [Core::Mgba, Core::Gpsp];
 
     /// Every core slot can run, pickable or not.
-    pub const EVERY: [Core; 3] = [Core::Mgba, Core::Gpsp, Core::Pcsx];
+    pub const EVERY: [Core; 4] = [Core::Mgba, Core::Gpsp, Core::Pcsx, Core::Fceumm];
 
     pub fn as_str(&self) -> &'static str {
         match self {
             Core::Mgba => "mgba",
             Core::Gpsp => "gpsp",
             Core::Pcsx => "pcsx",
+            Core::Fceumm => "fceumm",
         }
     }
 
@@ -38,6 +40,7 @@ impl Core {
             Core::Mgba => "mGBA",
             Core::Gpsp => "gpSP",
             Core::Pcsx => "PCSX-ReARMed",
+            Core::Fceumm => "fceumm",
         }
     }
 
@@ -46,15 +49,17 @@ impl Core {
             "mgba" => Some(Core::Mgba),
             "gpsp" => Some(Core::Gpsp),
             "pcsx" => Some(Core::Pcsx),
+            "fceumm" => Some(Core::Fceumm),
             _ => None,
         }
     }
 
     pub fn runs(self, platform: Platform) -> bool {
         match self {
-            Core::Mgba => platform != Platform::Ps1,
+            Core::Mgba => matches!(platform, Platform::Gba | Platform::Gb | Platform::Gbc),
             Core::Gpsp => platform == Platform::Gba,
             Core::Pcsx => platform == Platform::Ps1,
+            Core::Fceumm => platform == Platform::Nes,
         }
     }
 
@@ -69,6 +74,7 @@ impl Core {
         match platform {
             Platform::Gba | Platform::Gb | Platform::Gbc => Core::Mgba,
             Platform::Ps1 => Core::Pcsx,
+            Platform::Nes => Core::Fceumm,
         }
     }
 }

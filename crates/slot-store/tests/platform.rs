@@ -3,14 +3,20 @@ use slot_store::Platform;
 #[test]
 fn every_platform_has_a_directory() {
     let names: Vec<&str> = Platform::ALL.iter().map(|p| p.dir_name()).collect();
-    assert_eq!(names, vec!["GBA", "GB", "GBC", "PS1"]);
+    assert_eq!(names, vec!["GBA", "GB", "GBC", "PS1", "NES"]);
 }
 
 #[test]
 fn every_platform_is_a_shelf_of_its_own() {
     assert_eq!(
         Platform::ALL,
-        [Platform::Gba, Platform::Gb, Platform::Gbc, Platform::Ps1]
+        [
+            Platform::Gba,
+            Platform::Gb,
+            Platform::Gbc,
+            Platform::Ps1,
+            Platform::Nes
+        ]
     );
     for (i, p) in Platform::ALL.iter().enumerate() {
         assert!(
@@ -56,4 +62,39 @@ fn each_platform_runs_only_the_cores_that_can() {
     assert!(!Core::Mgba.runs(Platform::Ps1), "mGBA cannot play a disc");
     assert!(!Core::Gpsp.runs(Platform::Ps1));
     assert_eq!(Core::default_for(Platform::Ps1), Core::Pcsx);
+}
+
+#[test]
+fn a_nes_takes_its_own_files_and_runs_on_fceumm_alone() {
+    use slot_store::Core;
+    for ok in ["Contra.nes", "Zelda.NES", "Disk.fds", "Hack.unf"] {
+        assert!(Platform::Nes.accepts(std::path::Path::new(ok)), "{ok}");
+    }
+    for no in ["Contra.sfc", "Tetris.gb", "Crash.cue", "Fusion.gba"] {
+        assert!(!Platform::Nes.accepts(std::path::Path::new(no)), "{no}");
+    }
+    assert!(!Platform::Gba.accepts(std::path::Path::new("Contra.nes")));
+    assert!(Core::Fceumm.runs(Platform::Nes));
+    for p in [Platform::Gba, Platform::Gb, Platform::Gbc, Platform::Ps1] {
+        assert!(!Core::Fceumm.runs(p), "{p:?}");
+    }
+    for core in [Core::Mgba, Core::Gpsp, Core::Pcsx] {
+        assert!(!core.runs(Platform::Nes), "{core:?} cannot play a NES game");
+    }
+    assert_eq!(Core::default_for(Platform::Nes), Core::Fceumm);
+    assert_eq!(Core::parse("fceumm"), Some(Core::Fceumm));
+    assert_eq!(Core::parse(Core::Fceumm.as_str()), Some(Core::Fceumm));
+    assert_eq!(Platform::Nes.picture(), (256, 240));
+}
+
+#[test]
+fn only_the_game_boy_family_has_a_screen_to_shade_and_a_gba_canvas_to_sit_on() {
+    for p in [Platform::Gba, Platform::Gb, Platform::Gbc] {
+        assert!(p.has_screen_options(), "{p:?}");
+        assert!(!p.native_video(), "{p:?}");
+    }
+    for p in [Platform::Ps1, Platform::Nes] {
+        assert!(!p.has_screen_options(), "{p:?}");
+        assert!(p.native_video(), "{p:?}");
+    }
 }

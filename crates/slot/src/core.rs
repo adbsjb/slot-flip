@@ -104,9 +104,9 @@ fn open_named(
         }
         match LibretroCore::open_with(path, &bios, &saves) {
             Ok(mut opened) => {
-                // A PlayStation picture is bigger than the GBA canvas the Game Boy
+                // A PlayStation or NES picture is not the GBA canvas the Game Boy
                 // family is drawn into, so it keeps the size the core draws it at.
-                opened.set_native_video(platform == Platform::Ps1);
+                opened.set_native_video(platform.native_video());
                 apply_core_options(
                     &mut opened,
                     core,
@@ -180,7 +180,7 @@ pub fn colour_option(
             if on { "enabled" } else { "disabled" },
         )),
         // A console picture has no handheld-LCD colour to correct.
-        Core::Pcsx => None,
+        Core::Pcsx | Core::Fceumm => None,
     }
 }
 
@@ -202,9 +202,9 @@ pub fn apply_core_options(
     colour: bool,
     palette: Option<GbColors>,
 ) {
-    // PCSX-ReARMed names and values this differently, and a console runs at
-    // full speed on the Flip, so it keeps its own default.
-    if which != Core::Pcsx {
+    // PCSX-ReARMed names and values this differently, and fceumm has no such option;
+    // a console runs at full speed on the Flip, so each keeps its own defaults.
+    if !matches!(which, Core::Pcsx | Core::Fceumm) {
         core.set_option(&format!("{}_frameskip", which.as_str()), "auto");
     }
     if which == Core::Mgba {

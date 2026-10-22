@@ -249,7 +249,9 @@ impl GameButton {
             // the stick clicks); until the in-game controls grow them it shares
             // the GBA set, which is the widest the controls page knows.
             Platform::Gba | Platform::Ps1 => &GameButton::ALL,
-            Platform::Gb | Platform::Gbc => &GameButton::GAME_BOY,
+            // A NES pad is a Game Boy's: a D-pad, A, B, Select and Start (and the
+            // turbo keys, which pulse A and B just the same).
+            Platform::Gb | Platform::Gbc | Platform::Nes => &GameButton::GAME_BOY,
         }
     }
 
