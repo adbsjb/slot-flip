@@ -33,7 +33,7 @@ impl Pad {
     /// buttons; a PlayStation pad keeps the shared ones and adds its own, which the
     /// Flip's remaining buttons stand in for (see `PS1_EXTRAS`).
     pub fn mask_for(&self, controls: &Controls, platform: Platform) -> ButtonMask {
-        let disc = platform == Platform::Ps1;
+        let disc = platform.native_pad();
         let bits = GameButton::ALL
             .into_iter()
             // Turbo is a GBA feature; on a disc its buttons are Triangle and Square.
@@ -49,13 +49,10 @@ impl Pad {
                 })
             })
             .fold(0, |bits, g| bits | bit(g));
-        let extras = match disc {
-            true => PS1_EXTRAS
-                .iter()
-                .filter(|(device, _)| self.held.contains(&device_btn(*device)))
-                .fold(0, |bits, (_, bit)| bits | bit),
-            false => 0,
-        };
+        let extras = extras(platform)
+            .iter()
+            .filter(|(device, _)| self.held.contains(&device_btn(*device)))
+            .fold(0, |bits, (_, bit)| bits | bit);
         ButtonMask(bits | extras)
     }
 
@@ -75,6 +72,15 @@ const PS1_EXTRAS: [(Device, u16); 4] = [
     (Device::L2, ButtonMask::L2),
     (Device::R2, ButtonMask::R2),
 ];
+
+/// The buttons a native pad adds to the shared ones, and which physical key stands in
+/// for each.
+fn extras(platform: Platform) -> &'static [(Device, u16)] {
+    match platform {
+        Platform::Ps1 => &PS1_EXTRAS,
+        _ => &[],
+    }
+}
 
 fn bit(g: GameButton) -> u16 {
     match g {

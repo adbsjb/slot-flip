@@ -464,7 +464,7 @@ impl Session {
             );
             emu.set_rewinding(self.actually_rewinding());
             emu.set_turbo(self.app.turbo());
-            emu.set_native_pad(self.app.playing_platform() == slot_store::Platform::Ps1);
+            emu.set_native_pad(self.app.playing_platform().native_pad());
             emu.set_rewind_recording(self.app.records_rewind());
         }
     }

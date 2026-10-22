@@ -47,6 +47,10 @@ pub struct Spec {
     pub header: Header,
     /// Its `.m3u` playlists list discs that should not be shelved on their own.
     pub playlists: bool,
+    /// The core is handed the pad as the system has it: X, Y and the lower shoulders
+    /// are game buttons, not the Game Boy family's turbo keys and rewind/fast-forward
+    /// shortcuts, which then move off them.
+    pub native_pad: bool,
 }
 
 const GBA: Spec = Spec {
@@ -59,6 +63,7 @@ const GBA: Spec = Spec {
     pad: Pad::Full,
     header: Header::Gba,
     playlists: false,
+    native_pad: false,
 };
 
 const GB: Spec = Spec {
@@ -71,6 +76,7 @@ const GB: Spec = Spec {
     pad: Pad::Compact,
     header: Header::GameBoy,
     playlists: false,
+    native_pad: false,
 };
 
 const GBC: Spec = Spec {
@@ -92,6 +98,7 @@ const PS1: Spec = Spec {
     pad: Pad::Full,
     header: Header::None,
     playlists: true,
+    native_pad: true,
 };
 
 const NES: Spec = Spec {
@@ -105,6 +112,7 @@ const NES: Spec = Spec {
     pad: Pad::Compact,
     header: Header::None,
     playlists: false,
+    native_pad: false,
 };
 
 impl Platform {
@@ -144,6 +152,10 @@ impl Platform {
 
     pub fn native_video(self) -> bool {
         self.spec().native_video
+    }
+
+    pub fn native_pad(self) -> bool {
+        self.spec().native_pad
     }
 
     /// Whether the screen shader, colour correction and bezel mean anything for
