@@ -306,6 +306,16 @@ after `apt-get install libudev-dev libasound2-dev pkg-config`, and does:
 
 Reproduce locally with the same container; do not assume host behaviour matches.
 
+Keep local test builds lean. Run them with `CARGO_PROFILE_DEV_DEBUG=line-tables-only`
+(and one `CARGO_TARGET_DIR`, not several): a debug build of `target-test` had grown
+to 26 GB, and `target` to 16 GB. Measured on `slot-ui`'s tests, that setting built in
+19 s instead of 31 s into 980 MB instead of 1,692 MB, and panics and backtraces still
+give the exact file, line and column. All it loses is stepping through code in a
+debugger and inspecting locals; set it back to `2` for a single run if a bug needs
+that. It does not touch release builds, so the Flip binary is unchanged. Changing the
+setting leaves the old artefacts beside the new ones, so delete the old target
+directory once when you switch.
+
 Conventions that have proven useful:
 
 - **A menu or settings change needs its tests updated.** Row order, counts and
