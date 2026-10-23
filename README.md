@@ -329,11 +329,11 @@ light gun, mouse, multitap or cheats. **Saves.** A game's battery save is kept i
 `Slot/Saves/<system>/<game>.sav`, and save states in `Slot/States/<system>`. They are
 separate from MinUI's own saves.
 
-**What has and has not been tried.** The three systems have run on a Flip with test
-programs that are nobody's game, which shows the core loads, the buttons reach it as
-described above, and it runs at full speed; and the same programs run against the real
-core on a computer. How well retail games run, and their sound over a long session, has
-not been checked yet.
+**What has and has not been tried.** Two games for each system have run on a Flip at
+full speed and been looked at by the owner, and test programs that are nobody's game
+run on the real core on a computer prove that each button reaches it as described
+above. Sound over a long session, battery saves, and the many games that use
+special hardware have not been checked.
 
 ## Settings
 
