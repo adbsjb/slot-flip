@@ -2347,6 +2347,9 @@ fn every_shelf_draws_the_slot_of_its_own_console_and_gba_keeps_the_cart_slot() {
         (Platform::Ps1, "Sky Racer"),
         (Platform::Nes, "Contra"),
         (Platform::Snes, "Chrono"),
+        (Platform::Md, "Sonic"),
+        (Platform::Sms, "Alex Kidd"),
+        (Platform::Gg, "Columns"),
     ];
     let mut a = app_with_platforms(&games);
     a.set_slot_faces(TexId::from_raw(77), TexId::from_raw(78));

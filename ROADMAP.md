@@ -71,6 +71,8 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 
 - ✅ **Released v0.9.1**: the slot is drawn as each console ([#27](https://github.com/boomchu-123/slot-flip/issues/27)), and Lid Power Off gains **Never**
 
+- ✅ **Released v0.10.0**: Sega Mega Drive / Genesis, Master System and Game Gear on drawn black carts, with Genesis Plus GX bundled
+
 **Next**
 - 💡 **Card repair on MinUI.** Upstream's SELECT + START repair is switched off
   on the Flip (its script is written for upstream's own devices and unmounts the
@@ -84,8 +86,10 @@ a time; the fork's own work is the Flip port itself and a few small additions.
   swapping for multi-disc games, passing the analog sticks to games, memory-card
   handling, and timing heavy 3D games. Super Nintendo is built (v0.9.0), with a core
   whose licence is non-commercial, so the download as a whole is free-only (see
-  `AGENTS.md`, section 9). Next: the Sega consoles, each needing a core, a shelf and
-  a cartridge design. Nothing here is promised until it runs on hardware
+  `AGENTS.md`, section 9). The Sega systems (Mega Drive / Genesis, Master System, Game
+  Gear) are out in v0.10.0. Next: the cheaper 2D systems, one core at a time, each only
+  once someone has games for it to try. Nothing here is promised until it runs on
+  hardware
 
 **Housekeeping that has bitten before**
 - Rebuild the mGBA and gpSP cores whenever a sync changes `cores/` (v0.4.0

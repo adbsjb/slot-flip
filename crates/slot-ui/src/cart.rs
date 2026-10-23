@@ -89,7 +89,9 @@ pub fn gb_shell_of(cart: &Cart) -> Option<GbShell> {
         Platform::Gba => None,
         Platform::Ps1 => Some(GbShell::Disc),
         Platform::Nes => Some(GbShell::Pak(Pak::Nes)),
-        Platform::Snes => Some(GbShell::Pak(Pak::Snes)),
+        Platform::Snes | Platform::Md | Platform::Sms | Platform::Gg => {
+            Some(GbShell::Pak(pak_of(cart.platform)))
+        }
         Platform::Gb | Platform::Gbc => Some(match cart.shell.map(|c| c.outline) {
             Some(Outline::Notched) => GbShell::Notched,
             Some(Outline::Rounded) => GbShell::Rounded,
@@ -190,7 +192,7 @@ pub fn seated_box(platform: Platform) -> (u32, u32) {
         Platform::Gb | Platform::Gbc => (SEATED_W, GB_SEATED_H),
         // The disc is round, and goes in no wider than the slot is.
         Platform::Ps1 => (SEATED_W, SEATED_W),
-        Platform::Nes | Platform::Snes => {
+        Platform::Nes | Platform::Snes | Platform::Md | Platform::Sms | Platform::Gg => {
             let d = pak_of(platform).design();
             (SEATED_W, (SEATED_W * d.h + d.w / 2) / d.w)
         }
@@ -201,6 +203,9 @@ pub fn seated_box(platform: Platform) -> (u32, u32) {
 fn pak_of(platform: Platform) -> Pak {
     match platform {
         Platform::Snes => Pak::Snes,
+        Platform::Md => Pak::Md,
+        Platform::Sms => Pak::Sms,
+        Platform::Gg => Pak::Gg,
         _ => Pak::Nes,
     }
 }
@@ -210,7 +215,9 @@ pub fn cart_box(platform: Platform) -> (u32, u32) {
         Platform::Gba => Shape::Gba,
         Platform::Gb | Platform::Gbc => Shape::Gb(GbShell::Notched),
         Platform::Ps1 => Shape::Disc,
-        Platform::Nes | Platform::Snes => Shape::Pak(pak_of(platform)),
+        Platform::Nes | Platform::Snes | Platform::Md | Platform::Sms | Platform::Gg => {
+            Shape::Pak(pak_of(platform))
+        }
     });
     (s.w, s.h)
 }

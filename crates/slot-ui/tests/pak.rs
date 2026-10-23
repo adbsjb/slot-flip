@@ -208,7 +208,13 @@ fn a_super_nintendo_game_is_its_own_drawn_cart_not_a_game_pak() {
 
 #[test]
 fn every_pak_design_fits_the_slot_and_draws_to_its_own_box() {
-    for (platform, pak) in [(Platform::Nes, Pak::Nes), (Platform::Snes, Pak::Snes)] {
+    for (platform, pak) in [
+        (Platform::Nes, Pak::Nes),
+        (Platform::Snes, Pak::Snes),
+        (Platform::Md, Pak::Md),
+        (Platform::Sms, Pak::Sms),
+        (Platform::Gg, Pak::Gg),
+    ] {
         let d = pak.design();
         assert_eq!(cart_box(platform), (d.w, d.h), "{platform:?}");
         let (sw, sh) = seated_box(platform);
@@ -282,4 +288,77 @@ fn write_art_in(d: &TempDir, system: &str, name: &str, w: u32, h: u32, rgb: [u8;
     enc.set_depth(png::BitDepth::Eight);
     let px: Vec<u8> = (0..w * h).flat_map(|_| rgb).collect();
     enc.write_header().unwrap().write_image_data(&px).unwrap();
+}
+
+fn sega_cart(d: &TempDir, system: &str, file: &str) -> Cart {
+    std::fs::create_dir_all(d.path().join("Games").join(system)).unwrap();
+    std::fs::write(d.path().join("Games").join(system).join(file), "").unwrap();
+    scan(d.path())
+        .unwrap()
+        .into_iter()
+        .find(|c| file.starts_with(&c.stem))
+        .expect("the sega cart")
+}
+
+#[test]
+fn each_sega_system_is_its_own_drawn_black_cart() {
+    for (system, file, platform, pak) in [
+        ("MD", "Sonic.md", Platform::Md, Pak::Md),
+        ("SMS", "Alex Kidd.sms", Platform::Sms, Pak::Sms),
+        ("GG", "Columns.gg", Platform::Gg, Pak::Gg),
+    ] {
+        let d = tmp_root();
+        let c = sega_cart(&d, system, file);
+        assert_eq!(c.platform, platform);
+        assert_eq!(gb_shell_of(&c), Some(GbShell::Pak(pak)), "{platform:?}");
+        assert!(!is_clear(&c), "{platform:?}");
+        let f = cart_face(&c);
+        assert_eq!((f.w, f.h), cart_box(platform), "{platform:?}");
+        let (w, h) = (f.w, f.h);
+        assert_eq!(at(&f, 0, 0)[3], 0, "{platform:?}: the top corner is square");
+        assert_eq!(at(&f, w / 2, h / 2)[3], 255, "{platform:?}");
+        // The plastic is black: dark between the label and the edge, and not coloured.
+        let [r, g, b, a] = at(&f, 8, h / 2);
+        assert!(
+            a == 255 && r < 90 && g < 90 && b < 90 && r.abs_diff(b) < 16,
+            "{platform:?}: the plastic is {r},{g},{b}"
+        );
+    }
+}
+
+#[test]
+fn the_sega_carts_differ_from_each_other_and_from_the_nintendo_ones() {
+    let all = Pak::ALL;
+    for (i, a) in all.iter().enumerate() {
+        for b in &all[i + 1..] {
+            assert_ne!(a.mask(), b.mask(), "{a:?} and {b:?} have the same outline");
+            let (da, db) = (a.design(), b.design());
+            assert_ne!(
+                (da.w, da.h),
+                (db.w, db.h),
+                "{a:?} and {b:?} are the same size"
+            );
+        }
+    }
+    // A Game Gear cart is the smallest of them: it is a handheld's.
+    let area = |p: Pak| p.design().w * p.design().h;
+    assert!(all.iter().all(|p| area(Pak::Gg) <= area(*p)));
+}
+
+#[test]
+fn a_sega_cart_takes_its_cover_art_in_its_own_label() {
+    let d = tmp_root();
+    write_art_in(&d, "MD", "Sonic", 128, 112, [200, 20, 20]);
+    let c = sega_cart(&d, "MD", "Sonic.md");
+    let (lw, lh) = label_size(&c);
+    let f = cart_face(&c);
+    let (x, y, _, _) = label_rect(Some(GbShell::Pak(Pak::Md)));
+    let (px, py) = ((x * f.w as f32) as u32, (y * f.h as f32) as u32);
+    for (dx, dy) in [(2, 2), (lw / 2, lh / 2), (lw - 3, lh - 3)] {
+        let [r, g, b, a] = at(&f, px + dx, py + dy);
+        assert!(
+            r > 150 && g < 60 && b < 60 && a == 255,
+            "({dx},{dy}) is {r},{g},{b}"
+        );
+    }
 }

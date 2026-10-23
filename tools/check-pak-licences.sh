@@ -21,6 +21,7 @@ gpsp_libretro.so|gpsp-GPL-2.0.txt|gpsp-src.tar.gz|-
 pcsx_rearmed_libretro.so|pcsx-GPL-2.0.txt|pcsx-src.tar.gz|-
 fceumm_libretro.so|fceumm-GPL-2.0.txt|fceumm-src.tar.gz|-
 snes9x2005_plus_libretro.so|snes9x2005-copyright.txt|snes9x2005-src.tar.gz|free-only
+genesis_plus_gx_libretro.so|genesis_plus_gx-LICENSE.txt|genesis_plus_gx-src.tar.gz|free-only
 '
 
 fail=0

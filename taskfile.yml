@@ -8,6 +8,7 @@ vars:
   PCSX_COMMIT: c8816799b50388e61cfe237fe2cdbb7d8175f20a
   FCEUMM_COMMIT: ac0d00a7fc01166f84c7bac01d1084ebfd2b865e
   SNES9X_COMMIT: a79dfe9047e7fec58808aefe48ad2bf499c7af11
+  GENESIS_COMMIT: aa74d79634cd230f65cce4180e92688e53883d2f
   EXFATPROGS_VERSION: 1.4.3
   EXFATPROGS_SHA256: 4b5052cba6ff9f6dcb1c63eeeac328620472c5b0b3caf3d38e4ada50e75469d3
   SLOT_IN_PROCESS: >-
@@ -367,6 +368,36 @@ tasks:
       - echo "{{.SNES9X_COMMIT}}" > vendor/snes9x2005-src.sha
       - cp vendor/snes9x2005_plus_libretro.so.meta vendor/snes9x2005-src.meta
       - 'echo "built vendor/snes9x2005_plus_libretro.so from vendor/snes9x2005-src.tar.gz @ {{.SNES9X_COMMIT}}"'
+
+  core:genesis_plus_gx:
+    desc: >-
+      Build the aarch64 linux genesis_plus_gx (Mega Drive, Master System, Game Gear) core from its
+      pinned source archive, and trim that archive to what the libretro build reads, which ships
+      beside it as its source; it is non-commercial, so the whole download stays free-only
+    status:
+      - test -f vendor/genesis_plus_gx_libretro.so
+      - test -f vendor/genesis_plus_gx-src.tar.gz
+      - test "$(cat vendor/genesis_plus_gx-src.sha 2>/dev/null)" = "{{.GENESIS_COMMIT}}"
+      - test "$(cat vendor/genesis_plus_gx_libretro.so.meta 2>/dev/null)" = "$(sh cores/genesis_plus_gx/build.sh stamp {{.GENESIS_COMMIT}})"
+      - test "$(cat vendor/genesis_plus_gx-src.meta 2>/dev/null)" = "$(sh cores/genesis_plus_gx/build.sh stamp {{.GENESIS_COMMIT}})"
+    cmds:
+      - |
+        set -euo pipefail
+        mkdir -p vendor
+        rm -f vendor/genesis_plus_gx_libretro.so vendor/genesis_plus_gx_libretro.so.meta \
+              vendor/genesis_plus_gx-src.tar.gz vendor/genesis_plus_gx-src.sha vendor/genesis_plus_gx-src.meta
+        curl -fsSL -o vendor/genesis_plus_gx-src.tar.gz \
+          "https://github.com/libretro/Genesis-Plus-GX/archive/{{.GENESIS_COMMIT}}.tar.gz"
+        tar -tzf vendor/genesis_plus_gx-src.tar.gz | grep "^Genesis-Plus-GX-{{.GENESIS_COMMIT}}/Makefile.libretro$" > /dev/null
+      - task: device:sh
+        vars:
+          CMD: >-
+            sh cores/genesis_plus_gx/build.sh build {{.GENESIS_COMMIT}} vendor/genesis_plus_gx-src.tar.gz
+            target-device/genesis_plus_gx vendor/genesis_plus_gx_libretro.so
+      - file vendor/genesis_plus_gx_libretro.so | grep -q aarch64
+      - echo "{{.GENESIS_COMMIT}}" > vendor/genesis_plus_gx-src.sha
+      - cp vendor/genesis_plus_gx_libretro.so.meta vendor/genesis_plus_gx-src.meta
+      - 'echo "built vendor/genesis_plus_gx_libretro.so from vendor/genesis_plus_gx-src.tar.gz @ {{.GENESIS_COMMIT}}"'
 
   fsck:exfat:
     desc: >-

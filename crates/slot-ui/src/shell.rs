@@ -95,6 +95,8 @@ pub fn shell_for(cart: &Cart) -> Shell {
         // The grey of the plastic; the Game Pak is drawn, and has no shell to colour.
         Platform::Nes => shell([0x9a, 0x99, 0x95], Finish::Solid),
         Platform::Snes => shell([0xa6, 0xa5, 0xa1], Finish::Solid),
+        // Black plastic; the cart is drawn, so this only colours the plain fallback.
+        Platform::Md | Platform::Sms | Platform::Gg => shell([0x2e, 0x2e, 0x32], Finish::Solid),
     }
 }
 

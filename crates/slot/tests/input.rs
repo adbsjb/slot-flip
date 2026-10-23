@@ -488,8 +488,59 @@ mod snes_pad {
     }
 
     #[test]
-    fn the_game_boy_family_and_nes_are_untouched() {
-        for platform in [Platform::Gba, Platform::Gb, Platform::Gbc, Platform::Nes] {
+    fn a_mega_drive_pad_is_read_like_a_super_nintendo_one() {
+        // libretro's Genesis pad: Y is the Mega Drive's A, B its B, A its C; X, L and R
+        // are its Y, X and Z. They are the same bits as the SNES's.
+        for (btn, bit) in [
+            (Btn::B, ButtonMask::B),
+            (Btn::A, ButtonMask::A),
+            (Btn::X, ButtonMask::X),
+            (Btn::Y, ButtonMask::Y),
+            (Btn::L1, ButtonMask::L),
+            (Btn::R1, ButtonMask::R),
+            (Btn::Select, ButtonMask::SELECT),
+            (Btn::Start, ButtonMask::START),
+        ] {
+            assert_eq!(mask(&[btn], Platform::Md), bit, "{btn:?}");
+        }
+        assert_eq!(mask(&[Btn::L2], Platform::Md), 0);
+        assert_eq!(mask(&[Btn::R2], Platform::Md), 0);
+        let pad = mask(&[Btn::X, Btn::Y], Platform::Md);
+        assert_eq!(ButtonMask(pad).turbo(3).0, 0, "turbo would have eaten them");
+    }
+
+    #[test]
+    fn a_mega_drive_keeps_fast_forward_and_rewind_and_gives_no_shortcut_x_or_y() {
+        let e = entries(Platform::Md);
+        assert!(
+            fires(&e, &[], Btn::R2, Action::FfStart),
+            "R2 lost fast-forward"
+        );
+        assert!(
+            fires(&e, &[], Btn::L2, Action::RewindStart),
+            "L2 lost rewind"
+        );
+        for e in e {
+            if e.contexts.meets(slot_input::Contexts::GAME) && e.chord.modifier.is_none() {
+                assert!(
+                    ![Btn::X, Btn::Y].contains(&e.chord.button),
+                    "{:?} sits on X or Y",
+                    e.action
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_game_boy_family_nes_and_the_master_system_and_game_gear_are_untouched() {
+        for platform in [
+            Platform::Gba,
+            Platform::Gb,
+            Platform::Gbc,
+            Platform::Nes,
+            Platform::Sms,
+            Platform::Gg,
+        ] {
             assert_eq!(mask(&[Btn::L2], platform), 0, "{platform:?}");
             assert_eq!(mask(&[Btn::X], platform), ButtonMask::X, "{platform:?}");
         }

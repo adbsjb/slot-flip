@@ -459,6 +459,9 @@ fn an_unreadable_platform_reads_as_a_card_that_never_said() {
         ("cart_platform=Gbc\n", Some(Platform::Gbc)),
         ("cart_platform=nes\n", Some(Platform::Nes)),
         ("cart_platform=snes\n", Some(Platform::Snes)),
+        ("cart_platform=md\n", Some(Platform::Md)),
+        ("cart_platform=SMS\n", Some(Platform::Sms)),
+        ("cart_platform=gg\n", Some(Platform::Gg)),
     ] {
         std::fs::write(d.path().join("Config/slot.state"), format!("{known}{line}")).unwrap();
         let s = read_slot_state(d.path());
