@@ -76,10 +76,13 @@ fn a_game_on_three_discs_offers_the_disc_row_between_states_and_settings() {
     let (_d, mut a) = playing(Platform::Ps1);
     a.set_discs(3, 0);
     assert!(!a.in_game_hidden().contains(&QuickRow::Disc));
+    // States hides itself until a state has been written, so check the row's place
+    // in the page and then walk the rows the menu actually offers on a fresh game.
+    let at = |row| QuickRow::PLAY.iter().position(|r| *r == row).unwrap();
+    assert!(at(QuickRow::States) < at(QuickRow::Disc));
+    assert!(at(QuickRow::Disc) < at(QuickRow::Settings));
     a.apply(Action::QuickMenu);
     assert_eq!(a.in_game_menu(), Some(QuickRow::Resume));
-    press(&mut a, Btn::Down);
-    assert_eq!(a.in_game_menu(), Some(QuickRow::States));
     press(&mut a, Btn::Down);
     assert_eq!(a.in_game_menu(), Some(QuickRow::Disc));
     press(&mut a, Btn::Down);

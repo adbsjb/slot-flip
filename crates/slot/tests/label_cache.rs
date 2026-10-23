@@ -186,3 +186,42 @@ fn art_that_would_not_fit_the_room_is_never_taken_from_the_cache() {
     assert!(!fresh(d.path(), &cart));
     assert_eq!(label_art(d.path(), &cart), Some(good));
 }
+
+#[test]
+fn a_rebuild_that_stops_moving_lets_the_shelf_come_up() {
+    let d = tempfile::tempdir().unwrap();
+    let mut cart = cart_with_label(d.path(), [10, 10, 10]);
+    let stuck = d.path().join("Labels/GBA/Stuck.png");
+    let made = std::process::Command::new("mkfifo")
+        .arg(&stuck)
+        .status()
+        .unwrap();
+    assert!(made.success());
+    cart.stem = "Stuck".into();
+    cart.label = Some(stuck);
+    let mut rebuild =
+        Rebuild::start_with_stall(d.path(), vec![cart], std::time::Duration::from_millis(300));
+    let began = std::time::Instant::now();
+    while !rebuild.stalled() {
+        assert!(
+            began.elapsed().as_secs() < 5,
+            "a label read that never returned held the screen"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert!(!rebuild.finished());
+}
+
+#[test]
+fn a_rebuild_that_keeps_moving_is_not_stalled() {
+    let d = tempfile::tempdir().unwrap();
+    let cart = cart_with_label(d.path(), [10, 10, 10]);
+    let mut rebuild =
+        Rebuild::start_with_stall(d.path(), vec![cart], std::time::Duration::from_secs(5));
+    let began = std::time::Instant::now();
+    while !rebuild.finished() {
+        assert!(began.elapsed().as_secs() < 30, "the rebuild never finished");
+        assert!(!rebuild.stalled());
+        std::thread::yield_now();
+    }
+}

@@ -13,12 +13,13 @@ Legend: ✅ done · 🚧 in progress · 📋 planned · 💡 wanted / needs disc
 
 ## Milestones
 
-Two releases, on purpose:
+Three milestones, on purpose:
 
 | Milestone | What it means |
 | --- | --- |
-| **1.0** | Every system that can run at full speed on a Miyoo Flip, and PlayStation working end to end. One device, done properly. |
-| **2.0** | The platform layer: input, audio, power and display behind one seam per device, so slot runs on other Linux handhelds. Ports stop being a fork of the frontend. |
+| **1.0** | Every system that can run at full speed on a Miyoo Flip, and PlayStation working end to end. One device, done properly, on the current upstream base. |
+| **2.0** | The platform layer: input, audio, power and display behind one seam per device, so slot runs on other Linux handhelds. Ports stop being a fork of the frontend, and the fork becomes easy to rebase onto upstream. |
+| **after 2.0** | More devices, one at a time. Device count only grows once the platform layer exists and the second device is verified on hardware. |
 
 Keeping them apart is deliberate. Systems are additive and can ship one at a time;
 the platform layer rewrites the device seams and cannot. Mixed into one release,
@@ -28,7 +29,13 @@ would keep re-shipping half-finished ports.
 ### 1.0 — all supportable systems, on the Flip
 
 Set by the maintainer: support as many systems as can be supported, and make
-PlayStation work properly.
+PlayStation work properly. This is the MinUI-on-Miyoo niche: the Flip first,
+PlayStation done properly, and no other device promised until 2.0.
+
+**Upstream base first.** Merge upstream slot's current release (v1.9.0 at the
+time of writing) before starting another system, so 1.0 ships on the fixes for
+card writes, a core that stops answering, label caching and the undo rows. A
+system added on an old base is work that has to be merged twice.
 
 - **[SYSTEMS.md](SYSTEMS.md) is the register**: every system considered, its core,
   its licence, and whether it is bundled, planned or not viable. A core is only
@@ -50,26 +57,47 @@ PlayStation work properly.
 - **Not a goal:** a desktop app. The `host` build is development and render-test
   tooling.
 
-### 2.0 — the platform layer, other handhelds
+### 2.0 — the platform layer and the second device
 
 The second half of "run on as many handhelds as realistic", deliberately after 1.0.
 
 - **One seam per device**: input, audio, power and display, with a backend per
   device instead of `cfg(feature = "flip")` reaching into shared code; the
   frontend, store and UI stop knowing which device they are on.
-- **Runtime detection where possible**: probe for the lid, LED, rumble motor, stick
-  or battery node; a missing one is a no-op, not an error. Device facts a user can
-  fix (key map, paths) live in a config file.
-- **A core built per CPU**: aarch64 for the Flip, armhf for the Miyoo A30 and
-  Mini Plus, then whatever a new device needs.
+- **Runtime detection where possible**: probe for the lid, LED, rumble motor, stick,
+  battery and panel size; a missing one is a no-op, not an error. One binary should
+  adapt to more than one panel, rather than compiling the layout in. Device facts a
+  user can fix (key map, paths) live in a config file.
+- **A core built per CPU**: aarch64 for the Flip, armhf for the Miyoo family, then
+  whatever a new device needs.
+- **Keep the fork rebaseable**: pin upstream slot as the base and keep this fork's
+  changes as a small, ordered patch layer instead of a long divergent history, so
+  the next upstream release is a bump and a reapply rather than a large merge. A
+  patch that no longer applies is a hard error, not a silent drop.
 - **Each port ships as an experimental pre-release** until someone with the
   hardware sends a clean `slot.log`; only then does it move to stable. The
   existing `experimental` branch and `exp-v*` tags become the 2.0 line.
-- **Candidates:** Miyoo A30 (`my282`, Mali-400, reuses the GLES path), Miyoo Mini
-  Plus (`miyoomini`, no GPU, needs a CPU compositor), Anbernic RG35XX family,
-  TrimUI Smart Pro / Brick, Powkiddy RGB30. Each needs a tester.
-- **2.0 criteria:** a second device verified on hardware, the Flip still passing
-  its own checks, and no `cfg(feature = ...)` for a device left in shared code.
+- **The second device: Miyoo Mini Plus** (`miyoomini`). Same Miyoo family, no GPU,
+  the largest audience of the Miyoo handhelds; it needs a CPU compositor, which is
+  exactly the kind of seam 2.0 is for.
+- **2.0 criteria:** the platform layer is in place, the Mini Plus is verified on
+  hardware, the Flip still passes its own checks, and no `cfg(feature = ...)` for a
+  device is left in shared code.
+
+### After 2.0 — more devices, one at a time
+
+Device count grows only after the platform layer and the second device are done.
+Order is by audience and by how much the port reuses what already exists:
+
+1. **Miyoo A30** (`my282`) — cheap, has a GPU, reuses the GLES path the Flip
+   already has, and shares the Miyoo input and power family.
+2. **One Anbernic H700 device** (RG35XXSP or RG SP) — a different SoC and OS;
+   worth doing once the seams are proven on the Miyoo family.
+3. **TrimUI Brick / Smart Pro, Powkiddy RGB30** — only when someone with the
+   hardware can test.
+
+Every device in this list needs a person with that device. A build that has never
+run on the hardware is "builds, untested", not supported, and stays a pre-release.
 
 ---
 
@@ -114,6 +142,9 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 - ✅ **Released v0.10.1**: label scans keep their own shape on the NES, SNES and Sega carts ([#30](https://github.com/boomchu-123/slot-flip/issues/30))
 
 - ✅ **Released v0.11.0**: PlayStation memory cards are kept with the other saves, a multi-disc game can change disc from the in-game menu, and the sticks can be passed to a game as a DualShock's (off by default)
+- ✅ **Upstream v1.9.0 merged**: durable card writes, core timeouts, label-cache
+  stall, undo save/load, screenshots, bezels from the card. The 1.0 system work
+  resumes on this base
 
 **Next**
 - 💡 **Card repair on MinUI.** Upstream's SELECT + START repair is switched off

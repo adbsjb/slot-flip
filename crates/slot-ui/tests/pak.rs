@@ -390,7 +390,7 @@ fn cart_with_scan(
     h: u32,
     px: impl Fn(u32, u32) -> [u8; 4],
 ) -> Cart {
-    let c = sega_or_nintendo_cart(d, system, file);
+    sega_or_nintendo_cart(d, system, file);
     let stem = file.rsplit_once('.').unwrap().0;
     let label = d
         .path()

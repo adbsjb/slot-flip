@@ -35,6 +35,7 @@ pub enum QuickRow {
     GbcColourCorrection,
     Resume,
     States,
+    Screenshots,
     Settings,
     ExitGame,
     PlayScreen,
@@ -69,6 +70,7 @@ pub enum QuickRow {
     GameTurboB,
     ScSave,
     ScLoad,
+    ScScreenshot,
     ScBrightUp,
     ScBrightDown,
     ScBlueDown,
@@ -113,10 +115,13 @@ pub enum QuickRow {
     BindMenu,
     Disc,
     AnalogSticks,
+    AutoLoad,
+    UndoSave,
+    UndoLoad,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 102] = [
+    pub const ALL: [QuickRow; 107] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -141,6 +146,7 @@ impl QuickRow {
         QuickRow::GbcColourCorrection,
         QuickRow::Resume,
         QuickRow::States,
+        QuickRow::Screenshots,
         QuickRow::Settings,
         QuickRow::ExitGame,
         QuickRow::PlayScreen,
@@ -175,6 +181,7 @@ impl QuickRow {
         QuickRow::GameTurboB,
         QuickRow::ScSave,
         QuickRow::ScLoad,
+        QuickRow::ScScreenshot,
         QuickRow::ScBrightUp,
         QuickRow::ScBrightDown,
         QuickRow::ScBlueDown,
@@ -219,6 +226,9 @@ impl QuickRow {
         QuickRow::BindMenu,
         QuickRow::Disc,
         QuickRow::AnalogSticks,
+        QuickRow::AutoLoad,
+        QuickRow::UndoSave,
+        QuickRow::UndoLoad,
     ];
 
     pub const MAIN: [QuickRow; 5] = [
@@ -304,9 +314,10 @@ impl QuickRow {
         QuickRow::GameTurboB,
     ];
 
-    pub const SHORTCUTS: [QuickRow; 13] = [
+    pub const SHORTCUTS: [QuickRow; 14] = [
         QuickRow::ScSave,
         QuickRow::ScLoad,
+        QuickRow::ScScreenshot,
         QuickRow::ScBrightUp,
         QuickRow::ScBrightDown,
         QuickRow::ScBlueDown,
@@ -348,7 +359,7 @@ impl QuickRow {
         QuickRow::GbBezel,
     ];
 
-    pub const GAME: [QuickRow; 8] = [
+    pub const GAME: [QuickRow; 9] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Rewind,
@@ -356,12 +367,16 @@ impl QuickRow {
         QuickRow::Rumble,
         QuickRow::LeftStick,
         QuickRow::AnalogSticks,
+        QuickRow::AutoLoad,
         QuickRow::EjectSave,
     ];
 
-    pub const PLAY: [QuickRow; 5] = [
+    pub const PLAY: [QuickRow; 8] = [
         QuickRow::Resume,
+        QuickRow::UndoSave,
+        QuickRow::UndoLoad,
         QuickRow::States,
+        QuickRow::Screenshots,
         QuickRow::Disc,
         QuickRow::Settings,
         QuickRow::ExitGame,
@@ -411,6 +426,7 @@ impl QuickRow {
             | QuickRow::Rumble
             | QuickRow::LeftStick
             | QuickRow::AnalogSticks
+            | QuickRow::AutoLoad
             | QuickRow::EjectSave => &QuickRow::GAME,
             QuickRow::Wallpaper
             | QuickRow::WallpaperTint
@@ -441,8 +457,11 @@ impl QuickRow {
                 &QuickRow::KEY_MAP_START_SELECT
             }
             QuickRow::Resume
+            | QuickRow::UndoSave
+            | QuickRow::UndoLoad
             | QuickRow::States
             | QuickRow::Disc
+            | QuickRow::Screenshots
             | QuickRow::Settings
             | QuickRow::ExitGame => &QuickRow::PLAY,
             QuickRow::PlayScreen | QuickRow::PlayGameplay | QuickRow::PlayControls => {
@@ -561,7 +580,8 @@ impl QuickRow {
             QuickRow::GbColourCorrection => "Color Correction",
             QuickRow::GbcColourCorrection => "Color Correction",
             QuickRow::Game => "Gameplay",
-            QuickRow::EjectSave => "Auto Save on Eject",
+            QuickRow::AutoLoad => "Load State on Insert",
+            QuickRow::EjectSave => "Save State on Eject",
             QuickRow::Turbo => "Turbo Buttons",
             QuickRow::Rewind => "Rewind",
             QuickRow::GbPalette => "Palette",
@@ -571,7 +591,10 @@ impl QuickRow {
             QuickRow::ShowTitles => "Game Titles",
             QuickRow::WallpaperTint => "Wallpaper Tint",
             QuickRow::Resume => "Resume",
+            QuickRow::UndoSave => "Undo Save",
+            QuickRow::UndoLoad => "Undo Load",
             QuickRow::States => "States",
+            QuickRow::Screenshots => "Screenshots",
             QuickRow::Settings => "Settings",
             QuickRow::ExitGame => "Exit Game",
             QuickRow::General => "General",
@@ -619,6 +642,7 @@ impl QuickRow {
             | QuickRow::GameTurboB => self.game_button().map_or("", GameButton::label),
             QuickRow::ScSave
             | QuickRow::ScLoad
+            | QuickRow::ScScreenshot
             | QuickRow::ScBrightUp
             | QuickRow::ScBrightDown
             | QuickRow::ScBlueDown
@@ -656,7 +680,10 @@ impl QuickRow {
                 | QuickRow::Screen
                 | QuickRow::Game
                 | QuickRow::Resume
+                | QuickRow::UndoSave
+                | QuickRow::UndoLoad
                 | QuickRow::States
+                | QuickRow::Screenshots
                 | QuickRow::Settings
                 | QuickRow::ExitGame
                 | QuickRow::PlayScreen
@@ -701,6 +728,7 @@ impl QuickRow {
         Some(match self {
             QuickRow::ScSave => Shortcut::SaveState,
             QuickRow::ScLoad => Shortcut::LoadState,
+            QuickRow::ScScreenshot => Shortcut::Screenshot,
             QuickRow::ScBrightUp => Shortcut::BrightnessUp,
             QuickRow::ScBrightDown => Shortcut::BrightnessDown,
             QuickRow::ScBlueDown => Shortcut::BlueLightDown,
@@ -913,6 +941,7 @@ impl QuickValue {
 
     pub fn speed(frames: u8) -> Option<QuickValue> {
         match frames {
+            0 => Some(QuickValue::Off),
             2 => Some(QuickValue::Speed2),
             3 => Some(QuickValue::Speed3),
             4 => Some(QuickValue::Speed4),
@@ -1247,6 +1276,9 @@ fn button_pair(left: ButtonLegend, right: ButtonLegend) -> UndoFace {
 
 pub type FacePair = [(TexId, u32, u32); 2];
 
+/// Two key faces and their sizes, as the Key Map draws them.
+type BindingFaces = [(TexId, u32, u32); 2];
+
 pub struct QuickMenuFaces {
     pub labels: Vec<[(TexId, u32, u32); 2]>,
     pub pointer: (TexId, u32, u32),
@@ -1276,7 +1308,7 @@ pub struct QuickMenu<'a> {
     pub bound: Option<&'a [Option<FacePair>]>,
     pub description: Option<(TexId, u32, u32)>,
     /// The key each control is on, dim and lit, in `bind_at` order.
-    pub bindings: Option<&'a [[(TexId, u32, u32); 2]]>,
+    pub bindings: Option<&'a [BindingFaces]>,
     /// Shown instead of a key while the row waits for one to be pressed.
     pub bind_waiting: Option<(TexId, u32, u32)>,
     /// The control whose row is waiting for a key.

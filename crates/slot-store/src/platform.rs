@@ -187,8 +187,8 @@ const GG: Spec = Spec {
 impl Platform {
     pub const ALL: [Platform; 9] = [
         Platform::Gba,
-        Platform::Gb,
         Platform::Gbc,
+        Platform::Gb,
         Platform::Ps1,
         Platform::Nes,
         Platform::Snes,

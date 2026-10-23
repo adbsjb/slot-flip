@@ -100,8 +100,8 @@ fn drawn(face: &CartFace, glare: &CartFace, angle: f32, bg: [u8; 3], size: u32) 
             if (0..glare.w as i32).contains(&gx) && (0..glare.h as i32).contains(&gy) {
                 let i = ((gy as u32 * glare.w + gx as u32) * 4) as usize;
                 let a = glare.rgba[i + 3] as f32 / 255.0;
-                for ch in 0..3 {
-                    px[ch] = (255.0 * a + px[ch] as f32 * (1.0 - a)) as u8;
+                for v in px.iter_mut().take(3) {
+                    *v = (255.0 * a + *v as f32 * (1.0 - a)) as u8;
                 }
             }
             out.extend_from_slice(&px);

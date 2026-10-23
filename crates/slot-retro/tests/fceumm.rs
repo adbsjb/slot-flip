@@ -50,7 +50,7 @@ fn rom(dir: &Path, name: &str, shift: usize) -> PathBuf {
         0xad, 0x16, 0x40, 0x29, 0x01, 0x4a, 0x66, 0x00, 0xca, 0xd0, 0xf5, //
         0xa5, 0x00, // lda $00
     ]);
-    code.extend(std::iter::repeat(0x4a).take(shift)); // lsr a
+    code.extend(std::iter::repeat_n(0x4a, shift)); // lsr a
     code.extend([
         0x29,
         0x3f, // and #$3f

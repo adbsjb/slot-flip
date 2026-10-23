@@ -5,7 +5,8 @@ fn fields() -> StickerFields<'static> {
         battery: Some(87),
         serial: "04738857",
         version: "0.1.0",
-        upstream: "1.8.0",
+        upstream: "1.9.0",
+        model: "RG SP",
     }
 }
 
@@ -106,7 +107,42 @@ fn the_version_rides_above_the_where_to_look_line() {
         .unwrap();
     assert_eq!(
         lines[home - 1],
-        "VERSION 0.1.0 (SLOT 1.8.0)",
+        format!("VERSION 0.1.0 (SLOT {})", fields().upstream),
         "the sticker must say which upstream slot this build follows"
     );
+}
+
+#[test]
+fn the_wordmark_is_the_handhelds_own_whatever_the_os_calls_it() {
+    let flip = slot_ui::sticker_face(&fields()).rgba;
+    for model in ["", "RG SP", "RG35XX SP"] {
+        let face = slot_ui::sticker_face(&StickerFields { model, ..fields() });
+        assert!(face.rgba == flip, "{model:?} changed the sticker");
+    }
+}
+
+#[test]
+fn the_model_is_set_in_capitals_whatever_baseos_wrote() {
+    let upper = slot_ui::sticker_face(&StickerFields {
+        model: "RG35XX SP",
+        ..fields()
+    });
+    let lower = slot_ui::sticker_face(&StickerFields {
+        model: "rg35xx sp",
+        ..fields()
+    });
+    assert!(upper.rgba == lower.rgba);
+}
+
+#[test]
+fn a_model_baseos_gives_two_names_shows_the_first() {
+    let both = slot_ui::sticker_face(&StickerFields {
+        model: "RG35XX Plus / RG35XX 2024",
+        ..fields()
+    });
+    let plus = slot_ui::sticker_face(&StickerFields {
+        model: "RG35XX Plus",
+        ..fields()
+    });
+    assert!(both.rgba == plus.rgba);
 }

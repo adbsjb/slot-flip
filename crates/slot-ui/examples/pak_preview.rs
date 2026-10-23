@@ -44,7 +44,7 @@ fn main() {
         face_of(root.path(), "snes-Midnight Garden Adventures Part Two"),
     ];
     for (n, dir) in dirs.iter().enumerate() {
-        let sub = format!("Labels/NES");
+        let sub = "Labels/NES".to_string();
         std::fs::create_dir_all(root.path().join(&sub)).unwrap();
         let mut pngs: Vec<_> = std::fs::read_dir(dir)
             .unwrap()

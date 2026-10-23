@@ -204,19 +204,19 @@ pub fn code_to_btn(code: u16) -> Option<Btn> {
         106 => Btn::Right,
         // The pad's kernel A/B/X/Y labels are rotated versus the printed
         // letters on this unit, so they are mapped to match what is printed.
-        57 => Btn::A,          // KEY_SPACE      (bottom-printed A behaves as confirm)
-        29 => Btn::B,          // KEY_LEFTCTRL
-        42 => Btn::X,          // KEY_LEFTSHIFT
-        56 => Btn::Y,          // KEY_LEFTALT
-        15 => Btn::L1,         // KEY_TAB
-        104 => Btn::L2,        // KEY_PAGEUP  (rewind)
+        57 => Btn::A,   // KEY_SPACE      (bottom-printed A behaves as confirm)
+        29 => Btn::B,   // KEY_LEFTCTRL
+        42 => Btn::X,   // KEY_LEFTSHIFT
+        56 => Btn::Y,   // KEY_LEFTALT
+        15 => Btn::L1,  // KEY_TAB
+        104 => Btn::L2, // KEY_PAGEUP  (rewind)
         // R1 is physically dead on this unit; the working R2 shoulder takes its
         // place so platform-switch, aspect-reset and Select+R save state all
         // keep working. Fast-forward (normally R2) moves to the right stick.
-        109 => Btn::R1,        // KEY_PAGEDOWN (acts as R1)
-        97 => Btn::Select,     // KEY_RIGHTCTRL
-        28 => Btn::Start,      // KEY_ENTER
-        1 => Btn::Menu,        // KEY_ESC
+        109 => Btn::R1,    // KEY_PAGEDOWN (acts as R1)
+        97 => Btn::Select, // KEY_RIGHTCTRL
+        28 => Btn::Start,  // KEY_ENTER
+        1 => Btn::Menu,    // KEY_ESC
         115 => Btn::VolUp,
         114 => Btn::VolDown,
         116 => Btn::Power,

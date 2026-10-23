@@ -112,7 +112,8 @@ impl Alsa {
                 };
                 if err < 0 {
                     unsafe { (self.close)(pcm) };
-                    last = AudioError::Config(format!("{name} @ {try_rate}: {}", self.message(err)));
+                    last =
+                        AudioError::Config(format!("{name} @ {try_rate}: {}", self.message(err)));
                     continue; // this rate refused; try the next rate
                 }
                 eprintln!("slot: audio {name} at {try_rate} Hz");
@@ -228,31 +229,27 @@ struct Playback {
 
 fn play(ring: &Arc<Ring>, sample_rate: u32) -> Result<Playback, AudioError> {
     let alsa = Alsa::load()?;
-    // Prefer a rate the codec actually locks onto; the ring runs at that rate
-    // so the emulator's resampler converts the core's output to match.
-    let (pcm, actual_rate) = match alsa.open_pcm(sample_rate) {
-        Ok((pcm, rate)) => (Some(pcm), rate),
-        Err(e) => {
-            eprintln!("slot: audio: {e}, retrying");
-            (None, preferred_rates(sample_rate)[0])
-        }
-    };
-    ring.reopen(actual_rate);
+    // The device stays closed until there is something to play, so the OS can
+    // play its own startup sound. It opens at the first frames; the rate it
+    // locks onto then becomes the ring's rate.
+    ring.reopen(sample_rate);
     Ok(Playback {
         alsa,
-        pcm,
-        rate: actual_rate,
-        failing: pcm.is_none(),
+        pcm: None,
+        rate: sample_rate,
+        failing: false,
     })
 }
 
 impl Playback {
     fn run(&mut self, ring: &Ring, stop: &AtomicBool) {
         let mut buf = vec![0i16; PERIOD_FRAMES * CHANNELS as usize];
-        let span = Duration::from_secs_f64(PERIOD_FRAMES as f64 / self.rate as f64);
-        let mut silence = Silence::new(RELEASE_AFTER);
-        let mut pace = Pacer::new(span);
+        let mut silence = Silence::quiet(RELEASE_AFTER);
+        let mut pace = Pacer::new(Duration::from_secs_f64(
+            PERIOD_FRAMES as f64 / self.rate as f64,
+        ));
         while !stop.load(Ordering::Relaxed) {
+            let span = Duration::from_secs_f64(PERIOD_FRAMES as f64 / self.rate as f64);
             ring.fill(&mut buf);
             let hold = silence.hear(&buf, span);
             match (self.pcm, hold) {
@@ -261,7 +258,16 @@ impl Playback {
                     eprintln!("slot: audio released after silence");
                 }
                 (None, true) => match self.alsa.open_pcm(self.rate) {
-                    Ok((pcm, _rate)) => {
+                    Ok((pcm, rate)) => {
+                        // The codec may not take the rate we asked for; the ring
+                        // runs at what it did take, so the resampler converts to it.
+                        if rate != self.rate {
+                            self.rate = rate;
+                            ring.reopen(rate);
+                            pace = Pacer::new(Duration::from_secs_f64(
+                                PERIOD_FRAMES as f64 / rate as f64,
+                            ));
+                        }
                         eprintln!("slot: audio reopened at {:.1} ms", crate::boot_time::ms());
                         self.pcm = Some(pcm);
                         self.failing = false;

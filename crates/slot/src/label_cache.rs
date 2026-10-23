@@ -4,13 +4,14 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use slot_store::Cart;
 use slot_ui::{label_for, label_size, LabelArt};
 
 const DIR: &str = "System/Cache/Labels";
 const HEAD: usize = 32;
+const STALL: Duration = Duration::from_secs(20);
 
 /// Bumped when how a label is fitted changes, so what was cached the old way is
 /// rebuilt instead of shown. Version 2: a drawn cartridge's label keeps the shape of
@@ -85,10 +86,17 @@ pub fn cache_path(root: &Path, cart: &Cart) -> PathBuf {
 pub struct Rebuild {
     done: Arc<AtomicUsize>,
     total: usize,
+    seen: usize,
+    moved: Instant,
+    stall: Duration,
 }
 
 impl Rebuild {
     pub fn start(root: &Path, carts: Vec<Cart>) -> Self {
+        Self::start_with_stall(root, carts, STALL)
+    }
+
+    pub fn start_with_stall(root: &Path, carts: Vec<Cart>, stall: Duration) -> Self {
         let total = carts.len();
         let done = Arc::new(AtomicUsize::new(0));
         let next = Arc::new(AtomicUsize::new(0));
@@ -107,14 +115,22 @@ impl Rebuild {
                     let Some(cart) = carts.get(next.fetch_add(1, Ordering::Relaxed)) else {
                         return;
                     };
-                    let _ = label_art(&root, cart);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        label_art(&root, cart)
+                    }));
                     done.fetch_add(1, Ordering::Release);
                 });
             if let Err(e) = spawned {
                 eprintln!("slot: label cache: rebuild thread failed to start: {e}");
             }
         }
-        Rebuild { done, total }
+        Rebuild {
+            done,
+            total,
+            seen: 0,
+            moved: Instant::now(),
+            stall,
+        }
     }
 
     pub fn done(&self) -> usize {
@@ -127,6 +143,15 @@ impl Rebuild {
 
     pub fn finished(&self) -> bool {
         self.done() == self.total
+    }
+
+    pub fn stalled(&mut self) -> bool {
+        let done = self.done();
+        if done != self.seen {
+            self.seen = done;
+            self.moved = Instant::now();
+        }
+        self.moved.elapsed() >= self.stall
     }
 }
 
