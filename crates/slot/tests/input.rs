@@ -277,6 +277,21 @@ mod disc_pad {
         }
     }
 
+    #[test]
+    fn the_stick_clicks_are_l3_and_r3_on_a_disc_and_nothing_else() {
+        assert_eq!(mask(&[Btn::L3], Platform::Ps1), ButtonMask::L3);
+        assert_eq!(mask(&[Btn::R3], Platform::Ps1), ButtonMask::R3);
+        assert_eq!(
+            mask(&[Btn::L3], Platform::Gba) | mask(&[Btn::R3], Platform::Gba),
+            0,
+            "no Game Boy core has stick clicks"
+        );
+        assert_eq!(
+            mask(&[Btn::L3], Platform::Snes) | mask(&[Btn::R3], Platform::Snes),
+            0
+        );
+    }
+
     fn entries(platform: Platform) -> Vec<slot_input::Entry> {
         slot::input::Table::for_platform(
             &Controls::default(),
@@ -470,8 +485,14 @@ mod snes_pad {
     #[test]
     fn fast_forward_and_rewind_keep_their_keys_because_the_triggers_are_free() {
         let e = entries(Platform::Snes);
-        assert!(fires(&e, &[], Btn::R2, Action::FfStart), "R2 lost fast-forward");
-        assert!(fires(&e, &[], Btn::L2, Action::RewindStart), "L2 lost rewind");
+        assert!(
+            fires(&e, &[], Btn::R2, Action::FfStart),
+            "R2 lost fast-forward"
+        );
+        assert!(
+            fires(&e, &[], Btn::L2, Action::RewindStart),
+            "L2 lost rewind"
+        );
     }
 
     #[test]

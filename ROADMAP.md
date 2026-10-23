@@ -11,27 +11,65 @@ Legend: ✅ done · 🚧 in progress · 📋 planned · 💡 wanted / needs disc
 
 ---
 
-## Toward 1.0
+## Milestones
 
-The direction for a 1.0 release, set by the maintainer:
+Two releases, on purpose:
 
-- **Support as many systems as can be supported**, in batches: SNES and the Sega
-  family first, then the cheaper 2D systems. A system is only listed as supported
-  once it has run on hardware.
-- **Run on other Linux handhelds**, not just the Flip. This means a small platform
-  layer (input, audio, power, display) with one backend per device, and a core built
-  for each CPU. Each new device needs someone with that device to test it; until then
-  it is "builds, untested".
-- **Stay free and open source.** There are no plans to sell it. Donations may be
-  offered, but they never unlock anything. Because of that, cores with non-commercial
-  licences (snes9x2005, and later perhaps Genesis Plus GX) are bundled in the one
-  download, which is then free-only. A core is only added after its licence has been
-  read.
-- **Not a goal:** a desktop app. The `host` build exists for development and for the
-  render tests, not as a release.
+| Milestone | What it means |
+| --- | --- |
+| **1.0** | Every system that can run at full speed on a Miyoo Flip, and PlayStation working end to end. One device, done properly. |
+| **2.0** | The platform layer: input, audio, power and display behind one seam per device, so slot runs on other Linux handhelds. Ports stop being a fork of the frontend. |
 
-First step: replace the per-system `match` blocks scattered through the code with one
-table per system, so adding a system is a data change. Nothing user-visible changes.
+Keeping them apart is deliberate. Systems are additive and can ship one at a time;
+the platform layer rewrites the device seams and cannot. Mixed into one release,
+a device port in progress would hold the systems work back, and a systems release
+would keep re-shipping half-finished ports.
+
+### 1.0 — all supportable systems, on the Flip
+
+Set by the maintainer: support as many systems as can be supported, and make
+PlayStation work properly.
+
+- **[SYSTEMS.md](SYSTEMS.md) is the register**: every system considered, its core,
+  its licence, and whether it is bundled, planned or not viable. A core is only
+  added after its licence has been read.
+- **Batches**, because each needs its own real-core test and hardware check:
+  1. **No new core:** Sega CD / Mega CD and SG-1000 on Genesis Plus GX (both just
+     need a system table entry, art and a test). Famicom Disk System on fceumm.
+  2. **Cheap 2D:** PC Engine, Neo Geo Pocket, WonderSwan, Atari Lynx, Atari 7800,
+     Intellivision, Virtual Boy.
+  3. **Free-only:** Sega 32X on PicoDrive (non-commercial, like Genesis Plus GX).
+  4. **PlayStation short of 1.0:** a game actually asking for its second disc,
+     and timing a heavy 3D game.
+- **1.0 criteria:** every system in the register that is marked viable has run a
+  real game on a Flip; PlayStation has no known failure; the download still passes
+  `tools/check-pak-licences.sh`; the README table matches reality.
+- **Stay free and open source.** No plans to sell. Donations never unlock
+  anything. Non-commercial cores are bundled knowingly in the one free download
+  (snes9x2005, Genesis Plus GX, and PicoDrive if it is added), with their notices.
+- **Not a goal:** a desktop app. The `host` build is development and render-test
+  tooling.
+
+### 2.0 — the platform layer, other handhelds
+
+The second half of "run on as many handhelds as realistic", deliberately after 1.0.
+
+- **One seam per device**: input, audio, power and display, with a backend per
+  device instead of `cfg(feature = "flip")` reaching into shared code; the
+  frontend, store and UI stop knowing which device they are on.
+- **Runtime detection where possible**: probe for the lid, LED, rumble motor, stick
+  or battery node; a missing one is a no-op, not an error. Device facts a user can
+  fix (key map, paths) live in a config file.
+- **A core built per CPU**: aarch64 for the Flip, armhf for the Miyoo A30 and
+  Mini Plus, then whatever a new device needs.
+- **Each port ships as an experimental pre-release** until someone with the
+  hardware sends a clean `slot.log`; only then does it move to stable. The
+  existing `experimental` branch and `exp-v*` tags become the 2.0 line.
+- **Candidates:** Miyoo A30 (`my282`, Mali-400, reuses the GLES path), Miyoo Mini
+  Plus (`miyoomini`, no GPU, needs a CPU compositor), Anbernic RG35XX family,
+  TrimUI Smart Pro / Brick, Powkiddy RGB30. Each needs a tester.
+- **2.0 criteria:** a second device verified on hardware, the Flip still passing
+  its own checks, and no `cfg(feature = ...)` for a device left in shared code.
 
 ---
 
@@ -88,8 +126,9 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 - 🚧 **More systems** ([#20](https://github.com/boomchu-123/slot-flip/issues/20)).
   PlayStation is out in v0.7.0 and NES in v0.8.0. PlayStation memory cards are kept and
   multi-disc games can change disc (v0.11.0), and the sticks can go to a game (a
-  DualShock, off by default). Still to do for PlayStation: L3 and R3, and timing
-  heavy 3D games. Super Nintendo is built (v0.9.0), with a core
+  DualShock, off by default, with the stick clicks as L3/R3). Still to do for
+  PlayStation: a game actually asking for its second disc (they tend to ask late),
+  and timing a heavy 3D game. Super Nintendo is built (v0.9.0), with a core
   whose licence is non-commercial, so the download as a whole is free-only (see
   `AGENTS.md`, section 9). The Sega systems (Mega Drive / Genesis, Master System, Game
   Gear) are out in v0.10.0. Next: the cheaper 2D systems, one core at a time, each only
@@ -102,10 +141,11 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 
 ---
 
-## Experimental — other Miyoo devices
+## Experimental — other Miyoo devices (the 2.0 line)
 
-These live on the `experimental` branch and ship as `exp-v*` **pre-releases**.
-They stay there until verified on hardware.
+These are the start of **2.0**, and stay on the `experimental` branch as `exp-v*`
+**pre-releases** until verified on hardware. The stable `flip` branch keeps
+shipping 1.x system work in the meantime; nothing here blocks 1.0.
 
 > **Status:** `experimental` is still on upstream **v1.6**, behind the stable
 > branch. It needs the v1.8 sync, the Key Map, and the armhf builds re-checked

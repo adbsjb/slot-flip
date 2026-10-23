@@ -102,8 +102,8 @@ const PS1: Spec = Spec {
     native_video: true,
     cores: &[crate::Core::Pcsx],
     // The PlayStation pad has more buttons than the controls page names (X/Y,
-    // L2/R2, the stick clicks); until it grows them it shares the GBA set, which
-    // is the widest it knows.
+    // L2/R2 and the stick clicks, which are read as fixed buttons); until it
+    // grows them it shares the GBA set, which is the widest it knows.
     pad: Pad::Full,
     header: Header::None,
     playlists: true,

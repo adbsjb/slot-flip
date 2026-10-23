@@ -267,17 +267,18 @@ open, the disc change and the lid close, so a game that says "insert disc 2" car
 on by itself. The row only appears for a game with more than one disc.
 
 **Analog sticks.** Off by default. Under **Settings > Gameplay > Analog Sticks**
-the Flip plugs in a DualShock, and both sticks go to the game. The right stick can
-no longer be R2 while that is on, so a Flip whose right shoulder is dead has no R2
-and no SELECT + R2 fast-forward then (rebind fast-forward under Shortcuts). The
-sticks have a dead zone, because the Flip's rest a little off centre. The core starts a DualShock
-in digital mode; a game that uses the sticks switches it to analog itself, and the
-core's own combination L1 + R1 + SELECT switches it by hand.
+the Flip plugs in a DualShock, and both sticks go to the game. The sticks have a
+dead zone, because the Flip's rest a little off centre. With them on, pushing a
+stick in is L3 or R3. The core starts a DualShock in digital mode; a game that uses
+the sticks switches it to analog itself, and the core's own combination
+L1 + R1 + SELECT switches it by hand. **While they are on, the right stick stops
+being R2**, so a Flip whose right shoulder is dead then has no R2 and no
+SELECT + R2 fast-forward (rebind fast-forward under Shortcuts if that matters).
 
 **What is not there yet.** A screen shader, colour correction or bezel (they do
-nothing for a disc, so those rows are hidden), L3 and R3 (the stick clicks), and a
-second player. Games run without a BIOS file on the card. How fast heavy 3D games
-run has not been measured; the one game timed ran at full speed.
+nothing for a disc, so those rows are hidden), and a second player. Games run
+without a BIOS file on the card. How fast heavy 3D games run has not been measured;
+the one game timed ran at full speed.
 
 ## NES games
 
@@ -517,7 +518,8 @@ especially **testing the experimental device builds**.
 
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to build, test, and submit
   changes, plus the branch model.
-- **[ROADMAP.md](ROADMAP.md)** — what's planned, and how to request a feature.
+- **[ROADMAP.md](ROADMAP.md)** — the 1.0 and 2.0 milestones, and how to request a feature.
+- **[SYSTEMS.md](SYSTEMS.md)** — every system considered, the core it would use, its licence, and its status.
 - **[Issues](https://github.com/boomchu-123/slot-flip/issues/new/choose)** —
   bug reports, feature requests, and experimental device test reports.
 - **Security and privacy:** never paste keys, tokens or personal paths into an

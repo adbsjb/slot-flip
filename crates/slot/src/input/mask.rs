@@ -53,7 +53,17 @@ impl Pad {
             .iter()
             .filter(|(device, _)| self.held.contains(&device_btn(*device)))
             .fold(0, |bits, (_, bit)| bits | bit);
-        ButtonMask(bits | extras)
+        ButtonMask(bits | extras | self.clicks(platform))
+    }
+
+    /// The two stick clicks. They are fixed rather than rebindable: only the
+    /// gamepad node reports them, and only a PlayStation pad has them.
+    fn clicks(&self, platform: Platform) -> u16 {
+        if platform != Platform::Ps1 {
+            return 0;
+        }
+        let bit = |btn, mask| if self.held.contains(&btn) { mask } else { 0 };
+        bit(Btn::L3, ButtonMask::L3) | bit(Btn::R3, ButtonMask::R3)
     }
 
     pub fn clear(&mut self) {
@@ -65,7 +75,8 @@ impl Pad {
 /// The PlayStation buttons with no GBA equivalent, on the Flip's physical buttons by
 /// position: top (X) is Triangle, left (Y) is Square, and the lower shoulders are
 /// L2 and R2. Cross is the bottom button (B) and Circle the right (A), which the
-/// shared A/B bindings already give.
+/// shared A/B bindings already give. L3 and R3 are the two sticks pushed in, which
+/// only the gamepad node reports (see `device::read_node`).
 const PS1_EXTRAS: [(Device, u16); 4] = [
     (Device::X, ButtonMask::X),
     (Device::Y, ButtonMask::Y),

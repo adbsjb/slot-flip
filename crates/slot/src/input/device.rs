@@ -74,6 +74,16 @@ impl DeviceInput {
     }
 }
 
+/// The two stick clicks, which only the gamepad node reports.
+#[cfg(feature = "flip")]
+fn click(code: u16) -> Option<Btn> {
+    Some(match code {
+        0x13b => Btn::L3, // BTN_THUMBL
+        0x13c => Btn::R3, // BTN_THUMBR
+        _ => return None,
+    })
+}
+
 const POLL_MS: u32 = 10;
 
 fn quicken_poll(sys: &Path, node: &Path) {
@@ -141,8 +151,18 @@ fn read_node(
             }
             #[cfg(feature = "flip")]
             if stick_only {
-                // Gamepad node: contribute only the right stick (fast-forward).
-                // Its buttons and hat duplicate the gpio keyboard node.
+                // Gamepad node: its buttons and hat duplicate the gpio keyboard node,
+                // so only the right stick (fast-forward) and the two stick clicks come
+                // from here; nothing else reports those.
+                if ev.kind == EV_KEY {
+                    if let Some(btn) = click(ev.code) {
+                        match ev.value {
+                            1 => events.push(RawEvent::Down(btn)),
+                            0 => events.push(RawEvent::Up(btn)),
+                            _ => {}
+                        }
+                    }
+                }
                 if ev.kind == EV_ABS {
                     super::sticks::feed(ev.code, ev.value);
                     events.extend(stick.feed(ev));
