@@ -178,6 +178,16 @@ walk a page with Up/Down, so adding a row to an upstream page can break them.
 
 ## 5. Syncing with upstream
 
+### Automated first pass
+
+`.github/workflows/upstream-sync.yml` runs every Monday (and on demand). It
+fetches the **next** `v1.*` release, merges exactly one release into
+`chore/upstream-sync-X.Y.Z`, and either pushes the branch or aborts on conflict.
+It then opens an issue: conflicts to resolve, or a branch ready to review. It
+does **not** open the PR, because a PR made with `GITHUB_TOKEN` does not trigger
+`pr-checks`, and a clean text merge can still be wrong. A human resolves, bumps
+`build_info::UPSTREAM`, follows the checklist below and opens the PR.
+
 ### Setup
 
 ```sh
