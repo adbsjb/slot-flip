@@ -198,8 +198,11 @@ This repository is public and its history is permanent, so:
   an old email address or a device serial to that file.
 - Pre-commit and pre-push refuse a finding, and the `secrets` workflow runs the
   same check plus [gitleaks](https://github.com/gitleaks/gitleaks) over the full
-  history on every push and pull request. `--no-verify` skips the local hooks,
-  not CI.
+  history on every push and pull request.
+- **Do not use `--no-verify`** (or `git commit -n`). It skips pre-commit and
+  commit-msg, but `post-commit` still scans the new commit and, if it holds a
+  finding, undoes the commit and leaves the changes staged. During a rebase or
+  merge it cannot undo safely, so it only warns; CI is the backstop there.
 - A deliberate example in a test may be marked with `check-sensitive: allow` on
   its line; do not use that marker to smuggle a real value.
 
