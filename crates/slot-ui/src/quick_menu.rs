@@ -112,10 +112,11 @@ pub enum QuickRow {
     BindSelect,
     BindMenu,
     Disc,
+    AnalogSticks,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 101] = [
+    pub const ALL: [QuickRow; 102] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -217,6 +218,7 @@ impl QuickRow {
         QuickRow::BindSelect,
         QuickRow::BindMenu,
         QuickRow::Disc,
+        QuickRow::AnalogSticks,
     ];
 
     pub const MAIN: [QuickRow; 5] = [
@@ -346,13 +348,14 @@ impl QuickRow {
         QuickRow::GbBezel,
     ];
 
-    pub const GAME: [QuickRow; 7] = [
+    pub const GAME: [QuickRow; 8] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Rewind,
         QuickRow::Turbo,
         QuickRow::Rumble,
         QuickRow::LeftStick,
+        QuickRow::AnalogSticks,
         QuickRow::EjectSave,
     ];
 
@@ -407,6 +410,7 @@ impl QuickRow {
             | QuickRow::Turbo
             | QuickRow::Rumble
             | QuickRow::LeftStick
+            | QuickRow::AnalogSticks
             | QuickRow::EjectSave => &QuickRow::GAME,
             QuickRow::Wallpaper
             | QuickRow::WallpaperTint
@@ -599,6 +603,7 @@ impl QuickRow {
             QuickRow::BindSelect => "Select",
             QuickRow::BindMenu => "Menu",
             QuickRow::Disc => "Disc",
+            QuickRow::AnalogSticks => "Analog Sticks",
 
             QuickRow::GameUp
             | QuickRow::GameDown

@@ -97,6 +97,9 @@ enum Cmd {
 
 struct Shared {
     input: AtomicU16,
+    /// The two sticks, left x, left y, right x, right y, a 16-bit lane each.
+    analog: AtomicU64,
+    dualshock: AtomicBool,
     speed: AtomicU8,
     observed: AtomicU8,
     state: AtomicU8,
@@ -178,6 +181,8 @@ impl EmuHandle {
         let frames = Frames::new((GBA_W * GBA_H * 4) as usize);
         let shared = Arc::new(Shared {
             input: AtomicU16::new(0),
+            analog: AtomicU64::new(0),
+            dualshock: AtomicBool::new(false),
             speed: AtomicU8::new(Speed::Paused as u8),
             observed: AtomicU8::new(Speed::Paused as u8),
             state: AtomicU8::new(CoreState::Loading as u8),
@@ -353,6 +358,24 @@ impl EmuHandle {
         crate::latency::applied(before, mask.0);
     }
 
+    /// Where the sticks are (left x, left y, right x, right y), read by the next frame.
+    pub fn set_analog(&self, sticks: [i16; 4]) {
+        let packed = sticks
+            .iter()
+            .enumerate()
+            .fold(0u64, |bits, (i, v)| bits | u64::from(*v as u16) << (16 * i));
+        self.shared.analog.store(packed, Ordering::Relaxed);
+    }
+
+    pub fn analog(&self) -> [i16; 4] {
+        unpack_analog(self.shared.analog.load(Ordering::Relaxed))
+    }
+
+    /// Plug a DualShock into port 1, for a game that reads sticks, or take it out.
+    pub fn set_dualshock(&self, on: bool) {
+        self.shared.dualshock.store(on, Ordering::Relaxed);
+    }
+
     pub fn input(&self) -> ButtonMask {
         ButtonMask(self.shared.input.load(Ordering::Relaxed))
     }
@@ -497,6 +520,10 @@ impl Snapshot for EmuSnapshot {
     }
 }
 
+fn unpack_analog(bits: u64) -> [i16; 4] {
+    std::array::from_fn(|i| (bits >> (16 * i)) as u16 as i16)
+}
+
 fn request(cmds: &Sender<Cmd>, shared: &Shared, cmd: Cmd) -> bool {
     if cmds.send(cmd).is_err() {
         return false;
@@ -625,6 +652,7 @@ impl Worker {
         let mut rate = TickRate::new(Instant::now(), 0);
         let mut stalled = false;
         let mut turbo_frame = 0u32;
+        let mut dualshock = false;
         let mut transport: Option<Box<dyn LinkChannel>> = None;
         let mut cable: Option<Cable> = None;
         let mut cable_presents = 0u32;
@@ -707,6 +735,12 @@ impl Worker {
                 self.shared.clocked.notify_all();
             }
             let input = ButtonMask(self.shared.input.load(Ordering::Relaxed));
+            let pad = self.shared.dualshock.load(Ordering::Relaxed);
+            if pad != dualshock {
+                dualshock = pad;
+                core.set_dualshock(pad);
+            }
+            core.set_analog(unpack_analog(self.shared.analog.load(Ordering::Relaxed)));
             crate::latency::emu_frame(input.0);
             let mut span = 1u32;
             let ceiling = match speed {
@@ -1019,7 +1053,11 @@ impl Worker {
             }
             Cmd::Disc(to) => {
                 if core.change_disc(to) {
-                    eprintln!("slot: emu: changing to disc {} of {}", to + 1, core.disc_count());
+                    eprintln!(
+                        "slot: emu: changing to disc {} of {}",
+                        to + 1,
+                        core.disc_count()
+                    );
                 } else {
                     eprintln!("slot: emu: the core would not change to disc {}", to + 1);
                 }

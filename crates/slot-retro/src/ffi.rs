@@ -27,6 +27,14 @@ pub const RUMBLE_WEAK: c_uint = 1;
 pub const PIXEL_FORMAT_XRGB8888: c_uint = 1;
 pub const PIXEL_FORMAT_RGB565: c_uint = 2;
 pub const DEVICE_JOYPAD: c_uint = 1;
+pub const DEVICE_ANALOG: c_uint = 5;
+/// `RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1)`: the DualShock, which PCSX-ReARMed
+/// names for itself. The subclass id is stored plus one in the bits above the type.
+pub const DEVICE_PSE_DUALSHOCK: c_uint = (2 << 8) | DEVICE_ANALOG;
+pub const ANALOG_LEFT: c_uint = 0;
+pub const ANALOG_RIGHT: c_uint = 1;
+pub const ANALOG_X: c_uint = 0;
+pub const ANALOG_Y: c_uint = 1;
 pub const MEMORY_SAVE_RAM: c_uint = 0;
 pub const MEMORY_RTC: c_uint = 1;
 pub const JOYPAD_MASK: c_uint = 256;

@@ -87,6 +87,12 @@ pub trait RetroCore: Send {
     }
     fn set_option(&mut self, _key: &str, _value: &str) {}
     fn set_frame_skip(&mut self, _skip: bool) {}
+    /// The two analog sticks (left x, left y, right x, right y, each +-32767) for
+    /// player 1. Only a core with a pad that has sticks reads them.
+    fn set_analog(&mut self, _sticks: [i16; 4]) {}
+    /// Plug a DualShock (sticks, and a pad that rumbles) into port 1 instead of the
+    /// plain pad. Only a PlayStation core has one.
+    fn set_dualshock(&mut self, _on: bool) {}
     /// How many discs the loaded game has: 0 for anything that is not a disc
     /// core, 1 for a single disc. Only two or more can be changed.
     fn disc_count(&self) -> usize {

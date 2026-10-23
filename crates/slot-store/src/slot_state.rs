@@ -248,6 +248,9 @@ pub struct SlotState {
     pub show_recents: bool,
     pub show_titles: bool,
     pub left_stick_dpad: bool,
+    /// PlayStation games read the sticks as a DualShock does. Off keeps the plain
+    /// pad, with the right stick standing in for R2.
+    pub analog_sticks: bool,
     pub lid_off_min: Option<u8>,
     /// The fork build that last started on this card, so a newer pak can say so
     /// once. Empty on a card that predates the key, and on a fresh card.
@@ -391,6 +394,7 @@ impl Default for SlotState {
             show_recents: false,
             show_titles: false,
             left_stick_dpad: true,
+            analog_sticks: false,
             lid_off_min: None,
             seen_version: String::new(),
             bezel_gba: BezelPick::Ags102,
@@ -487,6 +491,7 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
     text.push_str(&format!("show_recents={}\n", s.show_recents as u8));
     text.push_str(&format!("show_titles={}\n", s.show_titles as u8));
     text.push_str(&format!("left_stick_dpad={}\n", s.left_stick_dpad as u8));
+    text.push_str(&format!("analog_sticks={}\n", s.analog_sticks as u8));
     if let Some(min) = s.lid_off_min {
         text.push_str(&format!("lid_off_min={min}\n"));
     }
@@ -542,6 +547,7 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut show_recents = None;
     let mut show_titles = None;
     let mut left_stick_dpad = None;
+    let mut analog_sticks = None;
     let mut lid_off_min = None;
     let mut seen_version = None;
     let mut bezel_gba = None;
@@ -585,6 +591,7 @@ fn parse(text: &str) -> Option<SlotState> {
             "show_recents" => show_recents = flag(value),
             "show_titles" => show_titles = flag(value),
             "left_stick_dpad" => left_stick_dpad = flag(value),
+            "analog_sticks" => analog_sticks = flag(value),
             "lid_off_min" => lid_off_min = value.parse().ok().filter(|m| LID_OFF_MIN.contains(m)),
             "seen_version" => seen_version = version_value(value),
             "bezel_gba" => bezel_gba = Some(BezelPick::parse(value)),
@@ -638,6 +645,7 @@ fn parse(text: &str) -> Option<SlotState> {
         show_recents: show_recents.unwrap_or(fallback.show_recents),
         show_titles: show_titles.unwrap_or(fallback.show_titles),
         left_stick_dpad: left_stick_dpad.unwrap_or(fallback.left_stick_dpad),
+        analog_sticks: analog_sticks.unwrap_or(fallback.analog_sticks),
         lid_off_min: lid_off_min.or(legacy_sleep_timeout),
         seen_version: seen_version.unwrap_or_default(),
         bezel_gba: bezel_gba.unwrap_or(fallback.bezel_gba),

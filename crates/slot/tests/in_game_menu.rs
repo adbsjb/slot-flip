@@ -96,13 +96,19 @@ fn screen_shows_the_palette_only_when_palettes_are_live() {
             QuickRow::Palette,
             QuickRow::Bezel,
             QuickRow::LeftStick,
-            QuickRow::Disc
+            QuickRow::Disc,
+            QuickRow::AnalogSticks
         ]
     );
     a.set_palette_live(true);
     assert_eq!(
         a.in_game_hidden(),
-        &[QuickRow::Bezel, QuickRow::LeftStick, QuickRow::Disc]
+        &[
+            QuickRow::Bezel,
+            QuickRow::LeftStick,
+            QuickRow::Disc,
+            QuickRow::AnalogSticks
+        ]
     );
 }
 

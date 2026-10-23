@@ -35,6 +35,8 @@ struct Host {
     format: PixelFormat,
     audio: Vec<i16>,
     inputs: [u16; 2],
+    /// Left x, left y, right x, right y, for port 1.
+    analog: [i16; 4],
     system_dir: CString,
     save_dir: CString,
     rumble: Rumble,
@@ -482,7 +484,21 @@ unsafe extern "C" fn audio_batch(data: *const i16, frames: usize) -> usize {
 
 unsafe extern "C" fn input_poll() {}
 
-unsafe extern "C" fn input_state(port: c_uint, device: c_uint, _index: c_uint, id: c_uint) -> i16 {
+unsafe extern "C" fn input_state(port: c_uint, device: c_uint, index: c_uint, id: c_uint) -> i16 {
+    if device == DEVICE_ANALOG {
+        // Only port 1 has sticks; the axes are the two sticks' x and y.
+        if port != 0 {
+            return 0;
+        }
+        let at = match (index, id) {
+            (ANALOG_LEFT, ANALOG_X) => 0,
+            (ANALOG_LEFT, ANALOG_Y) => 1,
+            (ANALOG_RIGHT, ANALOG_X) => 2,
+            (ANALOG_RIGHT, ANALOG_Y) => 3,
+            _ => return 0,
+        };
+        return with_host(|h| h.analog[at]).unwrap_or(0);
+    }
     if device != DEVICE_JOYPAD {
         return 0;
     }
@@ -508,6 +524,7 @@ pub struct LibretroCore {
     loaded: bool,
     state_size: Option<usize>,
     swap: Option<Swap>,
+    dualshock: bool,
     _lib: Library,
 }
 
@@ -660,6 +677,7 @@ impl LibretroCore {
             format: PixelFormat::Xrgb8888,
             audio: Vec::new(),
             inputs: [0; 2],
+            analog: [0; 4],
             system_dir: cdir(system_dir)?,
             save_dir: cdir(save_dir)?,
             rumble: Rumble::default(),
@@ -695,6 +713,7 @@ impl LibretroCore {
             loaded: false,
             state_size: None,
             swap: None,
+            dualshock: false,
             _lib: lib,
         })
     }
@@ -774,6 +793,18 @@ impl LibretroCore {
             }
             self.swap = None;
         }
+    }
+
+    /// The pad plugged into port 1: a plain one, or a DualShock when sticks are wanted.
+    /// A core forgets it when a game loads, so this is said again after every load.
+    fn plug_in_pad(&mut self) {
+        let device = if self.dualshock {
+            DEVICE_PSE_DUALSHOCK
+        } else {
+            DEVICE_JOYPAD
+        };
+        let _a = Active::bind(&mut self.host);
+        unsafe { (self.api.set_controller_port_device)(0, device) };
     }
 
     fn unload(&mut self) {
@@ -866,7 +897,7 @@ impl RetroCore for LibretroCore {
             fps: av.timing.fps,
             sample_rate: av.timing.sample_rate,
         };
-        unsafe { (self.api.set_controller_port_device)(0, DEVICE_JOYPAD) };
+        self.plug_in_pad();
         Ok(())
     }
 
@@ -882,6 +913,23 @@ impl RetroCore for LibretroCore {
         self.host.inputs = [p1.0, p2.0];
         let _a = Active::bind(&mut self.host);
         unsafe { (self.api.run)() };
+    }
+
+    fn set_analog(&mut self, sticks: [i16; 4]) {
+        self.host.analog = sticks;
+    }
+
+    fn set_dualshock(&mut self, on: bool) {
+        if self.dualshock == on {
+            return;
+        }
+        self.dualshock = on;
+        if self.loaded {
+            self.plug_in_pad();
+        }
+        if !on {
+            self.host.analog = [0; 4];
+        }
     }
 
     fn disc_count(&self) -> usize {
@@ -1022,6 +1070,7 @@ mod tests {
             format: PixelFormat::Xrgb8888,
             audio: Vec::new(),
             inputs: [0; 2],
+            analog: [0; 4],
             system_dir: CString::new(".").unwrap(),
             save_dir: CString::new(".").unwrap(),
             rumble: Rumble::default(),
@@ -1886,6 +1935,48 @@ mod tests {
         let button = |id| unsafe { input_state(1, DEVICE_JOYPAD, 0, id) };
         assert_eq!(button(0), 1, "B is bit 0 of the libretro joypad");
         assert_eq!(button(8), 0, "A is not held on port 1");
+    }
+
+    #[test]
+    fn input_state_answers_each_stick_axis_on_port_1() {
+        let mut host = host_with(HashMap::new(), false);
+        host.analog = [100, -200, 300, -400];
+        let _active = Active::bind(&mut host);
+
+        let axis = |port, index, id| unsafe { input_state(port, DEVICE_ANALOG, index, id) };
+        assert_eq!(axis(0, ANALOG_LEFT, ANALOG_X), 100);
+        assert_eq!(axis(0, ANALOG_LEFT, ANALOG_Y), -200);
+        assert_eq!(axis(0, ANALOG_RIGHT, ANALOG_X), 300);
+        assert_eq!(axis(0, ANALOG_RIGHT, ANALOG_Y), -400);
+    }
+
+    #[test]
+    fn input_state_has_no_sticks_past_port_1_or_past_the_two_sticks() {
+        let mut host = host_with(HashMap::new(), false);
+        host.analog = [1, 2, 3, 4];
+        let _active = Active::bind(&mut host);
+
+        assert_eq!(
+            unsafe { input_state(1, DEVICE_ANALOG, ANALOG_LEFT, ANALOG_X) },
+            0
+        );
+        assert_eq!(
+            unsafe { input_state(0, DEVICE_ANALOG, 2, ANALOG_X) },
+            0,
+            "no third stick"
+        );
+        assert_eq!(
+            unsafe { input_state(0, DEVICE_ANALOG, ANALOG_LEFT, 2) },
+            0,
+            "no z axis"
+        );
+    }
+
+    #[test]
+    fn the_dualshock_is_the_playstation_cores_own_device_number() {
+        // PCSX-ReARMed defines it as RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1).
+        assert_eq!(DEVICE_PSE_DUALSHOCK, 517);
+        assert_eq!(DEVICE_PSE_DUALSHOCK & 0xff, DEVICE_ANALOG);
     }
 
     fn native_host() -> Box<Host> {

@@ -982,6 +982,10 @@ impl App {
         if self.discs < 2 {
             hidden.push(QuickRow::Disc);
         }
+        // Only a PlayStation pad has sticks to turn on.
+        if self.playing_platform() != Platform::Ps1 {
+            hidden.push(QuickRow::AnalogSticks);
+        }
         hidden
     }
 
@@ -1046,6 +1050,7 @@ impl App {
             QuickRow::GbcShader => Some(shader_value(self.state.shader_gbc)),
             QuickRow::Rumble => Some(QuickValue::flag(self.state.rumble)),
             QuickRow::LeftStick => Some(QuickValue::flag(self.state.left_stick_dpad)),
+            QuickRow::AnalogSticks => Some(QuickValue::flag(self.state.analog_sticks)),
             QuickRow::EjectSave => Some(QuickValue::flag(self.state.eject_save)),
             QuickRow::Turbo => Some(QuickValue::flag(self.state.turbo)),
             QuickRow::Rewind => Some(QuickValue::flag(self.state.rewind)),
@@ -1377,6 +1382,8 @@ impl App {
         if !self.state.turbo {
             hidden.extend([QuickRow::GameTurboA, QuickRow::GameTurboB]);
         }
+        // The sticks are a PlayStation game's: the setting lives in its menu.
+        hidden.push(QuickRow::AnalogSticks);
         hidden
     }
 
@@ -2257,6 +2264,11 @@ impl App {
         self.left_stick = present;
     }
 
+    /// A PlayStation game is reading the sticks as a DualShock's.
+    pub fn analog_sticks(&self) -> bool {
+        self.playing_platform() == Platform::Ps1 && self.state.analog_sticks
+    }
+
     pub fn left_stick_dpad(&self) -> bool {
         self.left_stick && self.state.left_stick_dpad
     }
@@ -2847,6 +2859,7 @@ impl App {
             | QuickRow::GbPalette
             | QuickRow::Rumble
             | QuickRow::LeftStick
+            | QuickRow::AnalogSticks
             | QuickRow::Theme
             | QuickRow::Recents
             | QuickRow::ShowTitles
@@ -3058,6 +3071,7 @@ impl App {
             }
             QuickRow::Rumble => s.rumble = !s.rumble,
             QuickRow::LeftStick => s.left_stick_dpad = !s.left_stick_dpad,
+            QuickRow::AnalogSticks => s.analog_sticks = !s.analog_sticks,
             QuickRow::EjectSave => s.eject_save = !s.eject_save,
             QuickRow::Turbo => s.turbo = !s.turbo,
             QuickRow::Rewind => s.rewind = !s.rewind,
