@@ -313,6 +313,19 @@ impl Session {
                 }
             }
         }
+        match &self.emu {
+            Some(emu) => {
+                self.app.set_discs(emu.disc_count(), emu.disc_index());
+                if let Some(to) = self.app.take_disc_request() {
+                    emu.change_disc(to);
+                    self.app.set_discs(emu.disc_count(), emu.disc_index());
+                }
+            }
+            None => {
+                self.app.set_discs(0, 0);
+                let _ = self.app.take_disc_request();
+            }
+        }
         if recoloured && self.held() && !self.app.link_active() {
             if let Some(emu) = &self.emu {
                 emu.refresh();

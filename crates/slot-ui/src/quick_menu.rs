@@ -111,10 +111,11 @@ pub enum QuickRow {
     BindStart,
     BindSelect,
     BindMenu,
+    Disc,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 100] = [
+    pub const ALL: [QuickRow; 101] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -215,6 +216,7 @@ impl QuickRow {
         QuickRow::BindStart,
         QuickRow::BindSelect,
         QuickRow::BindMenu,
+        QuickRow::Disc,
     ];
 
     pub const MAIN: [QuickRow; 5] = [
@@ -354,9 +356,10 @@ impl QuickRow {
         QuickRow::EjectSave,
     ];
 
-    pub const PLAY: [QuickRow; 4] = [
+    pub const PLAY: [QuickRow; 5] = [
         QuickRow::Resume,
         QuickRow::States,
+        QuickRow::Disc,
         QuickRow::Settings,
         QuickRow::ExitGame,
     ];
@@ -433,9 +436,11 @@ impl QuickRow {
             QuickRow::BindStart | QuickRow::BindSelect | QuickRow::BindMenu => {
                 &QuickRow::KEY_MAP_START_SELECT
             }
-            QuickRow::Resume | QuickRow::States | QuickRow::Settings | QuickRow::ExitGame => {
-                &QuickRow::PLAY
-            }
+            QuickRow::Resume
+            | QuickRow::States
+            | QuickRow::Disc
+            | QuickRow::Settings
+            | QuickRow::ExitGame => &QuickRow::PLAY,
             QuickRow::PlayScreen | QuickRow::PlayGameplay | QuickRow::PlayControls => {
                 &QuickRow::SETTINGS
             }
@@ -593,6 +598,7 @@ impl QuickRow {
             QuickRow::BindStart => "Start",
             QuickRow::BindSelect => "Select",
             QuickRow::BindMenu => "Menu",
+            QuickRow::Disc => "Disc",
 
             QuickRow::GameUp
             | QuickRow::GameDown

@@ -12,9 +12,12 @@ pub const SET_PIXEL_FORMAT: c_uint = 10;
 pub const GET_VARIABLE: c_uint = 15;
 pub const SET_VARIABLES: c_uint = 16;
 pub const GET_VARIABLE_UPDATE: c_uint = 17;
+pub const SET_DISK_CONTROL_INTERFACE: c_uint = 13;
 pub const GET_RUMBLE_INTERFACE: c_uint = 23;
 pub const GET_LOG_INTERFACE: c_uint = 27;
 pub const GET_SAVE_DIRECTORY: c_uint = 31;
+pub const GET_DISK_CONTROL_INTERFACE_VERSION: c_uint = 57;
+pub const SET_DISK_CONTROL_EXT_INTERFACE: c_uint = 58;
 pub const SET_AUDIO_BUFFER_STATUS_CALLBACK: c_uint = 62;
 pub const SET_NETPACKET_INTERFACE: c_uint = 78;
 
@@ -97,6 +100,29 @@ pub struct Variable {
 pub struct LogCallback {
     pub log: *const c_void,
 }
+
+/// `retro_disk_control_ext_callback`. The first seven members are the whole of the
+/// older `retro_disk_control_callback`, so one layout reads both; a core that
+/// only offers the older one never has the last three looked at.
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct DiskControl {
+    pub set_eject_state: Option<unsafe extern "C" fn(bool) -> bool>,
+    pub get_eject_state: Option<unsafe extern "C" fn() -> bool>,
+    pub get_image_index: Option<unsafe extern "C" fn() -> c_uint>,
+    pub set_image_index: Option<unsafe extern "C" fn(c_uint) -> bool>,
+    pub get_num_images: Option<unsafe extern "C" fn() -> c_uint>,
+    pub replace_image_index: Option<unsafe extern "C" fn(c_uint, *const GameInfo) -> bool>,
+    pub add_image_index: Option<unsafe extern "C" fn() -> bool>,
+    pub set_initial_image: Option<unsafe extern "C" fn(c_uint, *const c_char) -> bool>,
+    pub get_image_path: Option<unsafe extern "C" fn(c_uint, *mut c_char, usize) -> bool>,
+    pub get_image_label: Option<unsafe extern "C" fn(c_uint, *mut c_char, usize) -> bool>,
+}
+
+// SAFETY: function pointers only.
+unsafe impl Send for DiskControl {}
+
+pub const DISK_CONTROL_BASE_BYTES: usize = 7 * std::mem::size_of::<usize>();
 
 pub type SetRumbleStateFn = unsafe extern "C" fn(c_uint, c_uint, u16) -> bool;
 

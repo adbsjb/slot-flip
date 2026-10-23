@@ -91,6 +91,7 @@ enum Cmd {
     EndLink,
     BeginCable(u8, Box<dyn LinkChannel>),
     SetOption(String, String),
+    Disc(usize),
     Refresh,
 }
 
@@ -119,6 +120,11 @@ struct Shared {
     locked: AtomicBool,
     present_ns: AtomicU64,
     requested: AtomicBool,
+    /// Discs in the loaded game (0 until it has loaded, 1 for a single disc) and
+    /// the one in the drive or being changed to, as the core last reported them.
+    discs: AtomicU8,
+    disc: AtomicU8,
+    disc_changing: AtomicBool,
     clock: Mutex<Clock>,
     clocked: Condvar,
 }
@@ -195,6 +201,9 @@ impl EmuHandle {
             locked: AtomicBool::new(false),
             present_ns: AtomicU64::new(PRESENT.as_nanos() as u64),
             requested: AtomicBool::new(false),
+            discs: AtomicU8::new(0),
+            disc: AtomicU8::new(0),
+            disc_changing: AtomicBool::new(false),
             clock: Mutex::new(Clock::default()),
             clocked: Condvar::new(),
         });
@@ -271,6 +280,34 @@ impl EmuHandle {
             &self.shared,
             Cmd::SetOption(key.to_owned(), value.to_owned()),
         );
+    }
+
+    /// How many discs the game has. Under two there is nothing to change.
+    pub fn disc_count(&self) -> usize {
+        usize::from(self.shared.discs.load(Ordering::Relaxed))
+    }
+
+    /// The disc in the drive, or the one it is being changed to.
+    pub fn disc_index(&self) -> usize {
+        usize::from(self.shared.disc.load(Ordering::Relaxed))
+    }
+
+    /// The lid is open for a disc change.
+    pub fn disc_changing(&self) -> bool {
+        self.shared.disc_changing.load(Ordering::Relaxed)
+    }
+
+    /// Ask for disc `to` (0 is the first). The change finishes over the frames
+    /// that follow, so it only completes while the game is running.
+    pub fn change_disc(&self, to: usize) {
+        if to >= self.disc_count() {
+            return;
+        }
+        // Say so now, so the menu does not show the old disc until the emulator
+        // thread has got round to the request. It sets the true values after.
+        self.shared.disc.store(to as u8, Ordering::Relaxed);
+        self.shared.disc_changing.store(true, Ordering::Relaxed);
+        request(&self.cmds, &self.shared, Cmd::Disc(to));
     }
 
     pub fn set_driven(&self, driven: bool) {
@@ -567,6 +604,7 @@ impl Worker {
         };
         let mut resampler = Resampler::new(core_hz, device_hz);
         ring.clear_faults();
+        self.publish_discs(&*core);
         self.shared
             .state
             .store(CoreState::Ready as u8, Ordering::Release);
@@ -979,6 +1017,14 @@ impl Worker {
             Cmd::SetOption(key, value) => {
                 core.set_option(&key, &value);
             }
+            Cmd::Disc(to) => {
+                if core.change_disc(to) {
+                    eprintln!("slot: emu: changing to disc {} of {}", to + 1, core.disc_count());
+                } else {
+                    eprintln!("slot: emu: the core would not change to disc {}", to + 1);
+                }
+                self.publish_discs(core);
+            }
             Cmd::EndLink => {
                 self.shared.link_lost.store(false, Ordering::Relaxed);
                 self.shared.peer_ended.store(false, Ordering::Relaxed);
@@ -1042,6 +1088,20 @@ impl Worker {
         self.frames.publish_sized(buf, core.video_size());
         self.shared.published.fetch_add(1, Ordering::Relaxed);
         crate::latency::published();
+        self.publish_discs(core);
+    }
+
+    fn publish_discs(&self, core: &dyn RetroCore) {
+        let clamp = |n: usize| n.min(usize::from(u8::MAX)) as u8;
+        self.shared
+            .discs
+            .store(clamp(core.disc_count()), Ordering::Relaxed);
+        self.shared
+            .disc
+            .store(clamp(core.disc_index()), Ordering::Relaxed);
+        self.shared
+            .disc_changing
+            .store(core.disc_changing(), Ordering::Relaxed);
     }
 
     fn speed(&self) -> Speed {

@@ -46,6 +46,8 @@ struct Host {
     options: std::collections::HashMap<String, std::ffi::CString>,
     options_dirty: bool,
     declared: std::collections::HashMap<String, Vec<String>>,
+    /// What the core gave us to change discs with, if it is a disc core.
+    disk: Option<DiskControl>,
 }
 
 thread_local! {
@@ -242,6 +244,29 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
             }
             let cb = std::ptr::read(data as *const AudioBufferStatusCallback);
             with_host(|h| h.audio_status = cb.callback).is_some()
+        }
+        GET_DISK_CONTROL_INTERFACE_VERSION => {
+            if data.is_null() {
+                return false;
+            }
+            // Version 1 is the one with labels and paths, which is what we read.
+            *(data as *mut c_uint) = 1;
+            true
+        }
+        SET_DISK_CONTROL_INTERFACE | SET_DISK_CONTROL_EXT_INTERFACE => {
+            if data.is_null() {
+                return with_host(|h| h.disk = None).is_some();
+            }
+            // The older struct is only the first seven members; reading past it
+            // would be reading whatever the core had next to it.
+            let bytes = if cmd == SET_DISK_CONTROL_INTERFACE {
+                DISK_CONTROL_BASE_BYTES
+            } else {
+                std::mem::size_of::<DiskControl>()
+            };
+            let mut control: DiskControl = std::mem::zeroed();
+            ptr::copy_nonoverlapping(data as *const u8, &mut control as *mut _ as *mut u8, bytes);
+            with_host(|h| h.disk = Some(control)).is_some()
         }
         SET_NETPACKET_INTERFACE => {
             if data.is_null() {
@@ -482,8 +507,22 @@ pub struct LibretroCore {
     av: AvInfo,
     loaded: bool,
     state_size: Option<usize>,
+    swap: Option<Swap>,
     _lib: Library,
 }
+
+/// A disc change in progress. The lid is opened, held open while the game
+/// notices, the disc is switched while it is open, and only then closed: a game
+/// polls the drive, so an instant swap is often not seen at all.
+struct Swap {
+    target: usize,
+    frames: u32,
+}
+
+/// Frames the lid stays open before the disc is switched, and before it is closed.
+/// At 60 fps that is three quarters of a second and then one and a half.
+pub const SWAP_SWITCH_FRAME: u32 = 45;
+pub const SWAP_CLOSE_FRAME: u32 = 90;
 
 /// What a core says about itself before any content is loaded.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -632,6 +671,7 @@ impl LibretroCore {
             options: std::collections::HashMap::new(),
             options_dirty: false,
             declared: std::collections::HashMap::new(),
+            disk: None,
         });
         unsafe {
             let _a = Active::bind(&mut host);
@@ -654,11 +694,90 @@ impl LibretroCore {
             },
             loaded: false,
             state_size: None,
+            swap: None,
             _lib: lib,
         })
     }
 
+    /// How many discs the loaded game has. One (or none) means there is nothing
+    /// to change, so the caller need not offer it.
+    pub fn disc_count(&self) -> usize {
+        let Some(count) = self.host.disk.and_then(|d| d.get_num_images) else {
+            return 0;
+        };
+        unsafe { count() as usize }
+    }
+
+    /// The disc in the drive, or the one it is being changed to.
+    pub fn disc_index(&self) -> usize {
+        if let Some(swap) = &self.swap {
+            return swap.target;
+        }
+        let Some(index) = self.host.disk.and_then(|d| d.get_image_index) else {
+            return 0;
+        };
+        unsafe { index() as usize }
+    }
+
+    /// Whether a disc change is still under way.
+    pub fn disc_changing(&self) -> bool {
+        self.swap.is_some()
+    }
+
+    /// Start changing to disc `to`. The change finishes over the next frames, so
+    /// the game sees the lid open and close. False if there is no such disc or
+    /// the game has only the one; asking again mid-change just retargets it.
+    pub fn change_disc(&mut self, to: usize) -> bool {
+        if !self.loaded || self.disc_count() < 2 || to >= self.disc_count() {
+            return false;
+        }
+        if let Some(swap) = &mut self.swap {
+            swap.target = to;
+            return true;
+        }
+        if to == self.disc_index() {
+            return true;
+        }
+        let Some(eject) = self.host.disk.and_then(|d| d.set_eject_state) else {
+            return false;
+        };
+        let _a = Active::bind(&mut self.host);
+        if !unsafe { eject(true) } {
+            return false;
+        }
+        self.swap = Some(Swap {
+            target: to,
+            frames: 0,
+        });
+        true
+    }
+
+    fn advance_swap(&mut self) {
+        let Some(swap) = &mut self.swap else { return };
+        swap.frames += 1;
+        let (frames, target) = (swap.frames, swap.target);
+        let Some(control) = self.host.disk else {
+            self.swap = None;
+            return;
+        };
+        let _a = Active::bind(&mut self.host);
+        if frames == SWAP_SWITCH_FRAME {
+            if let Some(set) = control.set_image_index {
+                if !unsafe { set(target as c_uint) } {
+                    eprintln!("slot-retro: the core would not switch to disc {target}");
+                }
+            }
+        }
+        if frames >= SWAP_CLOSE_FRAME {
+            if let Some(eject) = control.set_eject_state {
+                unsafe { eject(false) };
+            }
+            self.swap = None;
+        }
+    }
+
     fn unload(&mut self) {
+        self.swap = None;
         if !self.loaded {
             return;
         }
@@ -759,9 +878,26 @@ impl RetroCore for LibretroCore {
         if !self.loaded {
             return;
         }
+        self.advance_swap();
         self.host.inputs = [p1.0, p2.0];
         let _a = Active::bind(&mut self.host);
         unsafe { (self.api.run)() };
+    }
+
+    fn disc_count(&self) -> usize {
+        LibretroCore::disc_count(self)
+    }
+
+    fn disc_index(&self) -> usize {
+        LibretroCore::disc_index(self)
+    }
+
+    fn disc_changing(&self) -> bool {
+        LibretroCore::disc_changing(self)
+    }
+
+    fn change_disc(&mut self, to: usize) -> bool {
+        LibretroCore::change_disc(self, to)
     }
 
     fn set_frame_skip(&mut self, skip: bool) {
@@ -897,6 +1033,7 @@ mod tests {
             options,
             options_dirty,
             declared: HashMap::new(),
+            disk: None,
         })
     }
 

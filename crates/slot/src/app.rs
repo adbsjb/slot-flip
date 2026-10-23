@@ -391,6 +391,12 @@ pub struct App {
     colour_pending: Option<bool>,
     palette_live: bool,
     palette_pending: Option<GbColors>,
+    /// Discs in the game being played, and the one in the drive (or being changed
+    /// to), as the emulator last said; the change the player has asked for waits in
+    /// `disc_pending` for the session to pass on.
+    discs: usize,
+    disc: usize,
+    disc_pending: Option<usize>,
     link_player: Option<u8>,
     platform: Platform,
     named_core: bool,
@@ -577,6 +583,9 @@ impl App {
             colour_pending: None,
             palette_live: false,
             palette_pending: None,
+            discs: 0,
+            disc: 0,
+            disc_pending: None,
             link_player: None,
             platform: Platform::default(),
             named_core: false,
@@ -969,6 +978,10 @@ impl App {
         if !self.state.turbo {
             hidden.extend([QuickRow::GameTurboA, QuickRow::GameTurboB]);
         }
+        // Only a game on more than one disc has a disc to change.
+        if self.discs < 2 {
+            hidden.push(QuickRow::Disc);
+        }
         hidden
     }
 
@@ -1013,6 +1026,7 @@ impl App {
                 self.quick_value(twin)
             }
             QuickRow::Brightness => Some(QuickValue::level(self.state.brightness)),
+            QuickRow::Disc => Some(QuickValue::level(self.disc as u8 + 1)),
             QuickRow::BlueLight => Some(match self.state.blue_light {
                 0 => QuickValue::Off,
                 n => QuickValue::level(n),
@@ -2424,6 +2438,28 @@ impl App {
         self.palette_pending.take()
     }
 
+    /// What the emulator says about the discs: how many the game has and which is
+    /// in. While a change the player asked for is still waiting to be passed on,
+    /// the disc they chose stays on show.
+    pub fn set_discs(&mut self, count: usize, index: usize) {
+        self.discs = count;
+        if self.disc_pending.is_none() {
+            self.disc = index;
+        }
+    }
+
+    pub fn discs(&self) -> usize {
+        self.discs
+    }
+
+    pub fn disc(&self) -> usize {
+        self.disc
+    }
+
+    pub fn take_disc_request(&mut self) -> Option<usize> {
+        self.disc_pending.take()
+    }
+
     pub fn core(&self) -> Core {
         self.core
     }
@@ -2819,6 +2855,7 @@ impl App {
             | QuickRow::Resume
             | QuickRow::States
             | QuickRow::Settings
+            | QuickRow::Disc
             | QuickRow::ExitGame
             | QuickRow::PlayScreen
             | QuickRow::PlayGameplay
@@ -2882,6 +2919,21 @@ impl App {
         }
     }
 
+    /// Step to the next (or previous) disc of the game, wrapping round. The
+    /// emulator is told through `take_disc_request`; the number shown moves now.
+    fn change_disc(&mut self, right: bool) {
+        let n = self.discs;
+        if n < 2 {
+            return;
+        }
+        self.disc = if right {
+            (self.disc + 1) % n
+        } else {
+            (self.disc + n - 1) % n
+        };
+        self.disc_pending = Some(self.disc);
+    }
+
     fn change_setting(&mut self, row: QuickRow, right: bool) {
         let row = self.playing_row(row);
         if row.bind_at().is_some() || row.child().is_some() {
@@ -2923,6 +2975,10 @@ impl App {
             };
             self.cycle_bezel(platform, right);
             self.persist();
+            return;
+        }
+        if row == QuickRow::Disc {
+            self.change_disc(right);
             return;
         }
         if row == QuickRow::Wallpaper {
@@ -3022,6 +3078,7 @@ impl App {
             | QuickRow::Resume
             | QuickRow::States
             | QuickRow::Settings
+            | QuickRow::Disc
             | QuickRow::ExitGame
             | QuickRow::PlayScreen
             | QuickRow::PlayGameplay

@@ -87,6 +87,24 @@ pub trait RetroCore: Send {
     }
     fn set_option(&mut self, _key: &str, _value: &str) {}
     fn set_frame_skip(&mut self, _skip: bool) {}
+    /// How many discs the loaded game has: 0 for anything that is not a disc
+    /// core, 1 for a single disc. Only two or more can be changed.
+    fn disc_count(&self) -> usize {
+        0
+    }
+    /// The disc in the drive, or the one it is being changed to.
+    fn disc_index(&self) -> usize {
+        0
+    }
+    /// A disc change is still under way (the lid is open).
+    fn disc_changing(&self) -> bool {
+        false
+    }
+    /// Begin changing to disc `to` (0 is the first). The change finishes over
+    /// the frames that follow. False if it cannot be done.
+    fn change_disc(&mut self, _to: usize) -> bool {
+        false
+    }
     fn video_xrgb8888(&self) -> &[u8];
     /// Width and height of what `video_xrgb8888` holds. Every core defaults to
     /// the fixed GBA-sized canvas the Game Boy family is centred in; a core in

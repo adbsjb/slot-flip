@@ -642,3 +642,97 @@ fn feed_through(
         }
     }
 }
+
+/// The PlayStation core built by `cores/pcsx/build.sh`, when it has been.
+pub fn vendored_pcsx() -> Option<PathBuf> {
+    let p = repo_root().join(format!(
+        "vendor/pcsx_rearmed_libretro.{}",
+        std::env::consts::DLL_EXTENSION
+    ));
+    if !p.exists() {
+        eprintln!("no pcsx_rearmed core built, skipping");
+    }
+    p.exists().then_some(p)
+}
+
+/// A PlayStation executable that only loops, so a core has content without
+/// anyone's game or a BIOS.
+pub fn spin_exe(dir: &Path) -> PathBuf {
+    let put = |b: &mut Vec<u8>, at: usize, v: u32| b[at..at + 4].copy_from_slice(&v.to_le_bytes());
+    let mut exe = vec![0u8; 2048 * 2];
+    exe[..8].copy_from_slice(b"PS-X EXE");
+    put(&mut exe, 0x10, 0x8001_0000);
+    put(&mut exe, 0x18, 0x8001_0000);
+    put(&mut exe, 0x1c, 2048);
+    put(&mut exe, 0x30, 0x801f_fff0);
+    let region = b"Sony Computer Entertainment Inc. for North America area";
+    exe[0x4c..0x4c + region.len()].copy_from_slice(region);
+    put(&mut exe, 2048, 0x0800_4000);
+    let path = dir.join("spin.exe");
+    std::fs::write(&path, exe).unwrap();
+    path
+}
+
+/// `n` tiny discs (a `.cue` and a `.bin` each: just enough ISO 9660 for a core to
+/// accept them, booting the do-nothing program) and an `.m3u` naming them in
+/// order. Nothing of anyone's game.
+pub fn blank_discs(dir: &Path, n: usize) -> PathBuf {
+    const SECTOR: usize = 2352;
+    const DATA: usize = 24;
+    let exe = std::fs::read(spin_exe(dir)).unwrap();
+    let mut list = String::new();
+    for i in 1..=n {
+        let mut disc = vec![0u8; SECTOR * 300];
+        for s in disc.chunks_exact_mut(SECTOR) {
+            s[1..11].fill(0xff);
+            s[15] = 2;
+            s[18] = 8;
+            s[22] = 8;
+        }
+        let put = |disc: &mut Vec<u8>, lba: usize, at: usize, bytes: &[u8]| {
+            let o = lba * SECTOR + DATA + at;
+            disc[o..o + bytes.len()].copy_from_slice(bytes);
+        };
+        put(
+            &mut disc,
+            4,
+            60,
+            b"Sony Computer Entertainment Inc. for North America area",
+        );
+        put(&mut disc, 16, 0, &[1]);
+        put(&mut disc, 16, 1, b"CD001");
+        put(&mut disc, 16, 40, format!("BLANK{i}").as_bytes());
+        let mut root = [0u8; 34];
+        root[0] = 34;
+        root[2..6].copy_from_slice(&20u32.to_le_bytes());
+        root[10..14].copy_from_slice(&4096u32.to_le_bytes());
+        root[25] = 2;
+        root[32] = 1;
+        put(&mut disc, 16, 156, &root);
+        let name = b"PSX.EXE;1";
+        let mut file = vec![0u8; 33 + name.len() + 1];
+        file[0] = file.len() as u8;
+        file[2..6].copy_from_slice(&22u32.to_le_bytes());
+        file[10..14].copy_from_slice(&4096u32.to_le_bytes());
+        file[32] = name.len() as u8;
+        file[33..33 + name.len()].copy_from_slice(name);
+        put(&mut disc, 20, 0, &file);
+        put(&mut disc, 22, 0, &exe[..2048]);
+        put(&mut disc, 23, 0, &exe[2048..4096]);
+
+        let (bin, cue) = (
+            format!("Blank (Disc {i}).bin"),
+            format!("Blank (Disc {i}).cue"),
+        );
+        std::fs::write(dir.join(&bin), disc).unwrap();
+        std::fs::write(
+            dir.join(&cue),
+            format!("FILE \"{bin}\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n"),
+        )
+        .unwrap();
+        list.push_str(&format!("{cue}\n"));
+    }
+    let m3u = dir.join("Blank.m3u");
+    std::fs::write(&m3u, list).unwrap();
+    m3u
+}
