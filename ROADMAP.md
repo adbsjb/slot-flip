@@ -73,6 +73,8 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 
 - ✅ **Released v0.10.0**: Sega Mega Drive / Genesis, Master System and Game Gear on drawn black carts, with Genesis Plus GX bundled
 
+- ✅ **Released v0.10.1**: label scans keep their own shape on the NES, SNES and Sega carts ([#30](https://github.com/boomchu-123/slot-flip/issues/30))
+
 **Next**
 - 💡 **Card repair on MinUI.** Upstream's SELECT + START repair is switched off
   on the Flip (its script is written for upstream's own devices and unmounts the
