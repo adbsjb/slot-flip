@@ -247,7 +247,7 @@ pub fn cart_face(cart: &Cart) -> CartFace {
     let art = cart
         .label
         .as_deref()
-        .and_then(|p| cover_for(cart.platform, p, lw, lh));
+        .and_then(|p| label_for(cart.platform, p, lw, lh));
     cart_face_with(cart, art)
 }
 
@@ -324,6 +324,28 @@ pub fn cart_backing(shell: Option<GbShell>) -> CartFace {
     }
 }
 
+/// A cart's label art, with the size it was printed at. For most systems that is the
+/// label's own size; for a drawn cartridge it may be smaller, because a label scan
+/// keeps its proportions instead of being cropped to the generic recess.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct LabelArt {
+    pub rgba: Vec<u8>,
+    pub w: u32,
+    pub h: u32,
+}
+
+/// Label art for `platform`'s cart, fitted to a label of at most `w`x`h`.
+pub fn label_for(platform: Platform, path: &std::path::Path, w: u32, h: u32) -> Option<LabelArt> {
+    let sized = |rgba: Vec<u8>, w, h| LabelArt { rgba, w, h };
+    match platform {
+        Platform::Ps1 => art::disc_cover(path, w.min(h)).map(|a| sized(a, w.min(h), w.min(h))),
+        Platform::Nes | Platform::Snes | Platform::Md | Platform::Sms | Platform::Gg => {
+            art::label_cover(path, w, h).map(|(a, w, h)| sized(a, w, h))
+        }
+        _ => art::cover(path, w, h).map(|a| sized(a, w, h)),
+    }
+}
+
 /// Cover art fitted to what it is printed on: a disc's circle, or a cart's label.
 pub fn cover_for(platform: Platform, path: &std::path::Path, w: u32, h: u32) -> Option<Vec<u8>> {
     match platform {
@@ -346,16 +368,16 @@ pub fn label_size(cart: &Cart) -> (u32, u32) {
     (lw, lh)
 }
 
-pub fn cart_face_with(cart: &Cart, art: Option<Vec<u8>>) -> CartFace {
+pub fn cart_face_with(cart: &Cart, art: Option<LabelArt>) -> CartFace {
     match shape_of(cart) {
-        Shape::Disc => return disc::face(&label_text(cart), art),
+        Shape::Disc => return disc::face(&label_text(cart), art.map(|a| a.rgba)),
         Shape::Pak(pak) => return pak.face(&label_text(cart), art),
         _ => {}
     }
     let s = spec(shape_of(cart));
     let mut face = shell_face(&s, &shell_for(cart));
     let label = match art {
-        Some(rgba) => rgba,
+        Some(art) => art.rgba,
         None => generated_label(&s, &label_text(cart)),
     };
     paste_label(&s, &mut face, &label);

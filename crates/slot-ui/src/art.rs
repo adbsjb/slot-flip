@@ -5,6 +5,45 @@ pub fn cover(path: &Path, w: u32, h: u32) -> Option<Vec<u8>> {
     cover_rgba(&src, sw, sh, w, h)
 }
 
+/// How elongated a picture may be, as width over height, and still be taken for a scan
+/// of a cartridge label. Real labels sit well inside this; box art is taller than it
+/// is wide and a wheel or banner is far wider, and those are cropped to fill instead.
+pub const LABEL_ASPECT: (f32, f32) = (1.0, 2.4);
+
+/// How near, in pixels, a label may come to the room it has before it is simply given
+/// all of it, so a scan that is a hair off the recess's shape is not framed by a seam.
+const SNAP: u32 = 2;
+
+/// The size a label scan is printed at: its own proportions, as large as fits in
+/// `bw`x`bh`, or all of that room when the picture is not shaped like a label.
+pub(crate) fn label_box(sw: u32, sh: u32, bw: u32, bh: u32) -> (u32, u32) {
+    if sw == 0 || sh == 0 || bw == 0 || bh == 0 {
+        return (bw, bh);
+    }
+    let aspect = sw as f32 / sh as f32;
+    if !(LABEL_ASPECT.0..=LABEL_ASPECT.1).contains(&aspect) {
+        return (bw, bh);
+    }
+    let scale = (bw as f32 / sw as f32).min(bh as f32 / sh as f32);
+    let fit = |n: u32, room: u32| {
+        let v = ((n as f32 * scale).round() as u32).clamp(1, room);
+        if room - v <= SNAP {
+            room
+        } else {
+            v
+        }
+    };
+    (fit(sw, bw), fit(sh, bh))
+}
+
+/// A label scan fitted to a cartridge's label: it keeps its own shape, so none of it
+/// is cropped, and comes back with the size it was printed at.
+pub fn label_cover(path: &Path, bw: u32, bh: u32) -> Option<(Vec<u8>, u32, u32)> {
+    let (src, sw, sh) = decode(path)?;
+    let (w, h) = label_box(sw, sh, bw, bh);
+    Some((cover_rgba(&src, sw, sh, w, h)?, w, h))
+}
+
 /// Cover art for a disc: the front of a jewel case, fitted to the circle it is
 /// printed on. A PlayStation front insert carries the black "PlayStation" spine
 /// strip down its left edge, which belongs to the case and not to the disc, so it
