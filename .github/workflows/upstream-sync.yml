@@ -46,7 +46,7 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git remote add upstream https://github.com/BrandonKowalski/slot.git
           # Only v1.*: upstream's old v0.* tags collide with this fork's own.
-          git fetch --tags upstream 'refs/tags/v1.*:refs/tags/v1.*'
+          git fetch upstream 'refs/tags/v1.*:refs/tags/v1.*'
           tags=$(git tag -l 'v1.*' --sort=v:refname)
           base=""
           next=""
