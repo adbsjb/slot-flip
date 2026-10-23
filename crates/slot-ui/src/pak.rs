@@ -11,7 +11,7 @@
 
 use std::sync::OnceLock;
 
-use crate::cart::{ink, label_colour, CartFace};
+use crate::cart::{ink, label_colour, CartFace, LabelArt};
 use crate::text;
 
 /// Which cartridge a system is drawn as.
@@ -31,6 +31,7 @@ pub enum Pak {
 type Rr = (f32, f32, f32, f32, f32);
 type Rect = (f32, f32, f32, f32);
 
+#[derive(Clone, Copy)]
 pub struct Design {
     pub w: u32,
     pub h: u32,
@@ -158,7 +159,7 @@ impl Pak {
         })
     }
 
-    pub fn face(self, title: &str, art: Option<Vec<u8>>) -> CartFace {
+    pub fn face(self, title: &str, art: Option<LabelArt>) -> CartFace {
         self.design().face(title, art)
     }
 }
@@ -242,13 +243,37 @@ impl Design {
         v
     }
 
-    fn face(&self, title: &str, art: Option<Vec<u8>>) -> CartFace {
+    /// This design with its label recess shrunk to `w`x`h` and centred in the room it had.
+    fn with_label_size(&self, w: u32, h: u32) -> Design {
+        let (lx, ly, lw, lh) = self.label;
+        Design {
+            label: (lx + (lw - w) / 2, ly + (lh - h) / 2, w, h),
+            ..*self
+        }
+    }
+
+    /// The cart, with `art` on its label. A label scan keeps its own shape, so the
+    /// recess takes that shape (no larger than the one this design has) and nothing of
+    /// the scan is cropped; art that is not that size, or none, gets the generated label.
+    fn face(&self, title: &str, art: Option<LabelArt>) -> CartFace {
+        let (_, _, lw, lh) = self.label;
+        match art {
+            Some(a)
+                if a.w > 0
+                    && a.h > 0
+                    && a.w <= lw
+                    && a.h <= lh
+                    && a.rgba.len() == (a.w * a.h * 4) as usize =>
+            {
+                self.with_label_size(a.w, a.h).paint(a.rgba)
+            }
+            _ => self.paint(self.generated(title)),
+        }
+    }
+
+    fn paint(&self, label: Vec<u8>) -> CartFace {
         let (lx, ly, lw, lh) = self.label;
         let (w, h) = (self.w, self.h);
-        let label = match art {
-            Some(a) if a.len() == (lw * lh * 4) as usize => a,
-            _ => self.generated(title),
-        };
         let mut rgba = vec![0u8; (w * h * 4) as usize];
         for y in 0..h {
             for x in 0..w {
@@ -260,18 +285,21 @@ impl Design {
                 }
                 let i = ((y * w + x) * 4) as usize;
                 let on_label = (lx..lx + lw).contains(&x) && (ly..ly + lh).contains(&y);
+                // Lit from above: lighter at the top, darker down the face.
+                let t = fy / h as f32;
+                let shade = 14.0 - 34.0 * t + grain(x, y) + self.moulding(fx, fy);
+                let plastic = [
+                    self.plastic[0] + shade,
+                    self.plastic[1] + shade,
+                    self.plastic[2] + shade,
+                ];
                 let mut c = if on_label {
+                    // A scan with transparent corners lets the plastic show through.
                     let l = (((y - ly) * lw + (x - lx)) * 4) as usize;
-                    [label[l] as f32, label[l + 1] as f32, label[l + 2] as f32]
+                    let a = label[l + 3] as f32 / 255.0;
+                    [0, 1, 2].map(|k| label[l + k] as f32 * a + plastic[k] * (1.0 - a))
                 } else {
-                    // Lit from above: lighter at the top, darker down the face.
-                    let t = fy / h as f32;
-                    let shade = 14.0 - 34.0 * t + grain(x, y) + self.moulding(fx, fy);
-                    [
-                        self.plastic[0] + shade,
-                        self.plastic[1] + shade,
-                        self.plastic[2] + shade,
-                    ]
+                    plastic
                 };
                 // A bright lip on the top edge, and the rim darker where it turns away.
                 let inside = -d;

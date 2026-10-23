@@ -241,7 +241,8 @@ fn every_pak_design_fits_the_slot_and_draws_to_its_own_box() {
 #[test]
 fn a_snes_cart_has_a_label_a_narrower_foot_and_square_free_corners() {
     let d = tmp_root();
-    write_art_in(&d, "SNES", "Chrono", 128, 112, [20, 20, 200]);
+    // The recess's own proportions, so the art fills it edge to edge.
+    write_art_in(&d, "SNES", "Chrono", 228, 168, [20, 20, 200]);
     let c = snes_pak(&d, "Chrono");
     let (lw, lh) = label_size(&c);
     let f = cart_face(&c);
@@ -348,7 +349,8 @@ fn the_sega_carts_differ_from_each_other_and_from_the_nintendo_ones() {
 #[test]
 fn a_sega_cart_takes_its_cover_art_in_its_own_label() {
     let d = tmp_root();
-    write_art_in(&d, "MD", "Sonic", 128, 112, [200, 20, 20]);
+    // The recess's own proportions, so the art fills it edge to edge.
+    write_art_in(&d, "MD", "Sonic", 256, 176, [200, 20, 20]);
     let c = sega_cart(&d, "MD", "Sonic.md");
     let (lw, lh) = label_size(&c);
     let f = cart_face(&c);
@@ -361,4 +363,171 @@ fn a_sega_cart_takes_its_cover_art_in_its_own_label() {
             "({dx},{dy}) is {r},{g},{b}"
         );
     }
+}
+
+/// Writes an RGBA PNG whose pixel at (x, y) is `px(x, y)`.
+fn write_png(path: &std::path::Path, w: u32, h: u32, px: impl Fn(u32, u32) -> [u8; 4]) {
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let f = std::fs::File::create(path).unwrap();
+    let mut enc = png::Encoder::new(std::io::BufWriter::new(f), w, h);
+    enc.set_color(png::ColorType::Rgba);
+    enc.set_depth(png::BitDepth::Eight);
+    let mut data = Vec::with_capacity((w * h * 4) as usize);
+    for y in 0..h {
+        for x in 0..w {
+            data.extend(px(x, y));
+        }
+    }
+    enc.write_header().unwrap().write_image_data(&data).unwrap();
+}
+
+/// A cart for `system` whose label is a PNG of `w`x`h` made by `px`.
+fn cart_with_scan(
+    d: &TempDir,
+    system: &str,
+    file: &str,
+    w: u32,
+    h: u32,
+    px: impl Fn(u32, u32) -> [u8; 4],
+) -> Cart {
+    let c = sega_or_nintendo_cart(d, system, file);
+    let stem = file.rsplit_once('.').unwrap().0;
+    let label = d
+        .path()
+        .join("Labels")
+        .join(system)
+        .join(format!("{stem}.png"));
+    write_png(&label, w, h, px);
+    scan(d.path())
+        .unwrap()
+        .into_iter()
+        .find(|c| c.stem == stem)
+        .expect("the cart with its label")
+}
+
+fn sega_or_nintendo_cart(d: &TempDir, system: &str, file: &str) -> Cart {
+    std::fs::create_dir_all(d.path().join("Games").join(system)).unwrap();
+    std::fs::write(d.path().join("Games").join(system).join(file), "").unwrap();
+    scan(d.path())
+        .unwrap()
+        .into_iter()
+        .find(|c| file.starts_with(&c.stem))
+        .expect("the cart")
+}
+
+const RED: [u8; 4] = [220, 20, 20, 255];
+const BLUE: [u8; 4] = [20, 20, 220, 255];
+
+#[test]
+fn a_wide_label_scan_keeps_its_shape_and_none_of_it_is_cropped() {
+    for (system, file, platform, pak) in [
+        ("NES", "Contra.nes", Platform::Nes, Pak::Nes),
+        ("SNES", "Chrono.sfc", Platform::Snes, Pak::Snes),
+        ("MD", "Sonic.md", Platform::Md, Pak::Md),
+    ] {
+        let d = tmp_root();
+        // Twice as wide as tall, red on the left edge and blue on the right edge.
+        let c = cart_with_scan(&d, system, file, 800, 400, |x, _| {
+            if x < 40 {
+                RED
+            } else if x >= 760 {
+                BLUE
+            } else {
+                [240, 240, 240, 255]
+            }
+        });
+        let design = pak.design();
+        let (_, _, lw, lh) = design.label;
+        let art = slot_ui::label_for(platform, c.label.as_deref().unwrap(), lw, lh).unwrap();
+        assert_eq!(art.w, lw, "{platform:?}: a 2:1 scan fills the width");
+        assert!(
+            art.h < lh,
+            "{platform:?}: and is shorter: {}x{}",
+            art.w,
+            art.h
+        );
+        assert!(
+            (art.w as f32 / art.h as f32 - 2.0).abs() < 0.05,
+            "{platform:?}: its shape was lost: {}x{}",
+            art.w,
+            art.h
+        );
+        // Both edges of the scan survive on the cart, which a centre-crop would lose.
+        let f = cart_face(&c);
+        let (x, y, _, _) = label_rect(Some(GbShell::Pak(pak)));
+        let (px, py) = (
+            (x * f.w as f32).round() as u32,
+            (y * f.h as f32).round() as u32,
+        );
+        let (ox, oy) = (px, py + (lh - art.h) / 2);
+        let mid = oy + art.h / 2;
+        let [r, _, b, a] = at(&f, ox + 3, mid);
+        assert!(
+            r > 150 && b < 90 && a == 255,
+            "{platform:?}: left edge {r},{b}"
+        );
+        let [r, _, b, a] = at(&f, ox + art.w - 4, mid);
+        assert!(
+            b > 150 && r < 90 && a == 255,
+            "{platform:?}: right edge {r},{b}"
+        );
+        // Above the shrunk label, in what the generic recess would have covered, is
+        // the cart's plastic and not the art.
+        let [r, g, b, _] = at(&f, ox + art.w / 2, py + 2);
+        assert!(
+            r.abs_diff(g) < 30 && g.abs_diff(b) < 30,
+            "{platform:?}: the scan spilled over the recess: {r},{g},{b}"
+        );
+    }
+}
+
+#[test]
+fn art_that_is_not_shaped_like_a_label_is_still_cropped_to_fill_it() {
+    let d = tmp_root();
+    // Box art is taller than it is wide; a banner is far wider than a label.
+    for (w, h) in [(512, 720), (1200, 200)] {
+        let c = cart_with_scan(&d, "NES", "Contra.nes", w, h, |_, _| RED);
+        let (lw, lh) = label_size(&c);
+        let art = slot_ui::label_for(Platform::Nes, c.label.as_deref().unwrap(), lw, lh).unwrap();
+        assert_eq!((art.w, art.h), (lw, lh), "{w}x{h}");
+        assert_eq!(art.rgba.len(), (lw * lh * 4) as usize);
+    }
+}
+
+#[test]
+fn a_scan_the_shape_of_the_recess_fills_all_of_it() {
+    let d = tmp_root();
+    let (_, _, lw, lh) = Pak::Nes.design().label;
+    let c = cart_with_scan(&d, "NES", "Contra.nes", lw * 3, lh * 3, |_, _| RED);
+    let art = slot_ui::label_for(Platform::Nes, c.label.as_deref().unwrap(), lw, lh).unwrap();
+    assert_eq!((art.w, art.h), (lw, lh));
+}
+
+#[test]
+fn a_scan_with_transparent_corners_shows_the_plastic_through_them() {
+    let d = tmp_root();
+    // The left quarter is transparent red; the rest is solid blue.
+    let c = cart_with_scan(&d, "NES", "Contra.nes", 300, 240, |x, _| {
+        if x < 75 {
+            [220, 20, 20, 0]
+        } else {
+            BLUE
+        }
+    });
+    let (lw, lh) = label_size(&c);
+    let art = slot_ui::label_for(Platform::Nes, c.label.as_deref().unwrap(), lw, lh).unwrap();
+    let f = cart_face(&c);
+    let (x, y, _, _) = label_rect(Some(GbShell::Pak(Pak::Nes)));
+    let (px, py) = (
+        (x * f.w as f32).round() as u32,
+        (y * f.h as f32).round() as u32,
+    );
+    let (ox, oy) = (px + (lw - art.w) / 2, py + (lh - art.h) / 2);
+    let [r, g, b, a] = at(&f, ox + 6, oy + art.h / 2);
+    assert!(
+        a == 255 && r.abs_diff(g) < 30 && g.abs_diff(b) < 30 && r < 200,
+        "the transparent part is not plastic: {r},{g},{b}"
+    );
+    let [r, _, b, _] = at(&f, ox + art.w - 10, oy + art.h / 2);
+    assert!(b > 150 && r < 90, "the solid part is lost: {r},{b}");
 }

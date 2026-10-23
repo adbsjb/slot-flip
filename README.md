@@ -209,8 +209,10 @@ Slot/Labels/GBA/Pokemon Emerald.png     or sorted by system, as you like
   `Zelda.gbc`. Punctuation is ignored too, so a curly apostrophe from the web
   matches a straight one.
 - **PNG only.** JPG and WebP images are not read; convert them first.
-- **Any size or shape.** Slot scales and centre-crops to the cart's label, so a
-  cartridge-label shot fills it best; box art loses its edges.
+- **Any size or shape.** On a GBA, Game Boy or PlayStation cart, Slot scales and
+  centre-crops the picture to the label, so a cartridge-label shot fills it best and
+  box art loses its edges. On the NES, Super Nintendo and Sega carts a label scan
+  keeps its own shape instead: see below.
 - **The system's own folder wins**, so `Labels/GBA/<game>.png` overrides the
   same name in the flat `Labels/`.
 - **New labels appear the next time Slot starts**, not while it is running.
@@ -268,8 +270,12 @@ own **NES** shelf, and each game is a grey Game Pak with a label. Emulation is b
 fceumm (GPL-2.0).
 
 **Label art.** Drop a picture named after the game in `Slot/Labels/NES/` (or flat in
-`Labels/`). It fills the label, centre-cropped, so a title screen suits it better
-than a tall box front. A game with no art gets a colour and its title.
+`Labels/`). A game with no art gets a colour and its title. A scan of the real label,
+such as ScreenScraper's `supporttexture` pictures, keeps its own proportions: the
+label on the cart takes the scan's shape, with none of it cropped, and transparent
+corners show the plastic. This holds on the Super Nintendo and Sega carts too, for
+any picture between square and 2.4 times wider than tall. Anything else, such as a
+tall box front or a banner, is centre-cropped to fill the label as before.
 
 **Buttons.** A, B, Select, Start and the D-pad, exactly as on a Game Boy. Turbo A
 and Turbo B (X and Y) work the same way too. The picture fills the 4:3 screen as a
