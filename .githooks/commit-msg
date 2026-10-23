@@ -1,0 +1,11 @@
+#!/bin/sh
+# Scan the commit message and the identity that will be recorded in the commit.
+# Installed by tools/install-hooks.sh.
+set -eu
+
+root=$(git rev-parse --show-toplevel)
+[ -f "$root/tools/check-sensitive.sh" ] || exit 0
+cd "$root"
+
+sh tools/check-sensitive.sh --message "$1"
+sh tools/check-sensitive.sh --identity

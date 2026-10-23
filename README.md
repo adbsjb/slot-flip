@@ -504,6 +504,10 @@ especially **testing the experimental device builds**.
 - **[ROADMAP.md](ROADMAP.md)** — what's planned, and how to request a feature.
 - **[Issues](https://github.com/boomchu-123/slot-flip/issues/new/choose)** —
   bug reports, feature requests, and experimental device test reports.
+- **Security and privacy:** never paste keys, tokens or personal paths into an
+  issue or PR. Contributors run `sh tools/install-hooks.sh` once per clone;
+  `.githooks/` and CI refuse secrets and personal data. See
+  [CONTRIBUTING.md](CONTRIBUTING.md#secrets-and-personal-data).
 
 ---
 

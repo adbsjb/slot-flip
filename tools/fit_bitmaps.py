@@ -6,6 +6,7 @@ The live art is assets/.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -13,7 +14,9 @@ from PIL import Image, ImageDraw
 from svgpathtools import svg2paths2
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = Path(r"C:\Users\marku\.cursor\projects\c-Users-marku-Documents-slot-fork\assets")
+# The source photos are not in the repo. Point SLOT_ART_SRC at the folder that
+# holds them; there is no personal machine path baked in here.
+SRC = Path(os.environ.get("SLOT_ART_SRC", ROOT / "art-src"))
 SVG = ROOT / "crates" / "slot-ui" / "assets"
 OUT = ROOT / "templates"
 
