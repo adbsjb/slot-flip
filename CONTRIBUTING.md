@@ -185,6 +185,24 @@ mandatory — a clear explanation in the PR is fine.
 - If a PR goes quiet for a long time, a polite bump is fine; PRs that are
   abandoned may be closed.
 
+### Secrets and personal data
+
+This repository is public and its history is permanent, so:
+
+- **Never commit credentials, tokens, private keys, or personal data** (home
+  paths, private IPs, email addresses, device serials, save files). Remove a
+  secret and it is still in history: **rotate it first**.
+- Run `sh tools/install-hooks.sh` once per clone. It enables the hooks in
+  `.githooks/` and seeds a private denylist of your own names, email and paths
+  in `.git/info/sensitive-patterns` (never committed). Add your phone number,
+  an old email address or a device serial to that file.
+- Pre-commit and pre-push refuse a finding, and the `secrets` workflow runs the
+  same check plus [gitleaks](https://github.com/gitleaks/gitleaks) over the full
+  history on every push and pull request. `--no-verify` skips the local hooks,
+  not CI.
+- A deliberate example in a test may be marked with `check-sensitive: allow` on
+  its line; do not use that marker to smuggle a real value.
+
 ---
 
 ## Assets & legal
