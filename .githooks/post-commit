@@ -1,0 +1,39 @@
+#!/bin/sh
+# Last line of defence for `git commit --no-verify`, which skips pre-commit and
+# commit-msg but not this hook. If the commit that was just made holds a secret
+# or personal data, undo it and leave its changes staged, so it cannot be pushed
+# by accident.
+#
+# Nothing is undone while a rebase, merge, cherry-pick or revert is in progress:
+# changing HEAD there would corrupt the operation. CI still checks what is
+# pushed in those cases.
+set -eu
+
+root=$(git rev-parse --show-toplevel)
+[ -f "$root/tools/check-sensitive.sh" ] || exit 0
+cd "$root"
+
+for state in rebase-merge rebase-apply MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD; do
+    if [ -e "$(git rev-parse --git-path "$state")" ]; then
+        exit 0
+    fi
+done
+
+if output=$(sh tools/check-sensitive.sh --commit HEAD 2>&1); then
+    exit 0
+fi
+
+printf '%s\n' "$output" >&2
+
+if git rev-parse -q --verify 'HEAD^' >/dev/null 2>&1 &&
+    ! git rev-parse -q --verify 'HEAD^2' >/dev/null 2>&1; then
+    git reset -q --soft 'HEAD^'
+    echo >&2
+    echo "post-commit: that commit was undone and its changes are staged again." >&2
+    echo "post-commit: do not use --no-verify: the guard had to catch this commit." >&2
+else
+    echo >&2
+    echo "post-commit: this is a root or merge commit, so it was not undone." >&2
+    echo "post-commit: remove the finding before pushing." >&2
+fi
+exit 1

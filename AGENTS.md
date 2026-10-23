@@ -562,9 +562,11 @@ Notes are for people who own the device, not for developers.
   `.git/info/sensitive-patterns` (your own names, emails, paths, serials) on
   commit and push. The `secrets` workflow runs the same check plus gitleaks over
   the full history on every push and PR, and GitHub's secret scanning and push
-  protection are enabled. Local hooks can be skipped with `--no-verify`; CI is
-  the backstop. If a real secret is committed, **rotate it** — deleting the file
-  does not remove it from history. Deliberate test examples need
+  protection are enabled. **Never use `--no-verify`** (or `git commit -n`): it
+  is a rule, not a preference. If it happens, the `post-commit` guard still
+  scans the new commit and undoes it if it holds a finding (during a rebase or
+  merge it can only warn), and CI is the backstop. If a real secret is
+  committed, **rotate it** — deleting the file does not remove it from history. Deliberate test examples need
   `check-sensitive: allow` on their line. The maintainer's own strings live only
   in `.git/info/sensitive-patterns`, never in the repo; `tools/check-sensitive-test.sh`
   tests the scanner.

@@ -52,6 +52,8 @@ export SENSITIVE_PATTERNS_FILE="$patterns"
 printf 'ordinary text\n' >clean.txt
 git add clean.txt
 expect_pass "a clean tree" --all
+git commit -q -m "clean"
+expect_pass "a clean commit" --commit HEAD
 
 token='ghp_'
 i=0
@@ -103,6 +105,13 @@ printf 'token = %s\n' "$token" >staged.txt
 git add staged.txt
 expect_fail "a staged token" "github-token" --staged
 git rm -q --cached staged.txt && rm staged.txt
+
+printf 'token = %s\n' "$token" >committed.txt
+git add committed.txt
+git commit -q -m "a commit with a token"
+expect_fail "a commit that was just made" "github-token" --commit HEAD
+git reset -q --hard 'HEAD^'
+rm -f committed.txt
 
 if [ "$failures" -ne 0 ]; then
     echo "check-sensitive-test: $failures failure(s)" >&2
