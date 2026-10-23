@@ -41,6 +41,9 @@ jobs:
         id: pick
         run: |
           set -eu
+          # actions/checkout leaves the tree owned by another uid inside the
+          # rust container; git refuses to read it without this.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git remote add upstream https://github.com/BrandonKowalski/slot.git
           # Only v1.*: upstream's old v0.* tags collide with this fork's own.
           git fetch --tags upstream 'refs/tags/v1.*:refs/tags/v1.*'
