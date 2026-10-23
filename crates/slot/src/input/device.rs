@@ -144,6 +144,7 @@ fn read_node(
                 // Gamepad node: contribute only the right stick (fast-forward).
                 // Its buttons and hat duplicate the gpio keyboard node.
                 if ev.kind == EV_ABS {
+                    super::sticks::feed(ev.code, ev.value);
                     events.extend(stick.feed(ev));
                 }
                 continue;

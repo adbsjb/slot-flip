@@ -84,9 +84,10 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 - 💡 Cartridge-label artwork: fetch real label images automatically (blocked
   on a ScreenScraper developer ID; currently you supply your own labels)
 - 🚧 **More systems** ([#20](https://github.com/boomchu-123/slot-flip/issues/20)).
-  PlayStation is out in v0.7.0 and NES in v0.8.0. Still to do for PlayStation: disc
-  swapping for multi-disc games, passing the analog sticks to games, memory-card
-  handling, and timing heavy 3D games. Super Nintendo is built (v0.9.0), with a core
+  PlayStation is out in v0.7.0 and NES in v0.8.0. PlayStation memory cards (they were
+  not being saved at all), changing discs in a multi-disc game, and analog sticks
+  (a DualShock, off by default) are built and waiting for a hardware check before
+  a release. Still to do for PlayStation: L3 and R3, and timing heavy 3D games. Super Nintendo is built (v0.9.0), with a core
   whose licence is non-commercial, so the download as a whole is free-only (see
   `AGENTS.md`, section 9). The Sega systems (Mega Drive / Genesis, Master System, Game
   Gear) are out in v0.10.0. Next: the cheaper 2D systems, one core at a time, each only

@@ -238,6 +238,14 @@ pub fn apply_core_options(
         core.set_option("pcsx_rearmed_drc", "enabled");
         // A real BIOS from BIOS/ when there is one, the built-in replacement when not.
         core.set_option("pcsx_rearmed_bios", "auto");
+        // Card 1 is handed to the frontend as save RAM, so it is kept per game with
+        // the other saves. Left unset, the core asks for the option, gets nothing
+        // (its own default never applies) and exposes no save RAM at all, so a
+        // game's save never reaches the saves folder. Card 2 is off, not the core's
+        // shared file, which would write into the saves folder outside anything
+        // the frontend tracks.
+        core.set_option("pcsx_rearmed_memcard1", "libretro");
+        core.set_option("pcsx_rearmed_memcard2", "none");
     }
     if which == Core::Gpsp {
         core.set_option("gpsp_serial", serial);

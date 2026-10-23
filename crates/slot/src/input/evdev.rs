@@ -109,6 +109,13 @@ impl Stick {
         if ev.code != ABS_RX {
             return Vec::new();
         }
+        // A game reading the sticks owns this one; it is not also a button.
+        if super::sticks::taken() {
+            return match std::mem::take(&mut self.held) {
+                true => vec![RawEvent::Up(Btn::R2)],
+                false => Vec::new(),
+            };
+        }
         if !self.held && ev.value >= STICK_ON {
             self.held = true;
             return vec![RawEvent::Down(Btn::R2)];

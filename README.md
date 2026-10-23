@@ -257,11 +257,27 @@ is SELECT + R2** (hold SELECT, push the right stick right) instead of the stick
 alone, and there is no rewind. Turbo does not apply to discs. The Controls pages
 still call the two main face buttons "A Button" and "B Button".
 
-**What is not there yet.** Passing the analog sticks to a game (the sticks only do
-what they do for the Game Boy systems), swapping discs in a multi-disc game, and
-a screen shader, colour correction or bezel (they do nothing for a disc, so those
-rows are hidden). Games run without a BIOS file on the card. How fast heavy 3D
-games run has not been measured; the one game timed ran at full speed.
+**Saving.** The game's own save (its memory card) is kept per game in
+`Slot/Saves/PS1/<game>.sav`, one 128 KiB card, written with the other saves while
+you play and when you eject or put the Flip to sleep. Card 2 is off.
+
+**Changing discs.** A game with two or more discs (an `.m3u` playlist) gets a **Disc** row in the in-game menu, between States and
+Settings. Left and Right pick the disc; close the menu and the game sees the lid
+open, the disc change and the lid close, so a game that says "insert disc 2" carries
+on by itself. The row only appears for a game with more than one disc.
+
+**Analog sticks.** Off by default. Under **Settings > Gameplay > Analog Sticks**
+the Flip plugs in a DualShock, and both sticks go to the game. The right stick can
+no longer be R2 while that is on, so a Flip whose right shoulder is dead has no R2
+and no SELECT + R2 fast-forward then (rebind fast-forward under Shortcuts). The
+sticks have a dead zone, because the Flip's rest a little off centre. The core starts a DualShock
+in digital mode; a game that uses the sticks switches it to analog itself, and the
+core's own combination L1 + R1 + SELECT switches it by hand.
+
+**What is not there yet.** A screen shader, colour correction or bezel (they do
+nothing for a disc, so those rows are hidden), L3 and R3 (the stick clicks), and a
+second player. Games run without a BIOS file on the card. How fast heavy 3D games
+run has not been measured; the one game timed ran at full speed.
 
 ## NES games
 

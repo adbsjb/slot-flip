@@ -156,6 +156,7 @@ fn the_rows_run_in_the_order_the_user_chose() {
             "Turbo Buttons",
             "Rumble",
             "Left Stick as D-Pad",
+            "Analog Sticks",
             "Auto Save on Eject"
         ]
     );
@@ -368,6 +369,7 @@ fn the_in_game_pages_hold_their_rows_in_order() {
         [
             QuickRow::Resume,
             QuickRow::States,
+            QuickRow::Disc,
             QuickRow::Settings,
             QuickRow::ExitGame
         ]
@@ -428,6 +430,7 @@ fn in_game_rows_read_as_the_menu_shows_them() {
     let labels = [
         (QuickRow::Resume, "Resume"),
         (QuickRow::States, "States"),
+        (QuickRow::Disc, "Disc"),
         (QuickRow::Settings, "Settings"),
         (QuickRow::ExitGame, "Exit Game"),
         (QuickRow::PlayScreen, "Screen"),

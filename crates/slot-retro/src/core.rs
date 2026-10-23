@@ -87,6 +87,30 @@ pub trait RetroCore: Send {
     }
     fn set_option(&mut self, _key: &str, _value: &str) {}
     fn set_frame_skip(&mut self, _skip: bool) {}
+    /// The two analog sticks (left x, left y, right x, right y, each +-32767) for
+    /// player 1. Only a core with a pad that has sticks reads them.
+    fn set_analog(&mut self, _sticks: [i16; 4]) {}
+    /// Plug a DualShock (sticks, and a pad that rumbles) into port 1 instead of the
+    /// plain pad. Only a PlayStation core has one.
+    fn set_dualshock(&mut self, _on: bool) {}
+    /// How many discs the loaded game has: 0 for anything that is not a disc
+    /// core, 1 for a single disc. Only two or more can be changed.
+    fn disc_count(&self) -> usize {
+        0
+    }
+    /// The disc in the drive, or the one it is being changed to.
+    fn disc_index(&self) -> usize {
+        0
+    }
+    /// A disc change is still under way (the lid is open).
+    fn disc_changing(&self) -> bool {
+        false
+    }
+    /// Begin changing to disc `to` (0 is the first). The change finishes over
+    /// the frames that follow. False if it cannot be done.
+    fn change_disc(&mut self, _to: usize) -> bool {
+        false
+    }
     fn video_xrgb8888(&self) -> &[u8];
     /// Width and height of what `video_xrgb8888` holds. Every core defaults to
     /// the fixed GBA-sized canvas the Game Boy family is centred in; a core in

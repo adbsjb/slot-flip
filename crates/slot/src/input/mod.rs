@@ -7,6 +7,7 @@ pub mod keymap;
 #[cfg(feature = "host")]
 mod keys;
 mod mask;
+pub mod sticks;
 #[cfg(feature = "host")]
 mod pad;
 mod table;

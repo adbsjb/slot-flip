@@ -235,6 +235,17 @@ impl Session {
             }
             self.sent = mask.0;
             emu.set_input(mask);
+            // Sticks go to the game only while it is the one being played; with a
+            // menu open they are the frontend's, and the right one is R2 again.
+            let sticks = self.app.analog_sticks();
+            let live = sticks && !self.overlaid();
+            emu.set_dualshock(sticks);
+            emu.set_analog(if live {
+                crate::input::sticks::read()
+            } else {
+                [0; 4]
+            });
+            crate::input::sticks::set_taken(live);
         }
     }
 
@@ -311,6 +322,19 @@ impl Session {
                     emu.set_option(key, value);
                     recoloured = true;
                 }
+            }
+        }
+        match &self.emu {
+            Some(emu) => {
+                self.app.set_discs(emu.disc_count(), emu.disc_index());
+                if let Some(to) = self.app.take_disc_request() {
+                    emu.change_disc(to);
+                    self.app.set_discs(emu.disc_count(), emu.disc_index());
+                }
+            }
+            None => {
+                self.app.set_discs(0, 0);
+                let _ = self.app.take_disc_request();
             }
         }
         if recoloured && self.held() && !self.app.link_active() {

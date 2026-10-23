@@ -35,6 +35,8 @@ struct Host {
     format: PixelFormat,
     audio: Vec<i16>,
     inputs: [u16; 2],
+    /// Left x, left y, right x, right y, for port 1.
+    analog: [i16; 4],
     system_dir: CString,
     save_dir: CString,
     rumble: Rumble,
@@ -46,6 +48,8 @@ struct Host {
     options: std::collections::HashMap<String, std::ffi::CString>,
     options_dirty: bool,
     declared: std::collections::HashMap<String, Vec<String>>,
+    /// What the core gave us to change discs with, if it is a disc core.
+    disk: Option<DiskControl>,
 }
 
 thread_local! {
@@ -242,6 +246,29 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
             }
             let cb = std::ptr::read(data as *const AudioBufferStatusCallback);
             with_host(|h| h.audio_status = cb.callback).is_some()
+        }
+        GET_DISK_CONTROL_INTERFACE_VERSION => {
+            if data.is_null() {
+                return false;
+            }
+            // Version 1 is the one with labels and paths, which is what we read.
+            *(data as *mut c_uint) = 1;
+            true
+        }
+        SET_DISK_CONTROL_INTERFACE | SET_DISK_CONTROL_EXT_INTERFACE => {
+            if data.is_null() {
+                return with_host(|h| h.disk = None).is_some();
+            }
+            // The older struct is only the first seven members; reading past it
+            // would be reading whatever the core had next to it.
+            let bytes = if cmd == SET_DISK_CONTROL_INTERFACE {
+                DISK_CONTROL_BASE_BYTES
+            } else {
+                std::mem::size_of::<DiskControl>()
+            };
+            let mut control: DiskControl = std::mem::zeroed();
+            ptr::copy_nonoverlapping(data as *const u8, &mut control as *mut _ as *mut u8, bytes);
+            with_host(|h| h.disk = Some(control)).is_some()
         }
         SET_NETPACKET_INTERFACE => {
             if data.is_null() {
@@ -457,7 +484,21 @@ unsafe extern "C" fn audio_batch(data: *const i16, frames: usize) -> usize {
 
 unsafe extern "C" fn input_poll() {}
 
-unsafe extern "C" fn input_state(port: c_uint, device: c_uint, _index: c_uint, id: c_uint) -> i16 {
+unsafe extern "C" fn input_state(port: c_uint, device: c_uint, index: c_uint, id: c_uint) -> i16 {
+    if device == DEVICE_ANALOG {
+        // Only port 1 has sticks; the axes are the two sticks' x and y.
+        if port != 0 {
+            return 0;
+        }
+        let at = match (index, id) {
+            (ANALOG_LEFT, ANALOG_X) => 0,
+            (ANALOG_LEFT, ANALOG_Y) => 1,
+            (ANALOG_RIGHT, ANALOG_X) => 2,
+            (ANALOG_RIGHT, ANALOG_Y) => 3,
+            _ => return 0,
+        };
+        return with_host(|h| h.analog[at]).unwrap_or(0);
+    }
     if device != DEVICE_JOYPAD {
         return 0;
     }
@@ -482,8 +523,23 @@ pub struct LibretroCore {
     av: AvInfo,
     loaded: bool,
     state_size: Option<usize>,
+    swap: Option<Swap>,
+    dualshock: bool,
     _lib: Library,
 }
+
+/// A disc change in progress. The lid is opened, held open while the game
+/// notices, the disc is switched while it is open, and only then closed: a game
+/// polls the drive, so an instant swap is often not seen at all.
+struct Swap {
+    target: usize,
+    frames: u32,
+}
+
+/// Frames the lid stays open before the disc is switched, and before it is closed.
+/// At 60 fps that is three quarters of a second and then one and a half.
+pub const SWAP_SWITCH_FRAME: u32 = 45;
+pub const SWAP_CLOSE_FRAME: u32 = 90;
 
 /// What a core says about itself before any content is loaded.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -621,6 +677,7 @@ impl LibretroCore {
             format: PixelFormat::Xrgb8888,
             audio: Vec::new(),
             inputs: [0; 2],
+            analog: [0; 4],
             system_dir: cdir(system_dir)?,
             save_dir: cdir(save_dir)?,
             rumble: Rumble::default(),
@@ -632,6 +689,7 @@ impl LibretroCore {
             options: std::collections::HashMap::new(),
             options_dirty: false,
             declared: std::collections::HashMap::new(),
+            disk: None,
         });
         unsafe {
             let _a = Active::bind(&mut host);
@@ -654,11 +712,103 @@ impl LibretroCore {
             },
             loaded: false,
             state_size: None,
+            swap: None,
+            dualshock: false,
             _lib: lib,
         })
     }
 
+    /// How many discs the loaded game has. One (or none) means there is nothing
+    /// to change, so the caller need not offer it.
+    pub fn disc_count(&self) -> usize {
+        let Some(count) = self.host.disk.and_then(|d| d.get_num_images) else {
+            return 0;
+        };
+        unsafe { count() as usize }
+    }
+
+    /// The disc in the drive, or the one it is being changed to.
+    pub fn disc_index(&self) -> usize {
+        if let Some(swap) = &self.swap {
+            return swap.target;
+        }
+        let Some(index) = self.host.disk.and_then(|d| d.get_image_index) else {
+            return 0;
+        };
+        unsafe { index() as usize }
+    }
+
+    /// Whether a disc change is still under way.
+    pub fn disc_changing(&self) -> bool {
+        self.swap.is_some()
+    }
+
+    /// Start changing to disc `to`. The change finishes over the next frames, so
+    /// the game sees the lid open and close. False if there is no such disc or
+    /// the game has only the one; asking again mid-change just retargets it.
+    pub fn change_disc(&mut self, to: usize) -> bool {
+        if !self.loaded || self.disc_count() < 2 || to >= self.disc_count() {
+            return false;
+        }
+        if let Some(swap) = &mut self.swap {
+            swap.target = to;
+            return true;
+        }
+        if to == self.disc_index() {
+            return true;
+        }
+        let Some(eject) = self.host.disk.and_then(|d| d.set_eject_state) else {
+            return false;
+        };
+        let _a = Active::bind(&mut self.host);
+        if !unsafe { eject(true) } {
+            return false;
+        }
+        self.swap = Some(Swap {
+            target: to,
+            frames: 0,
+        });
+        true
+    }
+
+    fn advance_swap(&mut self) {
+        let Some(swap) = &mut self.swap else { return };
+        swap.frames += 1;
+        let (frames, target) = (swap.frames, swap.target);
+        let Some(control) = self.host.disk else {
+            self.swap = None;
+            return;
+        };
+        let _a = Active::bind(&mut self.host);
+        if frames == SWAP_SWITCH_FRAME {
+            if let Some(set) = control.set_image_index {
+                if !unsafe { set(target as c_uint) } {
+                    eprintln!("slot-retro: the core would not switch to disc {target}");
+                }
+            }
+        }
+        if frames >= SWAP_CLOSE_FRAME {
+            if let Some(eject) = control.set_eject_state {
+                unsafe { eject(false) };
+            }
+            self.swap = None;
+        }
+    }
+
+    /// The pad plugged into port 1: a plain one, or a DualShock when sticks are wanted.
+    /// A core forgets it when a game loads, so this is said again after every load.
+    fn plug_in_pad(&mut self) {
+        let device = if self.dualshock {
+            DEVICE_PSE_DUALSHOCK
+        } else {
+            DEVICE_JOYPAD
+        };
+        let _a = Active::bind(&mut self.host);
+        unsafe { (self.api.set_controller_port_device)(0, device) };
+    }
+
     fn unload(&mut self) {
+        self.swap = None;
         if !self.loaded {
             return;
         }
@@ -747,7 +897,7 @@ impl RetroCore for LibretroCore {
             fps: av.timing.fps,
             sample_rate: av.timing.sample_rate,
         };
-        unsafe { (self.api.set_controller_port_device)(0, DEVICE_JOYPAD) };
+        self.plug_in_pad();
         Ok(())
     }
 
@@ -759,9 +909,43 @@ impl RetroCore for LibretroCore {
         if !self.loaded {
             return;
         }
+        self.advance_swap();
         self.host.inputs = [p1.0, p2.0];
         let _a = Active::bind(&mut self.host);
         unsafe { (self.api.run)() };
+    }
+
+    fn set_analog(&mut self, sticks: [i16; 4]) {
+        self.host.analog = sticks;
+    }
+
+    fn set_dualshock(&mut self, on: bool) {
+        if self.dualshock == on {
+            return;
+        }
+        self.dualshock = on;
+        if self.loaded {
+            self.plug_in_pad();
+        }
+        if !on {
+            self.host.analog = [0; 4];
+        }
+    }
+
+    fn disc_count(&self) -> usize {
+        LibretroCore::disc_count(self)
+    }
+
+    fn disc_index(&self) -> usize {
+        LibretroCore::disc_index(self)
+    }
+
+    fn disc_changing(&self) -> bool {
+        LibretroCore::disc_changing(self)
+    }
+
+    fn change_disc(&mut self, to: usize) -> bool {
+        LibretroCore::change_disc(self, to)
     }
 
     fn set_frame_skip(&mut self, skip: bool) {
@@ -886,6 +1070,7 @@ mod tests {
             format: PixelFormat::Xrgb8888,
             audio: Vec::new(),
             inputs: [0; 2],
+            analog: [0; 4],
             system_dir: CString::new(".").unwrap(),
             save_dir: CString::new(".").unwrap(),
             rumble: Rumble::default(),
@@ -897,6 +1082,7 @@ mod tests {
             options,
             options_dirty,
             declared: HashMap::new(),
+            disk: None,
         })
     }
 
@@ -1749,6 +1935,48 @@ mod tests {
         let button = |id| unsafe { input_state(1, DEVICE_JOYPAD, 0, id) };
         assert_eq!(button(0), 1, "B is bit 0 of the libretro joypad");
         assert_eq!(button(8), 0, "A is not held on port 1");
+    }
+
+    #[test]
+    fn input_state_answers_each_stick_axis_on_port_1() {
+        let mut host = host_with(HashMap::new(), false);
+        host.analog = [100, -200, 300, -400];
+        let _active = Active::bind(&mut host);
+
+        let axis = |port, index, id| unsafe { input_state(port, DEVICE_ANALOG, index, id) };
+        assert_eq!(axis(0, ANALOG_LEFT, ANALOG_X), 100);
+        assert_eq!(axis(0, ANALOG_LEFT, ANALOG_Y), -200);
+        assert_eq!(axis(0, ANALOG_RIGHT, ANALOG_X), 300);
+        assert_eq!(axis(0, ANALOG_RIGHT, ANALOG_Y), -400);
+    }
+
+    #[test]
+    fn input_state_has_no_sticks_past_port_1_or_past_the_two_sticks() {
+        let mut host = host_with(HashMap::new(), false);
+        host.analog = [1, 2, 3, 4];
+        let _active = Active::bind(&mut host);
+
+        assert_eq!(
+            unsafe { input_state(1, DEVICE_ANALOG, ANALOG_LEFT, ANALOG_X) },
+            0
+        );
+        assert_eq!(
+            unsafe { input_state(0, DEVICE_ANALOG, 2, ANALOG_X) },
+            0,
+            "no third stick"
+        );
+        assert_eq!(
+            unsafe { input_state(0, DEVICE_ANALOG, ANALOG_LEFT, 2) },
+            0,
+            "no z axis"
+        );
+    }
+
+    #[test]
+    fn the_dualshock_is_the_playstation_cores_own_device_number() {
+        // PCSX-ReARMed defines it as RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1).
+        assert_eq!(DEVICE_PSE_DUALSHOCK, 517);
+        assert_eq!(DEVICE_PSE_DUALSHOCK & 0xff, DEVICE_ANALOG);
     }
 
     fn native_host() -> Box<Host> {

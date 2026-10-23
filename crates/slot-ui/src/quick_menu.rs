@@ -111,10 +111,12 @@ pub enum QuickRow {
     BindStart,
     BindSelect,
     BindMenu,
+    Disc,
+    AnalogSticks,
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 100] = [
+    pub const ALL: [QuickRow; 102] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Screen,
@@ -215,6 +217,8 @@ impl QuickRow {
         QuickRow::BindStart,
         QuickRow::BindSelect,
         QuickRow::BindMenu,
+        QuickRow::Disc,
+        QuickRow::AnalogSticks,
     ];
 
     pub const MAIN: [QuickRow; 5] = [
@@ -344,19 +348,21 @@ impl QuickRow {
         QuickRow::GbBezel,
     ];
 
-    pub const GAME: [QuickRow; 7] = [
+    pub const GAME: [QuickRow; 8] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
         QuickRow::Rewind,
         QuickRow::Turbo,
         QuickRow::Rumble,
         QuickRow::LeftStick,
+        QuickRow::AnalogSticks,
         QuickRow::EjectSave,
     ];
 
-    pub const PLAY: [QuickRow; 4] = [
+    pub const PLAY: [QuickRow; 5] = [
         QuickRow::Resume,
         QuickRow::States,
+        QuickRow::Disc,
         QuickRow::Settings,
         QuickRow::ExitGame,
     ];
@@ -404,6 +410,7 @@ impl QuickRow {
             | QuickRow::Turbo
             | QuickRow::Rumble
             | QuickRow::LeftStick
+            | QuickRow::AnalogSticks
             | QuickRow::EjectSave => &QuickRow::GAME,
             QuickRow::Wallpaper
             | QuickRow::WallpaperTint
@@ -433,9 +440,11 @@ impl QuickRow {
             QuickRow::BindStart | QuickRow::BindSelect | QuickRow::BindMenu => {
                 &QuickRow::KEY_MAP_START_SELECT
             }
-            QuickRow::Resume | QuickRow::States | QuickRow::Settings | QuickRow::ExitGame => {
-                &QuickRow::PLAY
-            }
+            QuickRow::Resume
+            | QuickRow::States
+            | QuickRow::Disc
+            | QuickRow::Settings
+            | QuickRow::ExitGame => &QuickRow::PLAY,
             QuickRow::PlayScreen | QuickRow::PlayGameplay | QuickRow::PlayControls => {
                 &QuickRow::SETTINGS
             }
@@ -593,6 +602,8 @@ impl QuickRow {
             QuickRow::BindStart => "Start",
             QuickRow::BindSelect => "Select",
             QuickRow::BindMenu => "Menu",
+            QuickRow::Disc => "Disc",
+            QuickRow::AnalogSticks => "Analog Sticks",
 
             QuickRow::GameUp
             | QuickRow::GameDown
