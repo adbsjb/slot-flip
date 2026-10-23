@@ -8,6 +8,7 @@
 #   tools/check-sensitive.sh --all          every tracked file (default)
 #   tools/check-sensitive.sh --staged       lines added to the index (pre-commit)
 #   tools/check-sensitive.sh --range RANGE  commits in a git range (pre-push)
+#   tools/check-sensitive.sh --commit REV   one commit's changes (post-commit)
 #   tools/check-sensitive.sh --history      every commit reachable from any ref
 #   tools/check-sensitive.sh --message FILE a commit-message file (commit-msg)
 #   tools/check-sensitive.sh --identity     the author and committer identity
@@ -23,11 +24,12 @@
 set -eu
 
 usage() {
-    sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 mode=all
 range=
+commit=HEAD
 message=
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -39,6 +41,11 @@ while [ $# -gt 0 ]; do
             range=${1:-}
             [ -n "$range" ] || { echo "check-sensitive: --range needs a range" >&2; exit 2; }
             mode=range
+            ;;
+        --commit)
+            shift
+            commit=${1:-}
+            mode=commit
             ;;
         --message)
             shift
@@ -235,6 +242,22 @@ case "$mode" in
             ' >"$work/records"
         scan_records "$work/records"
         git log --format= --name-only --no-color --all | sort -u >"$work/names"
+        ;;
+    commit)
+        git show --no-color --format= -U0 "$commit" 2>/dev/null |
+            awk '
+                /^\+\+\+ / {
+                    file = substr($0, 7); sub(/^b\//, "", file); next
+                }
+                /^@@ / {
+                    match($0, /\+[0-9]+/)
+                    line = substr($0, RSTART + 1, RLENGTH - 1) + 0; next
+                }
+                /^\+/ && file != "" && file != "/dev/null" {
+                    print file "\t" line "\t" substr($0, 2); line++
+                }
+            ' >"$work/records"
+        scan_records "$work/records"
         ;;
     message)
         awk -v f="(commit message)" '{ print f "\t" NR "\t" $0 }' "$message" >"$work/records"
