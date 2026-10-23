@@ -75,6 +75,8 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 
 - ✅ **Released v0.10.1**: label scans keep their own shape on the NES, SNES and Sega carts ([#30](https://github.com/boomchu-123/slot-flip/issues/30))
 
+- ✅ **Released v0.11.0**: PlayStation memory cards are kept with the other saves, a multi-disc game can change disc from the in-game menu, and the sticks can be passed to a game as a DualShock's (off by default)
+
 **Next**
 - 💡 **Card repair on MinUI.** Upstream's SELECT + START repair is switched off
   on the Flip (its script is written for upstream's own devices and unmounts the
@@ -84,10 +86,10 @@ a time; the fork's own work is the Flip port itself and a few small additions.
 - 💡 Cartridge-label artwork: fetch real label images automatically (blocked
   on a ScreenScraper developer ID; currently you supply your own labels)
 - 🚧 **More systems** ([#20](https://github.com/boomchu-123/slot-flip/issues/20)).
-  PlayStation is out in v0.7.0 and NES in v0.8.0. PlayStation memory cards (they were
-  not being saved at all), changing discs in a multi-disc game, and analog sticks
-  (a DualShock, off by default) are built and waiting for a hardware check before
-  a release. Still to do for PlayStation: L3 and R3, and timing heavy 3D games. Super Nintendo is built (v0.9.0), with a core
+  PlayStation is out in v0.7.0 and NES in v0.8.0. PlayStation memory cards are kept and
+  multi-disc games can change disc (v0.11.0), and the sticks can go to a game (a
+  DualShock, off by default). Still to do for PlayStation: L3 and R3, and timing
+  heavy 3D games. Super Nintendo is built (v0.9.0), with a core
   whose licence is non-commercial, so the download as a whole is free-only (see
   `AGENTS.md`, section 9). The Sega systems (Mega Drive / Genesis, Master System, Game
   Gear) are out in v0.10.0. Next: the cheaper 2D systems, one core at a time, each only

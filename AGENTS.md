@@ -52,6 +52,7 @@ one-for-one patch cadence the fork does not have.
 | `v0.9.1` | v1.8.0 (fork work only: a slot drawn as each console, Lid Power Off gains Never) |
 | `v0.10.0` | v1.8.0 (fork work only: Sega Mega Drive / Genesis, Master System and Game Gear on Genesis Plus GX) |
 | `v0.10.1` | v1.8.0 (fork work only: label scans keep their shape on the NES, SNES and Sega carts) |
+| `v0.11.0` | v1.8.0 (fork work only: PlayStation memory cards are saved, discs can be changed, analog sticks as a DualShock behind a setting) |
 | `exp-v0.3.0` | v1.6.0 |
 
 ---
