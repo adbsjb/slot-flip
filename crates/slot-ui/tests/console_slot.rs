@@ -240,3 +240,51 @@ fn the_playstation_opening_curves_and_the_others_are_flat_floored() {
         assert!(console_opening_depth(console, 719) == 0.0);
     }
 }
+
+#[test]
+fn the_sega_consoles_are_black_plastic_each_with_its_own_dressing() {
+    let sum = |c: [u8; 3]| c.iter().map(|&v| v as u32).sum::<u32>();
+    for console in [Console::MegaDrive, Console::MasterSystem, Console::GameGear] {
+        let f = console_slot(console, false).front;
+        let plate = rgb(&f, 30, 30);
+        assert!(sum(plate) < 3 * 90, "{console:?} is not black: {plate:?}");
+        assert!(
+            plate[0].abs_diff(plate[2]) < 16,
+            "{console:?} is tinted: {plate:?}"
+        );
+    }
+    // A Master System's band along the front, and its buttons, are red.
+    let sms = console_slot(Console::MasterSystem, false).front;
+    let [r, g, b] = rgb(&sms, 30, 51);
+    assert!(r > g + 60 && r > b + 60, "no red band: {r},{g},{b}");
+    let [r, g, b] = rgb(&sms, 157, 24);
+    assert!(r > g + 60 && r > b + 60, "POWER is not red: {r},{g},{b}");
+    // A Mega Drive's band is silver, not red.
+    let md = console_slot(Console::MegaDrive, false).front;
+    let [r, g, b] = rgb(&md, 30, 51);
+    assert!(
+        r.abs_diff(b) < 24 && r > 100,
+        "the band is not silver: {r},{g},{b}"
+    );
+    // A Game Gear is ridged at its ends like a handheld; the Mega Drive is not.
+    let gg = console_slot(Console::GameGear, false).front;
+    let ridged = |f: &[u8]| {
+        let v: Vec<u8> = (0..30).map(|n| rgb(f, 60 + n, 25)[0]).collect();
+        v.iter().max().unwrap() - v.iter().min().unwrap()
+    };
+    assert!(
+        ridged(&gg) > 14,
+        "no ridges on the Game Gear: {}",
+        ridged(&gg)
+    );
+    assert!(ridged(&md) < ridged(&gg));
+    // Red power lights on all three.
+    for f in [&sms, &md, &gg] {
+        let [r, g, b] = rgb(f, 138, 27);
+        let [r2, g2, b2] = rgb(f, 138, 29);
+        assert!(
+            (r > g + 40 && r > b + 40) || (r2 > g2 + 40 && r2 > b2 + 40),
+            "no red light: {r},{g},{b} / {r2},{g2},{b2}"
+        );
+    }
+}

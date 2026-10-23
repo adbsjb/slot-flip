@@ -13,6 +13,7 @@ pub enum Core {
     Pcsx,
     Fceumm,
     Snes9x,
+    Genesis,
 }
 
 impl Core {
@@ -21,12 +22,13 @@ impl Core {
     pub const ALL: [Core; 2] = [Core::Mgba, Core::Gpsp];
 
     /// Every core slot can run, pickable or not.
-    pub const EVERY: [Core; 5] = [
+    pub const EVERY: [Core; 6] = [
         Core::Mgba,
         Core::Gpsp,
         Core::Pcsx,
         Core::Fceumm,
         Core::Snes9x,
+        Core::Genesis,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -36,6 +38,7 @@ impl Core {
             Core::Pcsx => "pcsx",
             Core::Fceumm => "fceumm",
             Core::Snes9x => "snes9x",
+            Core::Genesis => "genesis",
         }
     }
 
@@ -50,6 +53,7 @@ impl Core {
             Core::Pcsx => "PCSX-ReARMed",
             Core::Fceumm => "fceumm",
             Core::Snes9x => "Snes9x 2005 Plus",
+            Core::Genesis => "Genesis Plus GX",
         }
     }
 
@@ -60,6 +64,7 @@ impl Core {
             "pcsx" => Some(Core::Pcsx),
             "fceumm" => Some(Core::Fceumm),
             "snes9x" => Some(Core::Snes9x),
+            "genesis" => Some(Core::Genesis),
             _ => None,
         }
     }

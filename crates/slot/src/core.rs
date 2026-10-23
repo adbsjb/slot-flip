@@ -12,6 +12,7 @@ pub fn dylib_name(core: Core) -> String {
         // The core's short name is `pcsx`; the library keeps its upstream name.
         Core::Pcsx => "pcsx_rearmed",
         Core::Snes9x => "snes9x2005_plus",
+        Core::Genesis => "genesis_plus_gx",
         other => other.as_str(),
     };
     format!("{library}_libretro.{}", std::env::consts::DLL_EXTENSION)
@@ -181,7 +182,7 @@ pub fn colour_option(
             if on { "enabled" } else { "disabled" },
         )),
         // A console picture has no handheld-LCD colour to correct.
-        Core::Pcsx | Core::Fceumm | Core::Snes9x => None,
+        Core::Pcsx | Core::Fceumm | Core::Snes9x | Core::Genesis => None,
     }
 }
 
@@ -205,7 +206,10 @@ pub fn apply_core_options(
 ) {
     // PCSX-ReARMed names and values this differently, and fceumm has no such option;
     // a console runs at full speed on the Flip, so each keeps its own defaults.
-    if !matches!(which, Core::Pcsx | Core::Fceumm | Core::Snes9x) {
+    if !matches!(
+        which,
+        Core::Pcsx | Core::Fceumm | Core::Snes9x | Core::Genesis
+    ) {
         core.set_option(&format!("{}_frameskip", which.as_str()), "auto");
     }
     if which == Core::Mgba {

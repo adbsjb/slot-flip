@@ -326,7 +326,7 @@ impl Frontend {
         self.look = Some(ShelfLook {
             slot,
             plugged,
-            console: [None, None, None, None, None],
+            console: std::array::from_fn(|_| None),
             bolt,
             port: [None, None],
             legend: [Vec::new(), Vec::new()],

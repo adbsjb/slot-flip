@@ -72,6 +72,9 @@ fn main() {
         (Console::Snes, Platform::Snes, "snes"),
         (Console::GameBoy, Platform::Gb, "gb"),
         (Console::GameBoyColor, Platform::Gbc, "gbc"),
+        (Console::MegaDrive, Platform::Md, "md"),
+        (Console::MasterSystem, Platform::Sms, "sms"),
+        (Console::GameGear, Platform::Gg, "gg"),
     ] {
         let sheet_h = frames.len() * (h + gap) + gap;
         let mut sheet = vec![0x40u8; w * sheet_h * 3];

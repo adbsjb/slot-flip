@@ -78,13 +78,15 @@ const PS1_EXTRAS: [(Device, u16); 4] = [
 pub(crate) fn extras(platform: Platform) -> &'static [(Device, u16)] {
     match platform {
         Platform::Ps1 => &PS1_EXTRAS,
-        Platform::Snes => &SNES_EXTRAS,
+        Platform::Snes | Platform::Md => &SNES_EXTRAS,
         _ => &[],
     }
 }
 
 /// A Super Nintendo pad has X and Y where a Game Boy has none: the top and left face
 /// buttons. L and R are the shoulders the GBA already has, so they need nothing here.
+/// A Mega Drive's six-button pad is read the same way: the core takes the left face
+/// button as A, B and the right one as C, and X (top), L and R as Y, X and Z.
 const SNES_EXTRAS: [(Device, u16); 2] = [(Device::X, ButtonMask::X), (Device::Y, ButtonMask::Y)];
 
 fn bit(g: GameButton) -> u16 {

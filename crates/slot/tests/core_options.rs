@@ -62,10 +62,10 @@ fn every_option_slot_sets_is_one_the_core_declares() {
             eprintln!("no {} dylib on this host, skipping", which.as_str());
             continue;
         }
-        if matches!(which, Core::Fceumm | Core::Snes9x) {
-            // fceumm and snes9x2005 declare their options only once a game is loaded, and slot has no
-            // reason to change any: it must set none, so it can never set one the core
-            // does not have.
+        if matches!(which, Core::Fceumm | Core::Snes9x | Core::Genesis) {
+            // These console cores need no setting from slot: it must set none, so it
+            // can never set one the core does not have (fceumm and snes9x2005 only
+            // declare theirs once a game is loaded).
             for platform in Platform::ALL {
                 let mut core = LibretroCore::open(&path).expect("open core");
                 slot::core::apply_core_options(

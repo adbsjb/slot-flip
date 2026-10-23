@@ -1,4 +1,4 @@
-//! The drawn game cartridges: the NES Game Pak and the SNES cart.
+//! The drawn game cartridges: the NES Game Pak, the SNES cart, and the Sega carts.
 //!
 //! Drawn rather than cut from a bitmap, like the disc: a plastic slab with ridged
 //! grips, a recessed label, and the narrower section at the bottom where the
@@ -19,6 +19,12 @@ use crate::text;
 pub enum Pak {
     Nes,
     Snes,
+    /// The Mega Drive's: black, wide, and ridged down both sides of the label.
+    Md,
+    /// The Master System's: black and squarer.
+    Sms,
+    /// The Game Gear's: a small wide black cart.
+    Gg,
 }
 
 /// A rounded rectangle: x, y, w, h, radius.
@@ -68,8 +74,47 @@ const SNES: Design = Design {
     strip: (76.0, 208.0, 188.0, 22.0, 6.0),
 };
 
+/// Wide and black, with its ridges down both sides of the label, a Mega Drive's cart.
+const MD: Design = Design {
+    w: 380,
+    h: 300,
+    label: (62, 30, 256, 176),
+    body: (0.0, 0.0, 380.0, 262.0, 16.0),
+    foot: (44.0, 240.0, 292.0, 60.0, 7.0),
+    step_y: 262.0,
+    plastic: [46.0, 46.0, 50.0],
+    grips: &[(16.0, 32.0, 28.0, 160.0), (336.0, 32.0, 28.0, 160.0)],
+    strip: (84.0, 222.0, 212.0, 22.0, 6.0),
+};
+
+/// Squarer than a Mega Drive's and a shade lighter, a Master System's cart.
+const SMS: Design = Design {
+    w: 320,
+    h: 312,
+    label: (46, 34, 228, 170),
+    body: (0.0, 0.0, 320.0, 274.0, 14.0),
+    foot: (34.0, 252.0, 252.0, 60.0, 7.0),
+    step_y: 274.0,
+    plastic: [54.0, 53.0, 57.0],
+    grips: &[(12.0, 28.0, 22.0, 120.0), (286.0, 28.0, 22.0, 120.0)],
+    strip: (64.0, 234.0, 192.0, 26.0, 6.0),
+};
+
+/// Small, wide and low, a Game Gear's cart: the label fills most of its face.
+const GG: Design = Design {
+    w: 300,
+    h: 214,
+    label: (36, 22, 228, 124),
+    body: (0.0, 0.0, 300.0, 184.0, 12.0),
+    foot: (40.0, 168.0, 220.0, 46.0, 6.0),
+    step_y: 184.0,
+    plastic: [50.0, 50.0, 55.0],
+    grips: &[(10.0, 22.0, 16.0, 100.0), (274.0, 22.0, 16.0, 100.0)],
+    strip: (56.0, 152.0, 188.0, 16.0, 5.0),
+};
+
 impl Pak {
-    pub const ALL: [Pak; 2] = [Pak::Nes, Pak::Snes];
+    pub const ALL: [Pak; 5] = [Pak::Nes, Pak::Snes, Pak::Md, Pak::Sms, Pak::Gg];
 
     pub fn index(self) -> usize {
         self as usize
@@ -79,6 +124,9 @@ impl Pak {
         match self {
             Pak::Nes => &NES,
             Pak::Snes => &SNES,
+            Pak::Md => &MD,
+            Pak::Sms => &SMS,
+            Pak::Gg => &GG,
         }
     }
 
@@ -95,7 +143,8 @@ impl Pak {
 
     /// The cart's own coverage, for its shadow and for clipping.
     pub fn mask(self) -> &'static [u8] {
-        static MASKS: [OnceLock<Vec<u8>>; 2] = [OnceLock::new(), OnceLock::new()];
+        static MASKS: [OnceLock<Vec<u8>>; Pak::ALL.len()] =
+            [const { OnceLock::new() }; Pak::ALL.len()];
         MASKS[self.index()].get_or_init(|| {
             let d = self.design();
             let mut out = Vec::with_capacity((d.w * d.h) as usize);

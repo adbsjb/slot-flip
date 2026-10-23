@@ -84,8 +84,10 @@ a time; the fork's own work is the Flip port itself and a few small additions.
   swapping for multi-disc games, passing the analog sticks to games, memory-card
   handling, and timing heavy 3D games. Super Nintendo is built (v0.9.0), with a core
   whose licence is non-commercial, so the download as a whole is free-only (see
-  `AGENTS.md`, section 9). Next: the Sega consoles, each needing a core, a shelf and
-  a cartridge design. Nothing here is promised until it runs on hardware
+  `AGENTS.md`, section 9). The Sega systems (Mega Drive / Genesis, Master System, Game
+  Gear) are built on Genesis Plus GX, with their carts and slots, and have run on a
+  Flip with test programs; they are not released until retail games have been tried
+  on a Flip. Nothing here is promised until it runs on hardware
 
 **Housekeeping that has bitten before**
 - Rebuild the mGBA and gpSP cores whenever a sync changes `cores/` (v0.4.0

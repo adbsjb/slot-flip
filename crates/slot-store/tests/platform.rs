@@ -3,7 +3,10 @@ use slot_store::Platform;
 #[test]
 fn every_platform_has_a_directory() {
     let names: Vec<&str> = Platform::ALL.iter().map(|p| p.dir_name()).collect();
-    assert_eq!(names, vec!["GBA", "GB", "GBC", "PS1", "NES", "SNES"]);
+    assert_eq!(
+        names,
+        vec!["GBA", "GB", "GBC", "PS1", "NES", "SNES", "MD", "SMS", "GG"]
+    );
 }
 
 #[test]
@@ -16,7 +19,10 @@ fn every_platform_is_a_shelf_of_its_own() {
             Platform::Gbc,
             Platform::Ps1,
             Platform::Nes,
-            Platform::Snes
+            Platform::Snes,
+            Platform::Md,
+            Platform::Sms,
+            Platform::Gg
         ]
     );
     for (i, p) in Platform::ALL.iter().enumerate() {
@@ -94,7 +100,14 @@ fn only_the_game_boy_family_has_a_screen_to_shade_and_a_gba_canvas_to_sit_on() {
         assert!(p.has_screen_options(), "{p:?}");
         assert!(!p.native_video(), "{p:?}");
     }
-    for p in [Platform::Ps1, Platform::Nes, Platform::Snes] {
+    for p in [
+        Platform::Ps1,
+        Platform::Nes,
+        Platform::Snes,
+        Platform::Md,
+        Platform::Sms,
+        Platform::Gg,
+    ] {
         assert!(!p.has_screen_options(), "{p:?}");
         assert!(p.native_video(), "{p:?}");
     }
@@ -149,4 +162,64 @@ fn every_core_runs_something_and_nothing_runs_on_a_core_that_does_not_list_it() 
             );
         }
     }
+}
+
+#[test]
+fn the_sega_systems_share_one_core_and_each_takes_only_its_own_files() {
+    use slot_store::Core;
+    let take = |p: Platform, name: &str| p.accepts(std::path::Path::new(name));
+    for ok in ["Sonic.md", "Sonic.GEN", "Sonic.smd", "Sonic.bin"] {
+        assert!(take(Platform::Md, ok), "{ok}");
+    }
+    assert!(take(Platform::Sms, "Alex Kidd.sms") && take(Platform::Gg, "Columns.gg"));
+    for (p, no) in [
+        (Platform::Md, "Alex Kidd.sms"),
+        (Platform::Md, "Columns.gg"),
+        (Platform::Sms, "Sonic.md"),
+        (Platform::Sms, "Columns.gg"),
+        (Platform::Gg, "Alex Kidd.sms"),
+        (Platform::Gg, "Sonic.bin"),
+        (Platform::Gba, "Sonic.md"),
+        (Platform::Snes, "Sonic.bin"),
+        (Platform::Ps1, "Sonic.md"),
+    ] {
+        assert!(!take(p, no), "{p:?} took {no}");
+    }
+    for p in [Platform::Md, Platform::Sms, Platform::Gg] {
+        assert!(Core::Genesis.runs(p), "{p:?}");
+        assert_eq!(Core::default_for(p), Core::Genesis, "{p:?}");
+        assert!(p.native_video(), "{p:?}");
+        assert!(p.can_rewind(), "{p:?}");
+    }
+    for p in [
+        Platform::Gba,
+        Platform::Gb,
+        Platform::Gbc,
+        Platform::Ps1,
+        Platform::Nes,
+        Platform::Snes,
+    ] {
+        assert!(!Core::Genesis.runs(p), "Genesis Plus GX cannot play {p:?}");
+    }
+    for core in [
+        Core::Mgba,
+        Core::Gpsp,
+        Core::Pcsx,
+        Core::Fceumm,
+        Core::Snes9x,
+    ] {
+        assert!(!core.runs(Platform::Md) && !core.runs(Platform::Sms) && !core.runs(Platform::Gg));
+    }
+    assert_eq!(Core::parse("genesis"), Some(Core::Genesis));
+    assert_eq!(Core::parse(Core::Genesis.as_str()), Some(Core::Genesis));
+    assert_eq!(Platform::Md.picture(), (320, 224));
+    assert_eq!(Platform::Sms.picture(), (256, 192));
+    assert_eq!(Platform::Gg.picture(), (160, 144));
+}
+
+#[test]
+fn only_the_mega_drive_hands_the_core_its_pad_as_the_console_has_it() {
+    assert!(Platform::Md.native_pad());
+    assert!(!Platform::Sms.native_pad() && !Platform::Gg.native_pad());
+    assert!(!Platform::Nes.native_pad());
 }

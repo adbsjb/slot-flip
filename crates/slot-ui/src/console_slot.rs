@@ -38,15 +38,21 @@ pub enum Console {
     Snes,
     GameBoy,
     GameBoyColor,
+    MegaDrive,
+    MasterSystem,
+    GameGear,
 }
 
 impl Console {
-    pub const ALL: [Console; 5] = [
+    pub const ALL: [Console; 8] = [
         Console::Ps1,
         Console::Nes,
         Console::Snes,
         Console::GameBoy,
         Console::GameBoyColor,
+        Console::MegaDrive,
+        Console::MasterSystem,
+        Console::GameGear,
     ];
 
     pub fn index(self) -> usize {
@@ -63,6 +69,9 @@ impl Console {
             Platform::Ps1 => Some(Console::Ps1),
             Platform::Nes => Some(Console::Nes),
             Platform::Snes => Some(Console::Snes),
+            Platform::Md => Some(Console::MegaDrive),
+            Platform::Sms => Some(Console::MasterSystem),
+            Platform::Gg => Some(Console::GameGear),
         }
     }
 }
@@ -147,6 +156,30 @@ fn style(console: Console) -> Style {
             dress: dress_gbc,
             lid: false,
             inside: ([0x24, 0x1e, 0x3a], [0x08, 0x06, 0x12]),
+        },
+        Console::MegaDrive => Style {
+            palette: md_palette,
+            opening: Opening::Flat(4.0),
+            rim: [0x0c, 0x0c, 0x0e],
+            dress: dress_md,
+            lid: false,
+            inside: ([0x1c, 0x1c, 0x20], [0x04, 0x04, 0x06]),
+        },
+        Console::MasterSystem => Style {
+            palette: sms_palette,
+            opening: Opening::Flat(3.0),
+            rim: [0x0e, 0x0d, 0x0e],
+            dress: dress_sms,
+            lid: false,
+            inside: ([0x1e, 0x1d, 0x20], [0x05, 0x05, 0x06]),
+        },
+        Console::GameGear => Style {
+            palette: gg_palette,
+            opening: Opening::Flat(2.0),
+            rim: [0x0a, 0x0a, 0x0c],
+            dress: dress_gg,
+            lid: false,
+            inside: ([0x1a, 0x1a, 0x1e], [0x04, 0x04, 0x06]),
         },
     }
 }
@@ -257,6 +290,72 @@ fn gbc_palette(light: bool) -> Palette {
             button: [0x7c, 0x69, 0xb8],
             ink: [0xe6, 0xe0, 0xfa],
             accent: [0xd0, 0x46, 0x78],
+        }
+    }
+}
+
+fn md_palette(light: bool) -> Palette {
+    if light {
+        Palette {
+            plastic: [0x46, 0x46, 0x4a],
+            lit: [0x72, 0x72, 0x78],
+            lip: [0x26, 0x26, 0x2a],
+            button: [0x56, 0x56, 0x5c],
+            ink: [0xe6, 0xe6, 0xea],
+            accent: [0xb8, 0xb8, 0xc0],
+        }
+    } else {
+        Palette {
+            plastic: [0x2a, 0x2a, 0x2d],
+            lit: [0x4c, 0x4c, 0x52],
+            lip: [0x15, 0x15, 0x18],
+            button: [0x3a, 0x3a, 0x3f],
+            ink: [0xd2, 0xd2, 0xd8],
+            accent: [0x9c, 0x9c, 0xa4],
+        }
+    }
+}
+
+fn sms_palette(light: bool) -> Palette {
+    if light {
+        Palette {
+            plastic: [0x4a, 0x48, 0x4c],
+            lit: [0x76, 0x74, 0x7a],
+            lip: [0x28, 0x27, 0x2a],
+            button: [0xc0, 0x30, 0x30],
+            ink: [0xf6, 0xf0, 0xf0],
+            accent: [0xcc, 0x34, 0x34],
+        }
+    } else {
+        Palette {
+            plastic: [0x2e, 0x2d, 0x30],
+            lit: [0x50, 0x4e, 0x54],
+            lip: [0x18, 0x18, 0x1a],
+            button: [0xb0, 0x26, 0x26],
+            ink: [0xf2, 0xea, 0xea],
+            accent: [0xc0, 0x2c, 0x2c],
+        }
+    }
+}
+
+fn gg_palette(light: bool) -> Palette {
+    if light {
+        Palette {
+            plastic: [0x42, 0x42, 0x47],
+            lit: [0x6c, 0x6c, 0x73],
+            lip: [0x22, 0x22, 0x26],
+            button: [0x54, 0x54, 0x5a],
+            ink: [0xe2, 0xe2, 0xe8],
+            accent: [0x8e, 0x8e, 0x98],
+        }
+    } else {
+        Palette {
+            plastic: [0x26, 0x26, 0x2a],
+            lit: [0x46, 0x46, 0x4c],
+            lip: [0x12, 0x12, 0x15],
+            button: [0x34, 0x34, 0x39],
+            ink: [0xcc, 0xcc, 0xd2],
+            accent: [0x7c, 0x7c, 0x86],
         }
     }
 }
@@ -553,6 +652,42 @@ fn dress_gbc(img: &mut Img, p: &Palette) {
     button(img, p, (152.0, 20.0, 50.0, 17.0), "ON/OFF");
     button_in(img, p, p.accent, (540.0, 20.0, 34.0, 17.0), "A");
     button_in(img, p, p.accent, (582.0, 20.0, 34.0, 17.0), "B");
+}
+
+/// A Mega Drive: black, a silver band along the front, a red light, POWER and
+/// RESET, and its bit width on a tag.
+fn dress_md(img: &mut Img, p: &Palette) {
+    stripe(img, 50, 52, p.accent);
+    led(img, 138.0, 27.0, &RED);
+    button(img, p, (152.0, 18.0, 50.0, 17.0), "POWER");
+    button(img, p, (520.0, 18.0, 46.0, 17.0), "RESET");
+    button_in(
+        img,
+        p,
+        shade(p.plastic, -8),
+        (574.0, 18.0, 42.0, 17.0),
+        "16-BIT",
+    );
+}
+
+/// A Master System: black with a red band along the front, and POWER and RESET in
+/// red.
+fn dress_sms(img: &mut Img, p: &Palette) {
+    stripe(img, 50, 53, p.accent);
+    led(img, 138.0, 27.0, &RED);
+    button_in(img, p, p.button, (152.0, 18.0, 50.0, 17.0), "POWER");
+    button_in(img, p, p.button, (520.0, 18.0, 46.0, 17.0), "RESET");
+}
+
+/// A Game Gear: black, ridged at both ends like a handheld, with a volume dial and
+/// an ON/OFF switch.
+fn dress_gg(img: &mut Img, p: &Palette) {
+    grooves(img, p, 60, 7, 5, 10, 46);
+    grooves(img, p, 610, 7, 5, 10, 46);
+    led(img, 138.0, 29.0, &RED);
+    button(img, p, (152.0, 20.0, 50.0, 17.0), "ON/OFF");
+    button(img, p, (540.0, 20.0, 34.0, 17.0), "VOL");
+    stripe(img, 50, 52, p.accent);
 }
 
 /// Where the opening was, shown closed: a groove let into the plate, shadowed on

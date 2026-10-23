@@ -9,6 +9,9 @@ pub enum Platform {
     Ps1,
     Nes,
     Snes,
+    Md,
+    Sms,
+    Gg,
 }
 
 /// Which buttons the in-game Controls page offers for a system.
@@ -138,14 +141,60 @@ const SNES: Spec = Spec {
     rewind: true,
 };
 
+/// The Mega Drive. Its core reads the pad as the console had it: A, B and C, and X, Y,
+/// Z and Mode on a six-button one, which the Flip's face buttons and shoulders carry
+/// the same way a Super Nintendo's are (see `input::mask::extras`).
+const MD: Spec = Spec {
+    name: "Sega Genesis",
+    dir: "MD",
+    extensions: &["md", "gen", "smd", "bin"],
+    picture: (320, 224),
+    native_video: true,
+    cores: &[crate::Core::Genesis],
+    pad: Pad::Full,
+    header: Header::None,
+    playlists: false,
+    native_pad: true,
+    rewind: true,
+};
+
+/// The Master System: two buttons and a pause key. The turbo keys pulse them just
+/// the same.
+const SMS: Spec = Spec {
+    name: "Sega Master System",
+    dir: "SMS",
+    extensions: &["sms"],
+    picture: (256, 192),
+    native_video: true,
+    cores: &[crate::Core::Genesis],
+    pad: Pad::Compact,
+    header: Header::None,
+    playlists: false,
+    native_pad: false,
+    rewind: true,
+};
+
+/// The Game Gear: the Master System's pad with Start in place of the pause key, on a
+/// 160x144 screen.
+const GG: Spec = Spec {
+    name: "Sega Game Gear",
+    dir: "GG",
+    extensions: &["gg"],
+    picture: (160, 144),
+    ..SMS
+};
+
 impl Platform {
-    pub const ALL: [Platform; 6] = [
+    pub const ALL: [Platform; 9] = [
         Platform::Gba,
         Platform::Gb,
         Platform::Gbc,
         Platform::Ps1,
         Platform::Nes,
         Platform::Snes,
+        Platform::Md,
+        Platform::Sms,
+        Platform::Gg,
     ];
 
     pub fn spec(self) -> &'static Spec {
@@ -156,6 +205,9 @@ impl Platform {
             Platform::Ps1 => &PS1,
             Platform::Nes => &NES,
             Platform::Snes => &SNES,
+            Platform::Md => &MD,
+            Platform::Sms => &SMS,
+            Platform::Gg => &GG,
         }
     }
 

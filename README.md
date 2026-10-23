@@ -94,9 +94,11 @@ devices):
   card that has run an older one.
 - **PlayStation discs** — a PS1 shelf where each game is a disc that spins into
   a slot drawn as a console. See [PlayStation discs](#playstation-discs).
+- **Sega games** — Mega Drive / Genesis, Master System and Game Gear shelves, each
+  game a drawn black cartridge. See [Sega games](#sega-games).
 - **A slot for each console** — the slot a game slides into is drawn as the console
-  it is for: a PlayStation, a NES, a Super Nintendo, a Game Boy, a Game Boy Color.
-  GBA keeps upstream's slot. The slot changes as you move between shelves, in both
+  it is for: a PlayStation, a NES, a Super Nintendo, a Mega Drive, a Master System,
+  a Game Gear, a Game Boy, a Game Boy Color. GBA keeps upstream's slot. The slot changes as you move between shelves, in both
   the dark and light themes.
 - **Lid-close sleep + auto power-off** — shut the lid and it sleeps instantly,
   then powers off after the time you choose under **General > Lid Power Off**
@@ -112,8 +114,10 @@ devices):
 - **Device:** Miyoo Flip (`my355`), running **MinUI**.
 - **Systems:** GBA (`.gba`), GB (`.gb`), GBC (`.gbc`), PlayStation
   (`.cue`, `.chd`, `.m3u`, `.pbp`; see [PlayStation discs](#playstation-discs)),
-  NES (`.nes`, `.fds`, `.unf`; see [NES games](#nes-games)), and Super Nintendo
-  (`.sfc`, `.smc`; see [Super Nintendo games](#super-nintendo-games)).
+  NES (`.nes`, `.fds`, `.unf`; see [NES games](#nes-games)), Super Nintendo
+  (`.sfc`, `.smc`; see [Super Nintendo games](#super-nintendo-games)), and the Sega
+  Mega Drive / Genesis (`.md`, `.gen`, `.smd`, `.bin`), Master System (`.sms`) and
+  Game Gear (`.gg`) (see [Sega games](#sega-games)).
 - Other MinUI devices can be supported with small changes — see
   [INSTALL.md](INSTALL.md).
 
@@ -178,10 +182,10 @@ Everything Slot owns lives under `<SD CARD>/Slot`:
 
 ```
 Slot/
-  Games/   GBA GB GBC PS1 NES SNES   your ROMs and discs, one folder per system
+  Games/   GBA GB GBC PS1 NES SNES MD SMS GG   your ROMs and discs, one folder per system
   Saves/   GBA GB GBC           battery saves
-  States/  GBA GB GBC PS1 NES SNES   save states
-  Labels/  (GBA GB GBC PS1 NES SNES) cart and disc artwork, <game-name>.png, any of these folders
+  States/  GBA GB GBC PS1 NES SNES MD SMS GG   save states
+  Labels/  (GBA GB GBC PS1 NES SNES MD SMS GG) cart and disc artwork, <game-name>.png, any of these folders
   Wallpapers/              background images (PNG)
   Config/                  slot.ini, buttons.ini, and other settings
   System/                  emulator cores
@@ -294,6 +298,42 @@ core does not support, and cheats.
 **Saves.** A game's battery save is kept in `Slot/Saves/SNES/<game>.sav`, and save
 states in `Slot/States/SNES`. They are separate from MinUI's own `.srm` saves, so a
 save made in MinUI does not carry over.
+
+## Sega games
+
+Put games in `Slot/Games/MD` (`.md`, `.gen`, `.smd`, `.bin`), `Slot/Games/SMS` (`.sms`)
+and `Slot/Games/GG` (`.gg`). A shelf appears for each system that has games, and each
+game is a black cartridge with a label; put art in `Slot/Labels/MD/` (or `SMS`, `GG`)
+as for the other systems. All three run on one core, Genesis Plus GX, which is
+licensed for non-commercial use only: see [Credits & licence](#credits--licence). The
+`.bin` extension is only taken from the `MD` folder, so it never mixes with a
+PlayStation disc's tracks.
+
+**Buttons (Mega Drive).** The Mega Drive's A, B and C are the left, bottom and right
+face buttons, which the Flip prints as **Y, B and A**. X, Y and Z of a six-button pad
+are the left shoulder, the top button and the right shoulder, and Mode is SELECT. A
+game gets a six-button pad when its header asks for one and a three-button pad
+otherwise, as on the console, so there is nothing to switch. Because the face buttons
+and shoulders are game buttons here, Turbo is off for the Mega Drive; fast-forward
+and rewind stay on the lower triggers.
+
+**Buttons (Master System and Game Gear).** Button 1 is the bottom button and Button 2
+the right one. On a Master System START is the Pause button, and on a Game Gear it is
+Start. Turbo works as on a NES.
+
+**The picture** is shown at the size the core draws it and fills the 4:3 screen; the
+shader, colour correction and bezel rows do not apply.
+
+**What is not there.** Sega CD, 32X and the SG-1000 are not offered; nor are the
+light gun, mouse, multitap or cheats. **Saves.** A game's battery save is kept in
+`Slot/Saves/<system>/<game>.sav`, and save states in `Slot/States/<system>`. They are
+separate from MinUI's own saves.
+
+**What has and has not been tried.** The three systems have run on a Flip with test
+programs that are nobody's game, which shows the core loads, the buttons reach it as
+described above, and it runs at full speed; and the same programs run against the real
+core on a computer. How well retail games run, and their sound over a long session, has
+not been checked yet.
 
 ## Settings
 
@@ -475,18 +515,20 @@ is **not** affiliated with or endorsed by the original author.
   GPL fork, source stays open.
 
 Emulation is by libretro cores: **mGBA** (MPL-2.0), **gpSP**, **PCSX-ReARMed** and
-**fceumm** (GPL-2.0) and **snes9x2005**. Their licences, and the source of the
-ones that ask for it, are in `Slot.pak/System/licenses/`.
+**fceumm** (GPL-2.0), **snes9x2005** and **Genesis Plus GX**. Their licences, and the
+source of the ones that ask for it, are in `Slot.pak/System/licenses/`.
 
 **This download is free and has to stay free.** snes9x2005, the Super Nintendo
-core inside it, may be used, copied and shared for non-commercial purposes only.
-So you may use and share this download, but do not sell it, charge for it, or
-bundle it with anything that is sold. Donations to the project are fine, and
+core inside it, may be used, copied and shared for non-commercial purposes only, and
+Genesis Plus GX, which plays the Sega systems, may not be sold or used in a
+commercial product or activity. So you may use and share this download, but do not
+sell it, charge for it, or bundle it with anything that is sold. Donations to the project are fine, and
 never unlock anything. See `System/licenses/NOTICE-NONCOMMERCIAL.txt`. (A plain
 reading of the licences, not legal advice.)
 
-Game Boy, NES, Super Nintendo and PlayStation are trademarks of their owners;
-this project is not affiliated with Nintendo or Sony. Use your own
+Game Boy, NES, Super Nintendo, Sega Genesis, Mega Drive, Master System, Game Gear
+and PlayStation are trademarks of their owners; this project is not affiliated with
+Nintendo, Sega or Sony. Use your own
 legally-dumped ROMs.
 
 The upstream frontend was written with an AI assistant and reviewed by its
