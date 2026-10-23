@@ -165,7 +165,6 @@ fn turbo_a_and_b_fire_from_whatever_they_are_bound_to() {
 }
 
 mod disc_pad {
-    use super::*;
     use slot::input::Pad;
     use slot_input::{Action, Btn, Context, Gestures, RawEvent};
     use slot_retro::ButtonMask;

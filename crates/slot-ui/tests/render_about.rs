@@ -6,6 +6,7 @@ fn render_about() {
     let Ok(out) = std::env::var("SCRATCH_PNG") else {
         return;
     };
+    let model = std::env::var("SCRATCH_MODEL").unwrap_or_default();
     let paper = std::env::var("SCRATCH_WALL")
         .ok()
         .and_then(|p| wallpaper_face(std::path::Path::new(&p), OUT_W, OUT_H));
@@ -13,7 +14,8 @@ fn render_about() {
         battery: Some(87),
         serial: "04738857",
         version: "0.1.0",
-        upstream: "1.8.0",
+        upstream: "1.9.0",
+        model: &model,
     });
 
     let mut list = Vec::new();

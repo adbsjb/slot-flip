@@ -1,8 +1,8 @@
 use std::sync::OnceLock;
 
 use crate::bitmaps;
-use crate::pak::Pak;
 use crate::cart::{CART_H, CART_W, GB_CART_H, GB_CART_W};
+use crate::pak::Pak;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum GbShell {

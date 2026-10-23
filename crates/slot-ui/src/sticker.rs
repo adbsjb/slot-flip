@@ -39,6 +39,9 @@ pub struct StickerFields<'a> {
     /// The upstream slot release this build is based on, for owners comparing
     /// against upstream's release notes.
     pub upstream: &'a str,
+    /// The model the OS reports. The sticker's own model is fixed to the Flip, so
+    /// this is kept for the shared About code and for ports that want it.
+    pub model: &'a str,
 }
 
 pub const CREDITS: [&str; 11] = [
@@ -159,27 +162,6 @@ impl Canvas {
         bar_w
     }
 
-    fn blit(&mut self, x: u32, y: u32, src: &[u8], sw: u32, sh: u32) {
-        for row in 0..sh {
-            for col in 0..sw {
-                let s = ((row * sw + col) * 4) as usize;
-                let a = src[s + 3] as u32;
-                if a == 0 {
-                    continue;
-                }
-                let (dx, dy) = (x + col, y + row);
-                if dx >= self.w || dy >= self.h {
-                    continue;
-                }
-                let d = ((dy * self.w + dx) * 4) as usize;
-                for k in 0..3 {
-                    let under = self.px[d + k] as u32;
-                    self.px[d + k] = ((src[s + k] as u32 * a + under * (255 - a)) / 255) as u8;
-                }
-                self.px[d + 3] = 255;
-            }
-        }
-    }
 
     fn outline(&mut self, x: f32, y: f32, w: f32, h: f32, t: f32, c: [u8; 3]) {
         let (x, y, w, h, t) = (x as u32, y as u32, w as u32, h as u32, t as u32);
