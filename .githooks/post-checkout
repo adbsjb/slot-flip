@@ -1,0 +1,12 @@
+#!/bin/sh
+# Keep the machine's own post-checkout hook working when this repository points
+# core.hooksPath at .githooks. The personal hook is not part of this repo; if it
+# is not installed, this does nothing.
+set -eu
+
+for hook in "${XDG_CONFIG_HOME:-$HOME/.config}/git-hooks/post-checkout" "$HOME/.git-hooks/post-checkout"; do
+    if [ -x "$hook" ]; then
+        exec "$hook" "$@"
+    fi
+done
+exit 0

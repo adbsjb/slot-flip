@@ -50,3 +50,26 @@ flip/Tools/my282/Slot.pak/slot
 
 # Scratch build dirs from local/docker checks (never commit build output).
 /target-*/
+
+# Secrets and personal machine state. tools/check-sensitive.sh enforces this;
+# these rules also keep the files out of `git add -A` by accident.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.kdbx
+*.ovpn
+*.ppk
+id_rsa*
+id_ed25519*
+.netrc
+.pgpass
+*.log
+
+# Source photos for tools/fit_bitmaps.py (personal art, not redistributable).
+/art-src/
