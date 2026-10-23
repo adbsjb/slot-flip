@@ -13,11 +13,12 @@ Legend: ✅ done · 🚧 in progress · 📋 planned · 💡 wanted / needs disc
 
 ## Milestones
 
-Three milestones, on purpose:
+Four stages, on purpose:
 
 | Milestone | What it means |
 | --- | --- |
-| **1.0** | Every system that can run at full speed on a Miyoo Flip, and PlayStation working end to end. One device, done properly, on the current upstream base. |
+| **1.0** | The nine systems that ship today, PlayStation working end to end, and an install a stranger can follow. One device, done properly, on the current upstream base. |
+| **1.x** | More systems, one at a time, after 1.0. They are additive and never block the 1.0 gate. |
 | **2.0** | The platform layer: input, audio, power and display behind one seam per device, so slot runs on other Linux handhelds. Ports stop being a fork of the frontend, and the fork becomes easy to rebase onto upstream. |
 | **after 2.0** | More devices, one at a time. Device count only grows once the platform layer exists and the second device is verified on hardware. |
 
@@ -26,36 +27,64 @@ the platform layer rewrites the device seams and cannot. Mixed into one release,
 a device port in progress would hold the systems work back, and a systems release
 would keep re-shipping half-finished ports.
 
-### 1.0 — all supportable systems, on the Flip
+### 1.0 — the Flip, done properly
 
-Set by the maintainer: support as many systems as can be supported, and make
-PlayStation work properly. This is the MinUI-on-Miyoo niche: the Flip first,
-PlayStation done properly, and no other device promised until 2.0.
+Set by the maintainer: the systems already supported must be solid, PlayStation
+must work end to end, and installing it must not need a guide written by
+someone who already knows the answer. This is the MinUI-on-Miyoo niche: the Flip
+first, PlayStation done properly, and no other device promised until 2.0.
 
-**Upstream base first.** Merge upstream slot's current release (v1.9.0 at the
-time of writing) before starting another system, so 1.0 ships on the fixes for
-card writes, a core that stops answering, label caching and the undo rows. A
-system added on an old base is work that has to be merged twice.
+**Upstream base first.** Ship on upstream slot's current release (v1.9.0 at the
+time of writing), so 1.0 carries the fixes for card writes, a core that stops
+answering, label caching and the undo rows. A system added on an old base is work
+that has to be merged twice.
 
-- **[SYSTEMS.md](SYSTEMS.md) is the register**: every system considered, its core,
-  its licence, and whether it is bundled, planned or not viable. A core is only
-  added after its licence has been read.
-- **Batches**, because each needs its own real-core test and hardware check:
-  1. **No new core:** Sega CD / Mega CD and SG-1000 on Genesis Plus GX (both just
-     need a system table entry, art and a test). Famicom Disk System on fceumm.
-  2. **Cheap 2D:** PC Engine, Neo Geo Pocket, WonderSwan, Atari Lynx, Atari 7800,
-     Intellivision, Virtual Boy.
-  3. **Free-only:** Sega 32X on PicoDrive (non-commercial, like Genesis Plus GX).
-  4. **PlayStation short of 1.0:** a game actually asking for its second disc,
-     and timing a heavy 3D game.
-- **1.0 criteria:** every system in the register that is marked viable has run a
-  real game on a Flip; PlayStation has no known failure; the download still passes
-  `tools/check-pak-licences.sh`; the README table matches reality.
+- **The nine systems that ship today**, each with a real game played through:
+  GBA, GB, GBC, PS1, NES, SNES, MD, SMS, GG.
+- **PlayStation to the end:** a game actually asking for its second disc, a timed
+  heavy 3D game, save integrity across reboots, and the analog/clicks test.
+- **An install a stranger can follow**: MinUI detection, a macOS/Linux installer,
+  first-run checks, and an install guide with screenshots.
+- **Compatibility is the bar, not system count**: `COMPATIBILITY.md` lists what
+  has been played, what is known broken, and which BIOS is needed.
+- **1.0 criteria:** all nine systems pass their games; PlayStation has no known
+  failure; the installer takes a blank card to a running Slot on the Flip; the
+  download passes `tools/check-pak-licences.sh`; the README table matches
+  reality; and the release has been run on the Flip.
 - **Stay free and open source.** No plans to sell. Donations never unlock
   anything. Non-commercial cores are bundled knowingly in the one free download
   (snes9x2005, Genesis Plus GX, and PicoDrive if it is added), with their notices.
 - **Not a goal:** a desktop app. The `host` build is development and render-test
   tooling.
+
+### 1.x — more systems, after 1.0
+
+More emulators are cheap to add, but they are not a 1.0 gate. Each ships when it
+has a licence that has been read, a real-core test, art, and a game that has run
+on the Flip. **[SYSTEMS.md](SYSTEMS.md) is the register.**
+
+Order is by cost, not ambition:
+
+1. **No new core:** SG-1000 and Sega CD / Mega CD on Genesis Plus GX (a system
+   entry, art, CD BIOS handling and a test), and Famicom Disk System on fceumm.
+2. **Small cores:** PC Engine, Neo Geo Pocket, WonderSwan, Atari Lynx, Atari
+   7800, Intellivision, Virtual Boy.
+3. **Free-only:** Sega 32X on PicoDrive (non-commercial, like Genesis Plus GX).
+4. **Only if it runs at full speed:** anything heavier is measured on the Flip
+   before it is promised.
+
+Every one of these is a credit to the core authors, not a reason to hold 1.0.
+
+### Merging upstream, every release
+
+**Start now, not at 2.0.** A scheduled job fetches the next upstream release,
+merges it into a sync branch, checks it compiles and opens an issue with the
+conflicts (or a ready-to-review branch). A human still reviews the result and
+opens the PR, because a clean text merge can still be wrong. One release at a
+time, never squash, and bump `build_info::UPSTREAM` in the merge.
+
+The 2.0 restructure then moves the fork to a **pinned upstream base plus an
+ordered patch layer**, so the same job becomes a bump and a reapply.
 
 ### 2.0 — the platform layer and the second device
 
