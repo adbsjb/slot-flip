@@ -1,0 +1,8 @@
+#!/bin/sh
+# Refuse to commit secrets or personal data. Installed by tools/install-hooks.sh.
+set -eu
+
+root=$(git rev-parse --show-toplevel)
+[ -f "$root/tools/check-sensitive.sh" ] || exit 0
+cd "$root"
+exec sh tools/check-sensitive.sh --staged
